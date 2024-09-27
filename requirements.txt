@@ -5,5 +5,5 @@ matplotlib
 sphinx
 sphinx_rtd_theme
 sphinx-autodoc-typehints
-sklearn
+scikit-learn
 timm
