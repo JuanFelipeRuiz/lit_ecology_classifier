@@ -1,4 +1,6 @@
+ImageHash
 lightning==2.2.5
+matplotlib==3.9.2 
 pandas
 wandb
 matplotlib
