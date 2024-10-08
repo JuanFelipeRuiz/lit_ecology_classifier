@@ -42,13 +42,10 @@ jobs:
     - name: Find all Python files
       id: find_files
       run: |
-        echo "files=$(find . -name '*.py')" >> $GITHUB_ENV
+        files=$(find . -name '*.py' ! -name '__init__.py')
+        echo "files=$files" >> $GITHUB_ENV
 
-    - name: Check coding style
-      if: env.files != ''
-      run: |
-        black ${{ env.files }} --check --diff 
-          
+    
     - name: Lint with flake8 to check Syntax Errors
       if: env.files != ''
       run: |
@@ -58,6 +55,11 @@ jobs:
       if: env.files != ''
       run: |
         pylint ${{ env.files }}
+
+    - name: Check coding style
+      if: env.files != ''
+      run: |
+        black ${{ env.files }} --check --diff 
     
     - name: Test with pytest and measure coverage
       run: |
