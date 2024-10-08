@@ -11,7 +11,6 @@ permissions:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -30,10 +29,20 @@ jobs:
       run: |
         pip install flake8 pylint black pytest pytest-cov
 
-    - name: Find modified Python files
-      id: modified_files
+  test:
+    runs-on: ubuntu-latest
+    needs: build  
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.10"
+
+    - name: Find all Python files
+      id: find_files
       run: |
-        echo "files=$(git diff --name-only HEAD | grep '\.py$')" >> $GITHUB_ENV
+        echo "files=$(find . -name '*.py')" >> $GITHUB_ENV
 
     - name: Check coding style
       if: env.files != ''
