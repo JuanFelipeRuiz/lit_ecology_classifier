@@ -1,10 +1,6 @@
 
 import datetime as dt
-import hashlib
 import os
-import sys
-from io import BytesIO
-from PIL import Image
 
 import pytest
 import pandas as pd
@@ -167,26 +163,3 @@ class TestCreateDataFrame:
         })
 
         pd.testing.assert_frame_equal(self.create_dataset.update_df_with_split_image_names(input_df, train_lst , 'train_v1'), expected_output)
-
-    '''
-    def test_hash_image_sha256_valid_image(self):
-    # Simulate a valid path to an image file with binary data
-        mock_data = b'\xff\xd8' + b'fake_binary_data'
-        expected_hash = hashlib.sha256(mock_data).hexdigest()
-
-        # Mock the file and the Image.open method
-
-
-        with patch('builtins.open', mock_open(read_data=mock_data)):
-            with patch('os.path.isfile', return_value=True):  # Simulate that the file exists
-                # Mock the Image.open method
-                with patch('PIL.Image.open') as mock_open_image:
-                    # Simulate the behavior of the image object
-                    mock_image = BytesIO(mock_data)
-                    mock_open_image.return_value.__enter__.return_value = Image.open(mock_image) # mock the __enter__ method
-                    mock_open_image.return_value.__exit__ = lambda *args: None # Mock the __exit__ method
-                    mock_open_image.return_value.format = 'JPEG'  # Set format to JPEG
-                    
-
-                    assert self.create_dataset.hash_image_sha256('image.jpeg') ==  expected_hash
-    '''
