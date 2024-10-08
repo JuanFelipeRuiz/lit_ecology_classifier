@@ -44,29 +44,23 @@ jobs:
       run: |
         pip install flake8 pylint black 
 
-    - name: Find all Python files
-      id: find_files
-      run: |
-        files=$(find lit_ecology_classifier -name '*.py' ! -name '__init__.py')
-        echo "files=$files" >> $GITHUB_ENV
-
-    
+      
     - name: Lint with flake8 to check Syntax Errors
       if: env.files != ''
       run: |
-        flake8 ${{ env.files }} --count --select=E9,F7,F82 --show-source --statistics
+        flake8 lit_ecology_classifier/**/*.py --count --select=E9,F7,F82 --show-source --statistics
         
 
     - name: Lint with pylint
       if: env.files != ''
       run: |
-        pylint ${{ env.files }}
+        pylint lit_ecology_classifier/**/*.py
 
 
     - name: Check coding style
       if: env.files != ''
       run: |
-        black ${{ env.files }} --check --diff 
+        black lit_ecology_classifier/**/*.py --check --diff 
     
   unit_tests:
     runs-on: ubuntu-latest
