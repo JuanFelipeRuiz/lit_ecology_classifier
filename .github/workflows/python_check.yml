@@ -1,6 +1,3 @@
-# This workflow will install Python dependencies, run tests and lint with a single version of Python
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python
-
 name: Python application
 
 on:
@@ -23,33 +20,36 @@ jobs:
       uses: actions/setup-python@v3
       with:
         python-version: "3.10"
+        
     - name: Install requirements dependencies 
       run: |
         python -m pip install --upgrade pip
-        
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Install test dependencies 
       run: |
         pip install flake8 pylint black pytest pytest-cov
-    
+
     - name: Find modified Python files
-        id:modified_files
-        run:|
-          echo "::set-output name=files::$(git diff --name-only HEAD | grep '\.py$')"
+      id: modified_files
+      run: |
+        echo "files=$(git diff --name-only HEAD | grep '\.py$')" >> $GITHUB_ENV
 
     - name: Check coding style
+      if: env.files != ''
       run: |
-        - black ${{ steps.modified_files.outputs.files }} --check --diff 
+        black ${{ env.files }} --check --diff 
           
     - name: Lint with flake8 to check Syntax Errors
+      if: env.files != ''
       run: |
-        flake8 ${{ steps.modified_files.outputs.files }} --count --select=E9, F7,F82 --show-source --statistics
+        flake8 ${{ env.files }} --count --select=E9,F7,F82 --show-source --statistics
         
     - name: Lint with pylint
+      if: env.files != ''
       run: |
-        pylint ${{ steps.modified_files.outputs.files }} 
+        pylint ${{ env.files }}
     
     - name: Test with pytest and measure coverage
       run: |
-        pytest --cov=my_module  # Ersetzen Sie `my_module` durch den Namen Ihres Moduls
+        pytest --cov=lit_ecology_classifier
