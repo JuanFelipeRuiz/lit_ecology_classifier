@@ -42,7 +42,7 @@ jobs:
     - name: Find all Python files
       id: find_files
       run: |
-        files=$(find . -name '*.py' ! -name '__init__.py')
+        files=$(find .lit_ecology_classifier -name '*.py' ! -name '__init__.py')
         echo "files=$files" >> $GITHUB_ENV
 
     
@@ -51,16 +51,19 @@ jobs:
       run: |
         flake8 ${{ env.files }} --count --select=E9,F7,F82 --show-source --statistics
         
+
     - name: Lint with pylint
       if: env.files != ''
       run: |
         pylint ${{ env.files }}
+
 
     - name: Check coding style
       if: env.files != ''
       run: |
         black ${{ env.files }} --check --diff 
     
+        
     - name: Test with pytest and measure coverage
       run: |
         pytest --cov=lit_ecology_classifier
