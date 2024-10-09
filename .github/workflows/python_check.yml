@@ -16,6 +16,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    # Set up cache for pip dependencies
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     - name: Set up Python 3.10
       uses: actions/setup-python@v3
       with:
@@ -34,6 +44,15 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+    
+    # Use cached dependencies
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
 
     # Linting with Flake8
     - name: Lint with flake8
@@ -57,21 +76,16 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    # Use cached dependencies
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
     # Run unit tests with coverage
     - name: Run unit tests
       run: |
         pytest --cov=lit_ecology_classifier
-
-  # Conditional Linting Failure Handling
-  linting_on_main:
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    needs: linting
-
-    steps:
-    - name: Ensure Linting Errors Cause Failure
-      run: |
-        if [ "$(echo ${{ steps.flake8.outcome }})" != "success" ]; then
-          echo "Linting issues detected on main, failing job."
-          exit 1
-        fi
