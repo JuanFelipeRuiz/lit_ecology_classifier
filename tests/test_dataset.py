@@ -1,6 +1,6 @@
-
-import datetime as dt
 import os
+from datetime import datetime as dt
+from datetime import timezone
 
 import pytest
 import pandas as pd
@@ -20,8 +20,8 @@ class TestCreateDataFrame:
 
     def test_get_timestamp_from_filename(self):
         file_name = 'SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg'
-        expected_timestamp = dt.datetime.strptime('2019-10-08 16:02:52', '%Y-%m-%d %H:%M:%S')
-        assert self.create_dataset.get_timestamp_from_filename(file_name) == expected_timestamp
+        expected_timestamp = dt.strptime('2019-10-08 14:02:52', '%Y-%m-%d %H:%M:%S')
+        assert self.create_dataset.get_timestamp_from_filename(file_name) ==  expected_timestamp.replace(tzinfo=timezone.utc)
 
 
     def test_get_timestamp_from_filename_wrong_timestamp_format(self):
