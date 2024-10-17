@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from unittest.mock import mock_open, patch, call
 
-from lit_ecology_classifier.data.create_dataset import CreateOverviewDf
+from lit_ecology_classifier.data.create_overview_data_set import CreateOverviewDf
 
 class TestCreateDataFrame:
     '''Testing for the create_dataframe function'''
@@ -279,8 +279,8 @@ class TestCreateDataFrame:
                             )
 
     # create a mock for the load_split_overview_from_txt and load_split_overview_from_pickle functions to check if they are called
-    @patch('lit_ecology_classifier.data.create_dataset.CreateOverviewDf._load_split_overview_from_txt') 
-    @patch('lit_ecology_classifier.data.create_dataset.CreateOverviewDf._load_split_overview_from_pickle')
+    @patch('lit_ecology_classifier.data.create_overview_data_set.CreateOverviewDf._load_split_overview_from_txt') 
+    @patch('lit_ecology_classifier.data.create_overview_data_set.CreateOverviewDf._load_split_overview_from_pickle')
     def test_process_versions_splits_by_version(self, mock_function_pickle, mock_function_txt, version, should_call_txt, should_call_pickle):
         
         with patch.object(self.create_dataset, 'split_file_paths', new={version: '_'}):
@@ -313,8 +313,8 @@ class TestCreateDataFrame:
                             )
 
     # create a mock for the functions to check if they are called
-    @patch('lit_ecology_classifier.data.create_dataset.CreateOverviewDf._prepare_split_paths_from_txt')  
-    @patch('lit_ecology_classifier.data.create_dataset.CreateOverviewDf._prepare_split_paths_from_pickle') 
+    @patch('lit_ecology_classifier.data.create_overview_data_set.CreateOverviewDf._prepare_split_paths_from_txt')  
+    @patch('lit_ecology_classifier.data.create_overview_data_set.CreateOverviewDf._prepare_split_paths_from_pickle') 
     def test_prepare_split_paths(self, mock_function_pickle, mock_function_txt, version, should_call_txt, should_call_pickle, should_warn):
         
         with patch.object(self.create_dataset, 'zoolake_version_paths', new={version: '_'}):
@@ -341,7 +341,7 @@ class TestCreateDataFrame:
                 
                 
 
-    @patch('lit_ecology_classifier.data.create_dataset.CreateOverviewDf._add_split_column')
+    @patch('lit_ecology_classifier.data.create_overview_data_set.CreateOverviewDf._add_split_column')
     def test_function_called_with_correct_columnname(self, mock_function):
 
 
