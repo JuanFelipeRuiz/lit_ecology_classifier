@@ -67,15 +67,16 @@ class TestCreateDataFrame:
              patch.object(self.create_dataset, '_hash_image_sha256', return_value='fake_sha256'), \
              patch.object(self.create_dataset, '_extract_plankton_class', return_value='fake_class'):
                     
-            assert self.create_dataset.process_image(image_path, version = '1') == expected_output
+            assert self.create_dataset.process_image(image_path= image_path, version = '1') == expected_output
 
     # find_images_in_folder -------------------------------------------------------------------------------------------------
 
     def test_find_images_in_folder(self):
         'test if the function returns the correct path and ignores non-image files'
+        input_tuple = ("1", "fake_folder")
         folder_path = os.path.join('fake_folder', 'test')
         files = ['image1.jpeg','test.txt', 'pickle.pkl']
-        expected_output = [os.path.join(folder_path, 'image1.jpeg')]
+        expected_output = [("1",os.path.join(folder_path, 'image1.jpeg'))]
 
         # patch os.walk to return the predefined folder path and files
         with patch('os.walk') as mock_walk:
@@ -83,7 +84,7 @@ class TestCreateDataFrame:
                 (folder_path, [], files),
             ]
 
-            assert self.create_dataset._prepare_image_paths_from_folder(folder_path) == expected_output
+            assert self.create_dataset._collect_image_paths_from_folder(input_tuple) == expected_output
 
     # hotencoding_group_by -------------------------------------------------------------------------------------------------
 
@@ -191,7 +192,7 @@ class TestCreateDataFrame:
             # Set the side effect for numpy.loadtxt to use the custom mock function
             mock_loadtxt.side_effect = self.mock_loadtxt_side_effect
 
-            self.create_dataset.split_file_paths = {
+            self.create_dataset._split_file_paths = {
                 '1': {
                     'train': 'path/to/train_filenames.txt',
                     'test': 'path/to/test_filenames.txt',
@@ -214,7 +215,7 @@ class TestCreateDataFrame:
     def test_load_split_overview_from_pickle(self, mock_exists):
         with patch('pandas.read_pickle') as mock_read_pickle:
 
-            self.create_dataset.split_file_paths = {
+            self.create_dataset._split_file_paths = {
             '2': {
                 'pickle': 'path/to/filenames.pickle',
 
@@ -283,7 +284,7 @@ class TestCreateDataFrame:
     @patch('lit_ecology_classifier.data.create_overview_data_set.CreateOverviewDf._load_split_overview_from_pickle')
     def test_process_versions_splits_by_version(self, mock_function_pickle, mock_function_txt, version, should_call_txt, should_call_pickle):
         
-        with patch.object(self.create_dataset, 'split_file_paths', new={version: '_'}):
+        with patch.object(self.create_dataset, '_split_file_paths', new={version: '_'}):
             
 
             # call the function without expecting a warning. If there is warning, the unit test will also show an warning
