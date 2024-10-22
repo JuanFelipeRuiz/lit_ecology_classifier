@@ -37,14 +37,12 @@ class CreateOverviewDf:
     Main methods:
         main: Main function to create the overview DataFrame with splits.
         get_raw_df: Get the raw DataFrame containing only the the image metadata and hashes, without any further processing.
-        get_overview_df: Get the overview DataFrame grouped by hashvalue, data set version hot encoded and without train/test/val splits 
+        get_overview_df: Get the overview DataFrame grouped by hashvalue, data set version hot encoded and without train/test/val splits
         get_overview_with_splits_df: Get the overview DataFrame with the train/test/val splits included, alternative to main method.
         get_duplicates_df: Get the DataFrame containing the duplicates in the dataset grouped on hash values and data set version.
     """
 
-    def __init__(self, 
-                 zoolake_version_paths : dict = None, 
-                 hash_algorithm : str = None):
+    def __init__(self, zoolake_version_paths: dict = None, hash_algorithm: str = None):
         """Initialize the overview DataFrame creator based on the dataset versions and hashing algorithm
 
         Args:
@@ -55,8 +53,8 @@ class CreateOverviewDf:
 
         if zoolake_version_paths is None:
             zoolake_version_paths = {
-                "1": os.path.join( "data", "raw", "data" ),
-                "2": os.path.join( "data", "raw", "ZooLake2"),
+                "1": os.path.join("data", "raw", "data"),
+                "2": os.path.join("data", "raw", "ZooLake2"),
             }
 
         self.zoolake_version_paths = zoolake_version_paths
@@ -68,16 +66,15 @@ class CreateOverviewDf:
         if hash_algorithm not in ["sha256", "phash"]:
             raise ValueError(
                 f'Invalid hash algorithm: {hash_algorithm}. Choose between "sha256" and "phash"'
-
             )
-        
+
         self.image_paths = self._prepare_images_paths()
 
         self.hash_algorithm = hash_algorithm
 
         self._split_file_paths = None
         self._images_list = []
-        
+
         self._overview_df = None
         self._overview_with_splits_df = None
         self._duplicates_df = None
@@ -91,7 +88,7 @@ class CreateOverviewDf:
         """Calculate the hash from the binary data of the image using the SHA256 algorithm.
 
         Args:
-            image_path (str): Path to the image file as string 
+            image_path (str): Path to the image file as string
 
         Returns:
             str: Hash value of the image as string
@@ -115,10 +112,10 @@ class CreateOverviewDf:
 
                 # Calculate the SHA256 hash based on the binary data of the image
                 return hashlib.sha256(img_data).hexdigest()
-            
+
         except PermissionError:
             raise PermissionError(f"Permission denied when accessing {image_path}")
-        
+
         except Exception as e:
             raise Exception(f"Error hashing {image_path} with SHA256: {e}")
 
@@ -126,7 +123,7 @@ class CreateOverviewDf:
         """Calculate the perceptual hash (pHash) from the binary data of the image.
 
         Perceptual hashing is useful for detecting visually similar images. However, in the usage with the ZooLake Dataset,
-        where all images have a black background and the plankton species are nearly identical to each other, 
+        where all images have a black background and the plankton species are nearly identical to each other,
         pHash tends to generate a high number of false positives. As a result, it is not recommended to use pHash for detecting similar
         duplicates.
 
@@ -143,17 +140,17 @@ class CreateOverviewDf:
         try:
             img = Image.open(image_path)
             return str(imagehash.phash(img))
-        
+
         except PermissionError:
             raise PermissionError(f"Permission denied when accessing {image_path}")
-        
+
         except Exception as e:
             raise Exception(f"Error hashing {image_path} with phash: {e}")
 
     def _extract_timestamp_from_filename(self, image_path: str) -> dt:
         """Extract the timestamp from the image filename and convert it to a datetime object in UTC timezone.
 
-        The timestamp (without miliseconds) is expected to be at a fixed position in the filename (characters 15-25). 
+        The timestamp (without miliseconds) is expected to be at a fixed position in the filename (characters 15-25).
         This function will extract those characters, convert them to an integer timestamp, and return a UTC datetime object.
 
         Args:
@@ -176,19 +173,23 @@ class CreateOverviewDf:
 
             # return the timestamp as a datetime object with UTC as timezone
             return dt.fromtimestamp(int(timestamp_str), tz=timezone.utc)
-        
+
         except IndexError as ie:
 
-            raise ValueError(f"Error extracting timestamp: Failed slicing timestamp from '{image_name}'") from ie
+            raise ValueError(
+                f"Error extracting timestamp: Failed slicing timestamp from '{image_name}'"
+            ) from ie
 
         except Exception as e:
-            raise ValueError( f"Error extracting and creating timestamp from {image_path}: {e}" )
+            raise ValueError(
+                f"Error extracting and creating timestamp from {image_path}: {e}"
+            )
 
     def _extract_plankton_class(self, image_path: str, version: str) -> str:
         """Extract  plankton class from the image path based on version.
 
         The extraction method is based on the different dataset versions:
-        - For version 1, the plankton class is extracted from the grandparent directory, 
+        - For version 1, the plankton class is extracted from the grandparent directory,
             since there is an additional 'training' folder .
         - For other versions, the plankton class is extracted from the immediate parent directory.
 
@@ -209,9 +210,11 @@ class CreateOverviewDf:
 
                 # get the parent directory for each other ZooLake version
                 return os.path.basename(os.path.basename(os.path.dirname(image_path)))
-            
+
         except Exception as e:
-            raise ValueError(f"Error extracting plankton class from {image_path}: {e}") from e
+            raise ValueError(
+                f"Error extracting plankton class from {image_path}: {e}"
+            ) from e
 
     def process_image(self, version, image_path) -> dict:
         """Process a single image to calculate the hash and extract metadata from the filename and path.
@@ -223,7 +226,7 @@ class CreateOverviewDf:
 
         Returns:
             dict: Dictionary containing the image metadata and hashes. Example:
-                {   
+                {
                     "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.",
                     "sha256": "a957e3fb302aa924ea62f25b436893151640dc05f761c402d3ec98782b801b34e",
                     "class": "aphanizomenon",
@@ -239,24 +242,27 @@ class CreateOverviewDf:
             image_date = self._extract_timestamp_from_filename(image_path)
             plankton_class = self._extract_plankton_class(image_path, version)
 
-            image_metadata =  {
-                    "image": os.path.basename(image_path),
+            image_metadata = {
+                "image": os.path.basename(image_path),
             }
 
             if self.hash_algorithm == "phash":
                 image_phash = self._hash_image_phash(image_path)
-                image_metadata.update({"phash" : image_phash})
+                image_metadata.update({"phash": image_phash})
 
             elif self.hash_algorithm == "sha256":
                 image_hash_sha256 = self._hash_image_sha256(image_path)
-        
+
                 image_metadata.update({"sha256": image_hash_sha256})
-                    
-            image_metadata.update({"class": plankton_class,
+
+            image_metadata.update(
+                {
+                    "class": plankton_class,
                     "data_set_version": version,
                     "date": image_date,
-                })
-            
+                }
+            )
+
             return image_metadata
 
         except Exception as e:
@@ -289,19 +295,21 @@ class CreateOverviewDf:
         ]
 
         return image_path
-    
 
-    def _prepare_images_paths(self) -> list[dict]: 
+    def _prepare_images_paths(self) -> list[dict]:
         """Generate a list of dictionaries containing the image metadata and hashes for all images in the dataset versions.
 
-        Returns: 
+        Returns:
             self._images_list : List of dictionaries containing the image metadata and hashes for all images in the dataset versions
         """
-        
-        return list(itertools.chain.from_iterable(
-            map(self._collect_image_paths_from_folder, self.zoolake_version_paths.items())
-        ))
-    
+
+        return list(
+            itertools.chain.from_iterable(
+                map(self._collect_image_paths_from_folder,self.zoolake_version_paths.items(),
+                )
+            )
+        )
+
     def _process_images_by_version(self) -> list[dict]:
         """Applies the image processing function to a list containg tuples of version and image paths
 
@@ -323,15 +331,13 @@ class CreateOverviewDf:
         self._images_list.extend(processed_images)
 
         return self._images_list
-    
-    
 
     def check_duplicates(self, df: pd.DataFrame) -> pd.DataFrame:
         """Check for duplicates in the same dataset version
 
         The duplicates are identified by comparing the hash values of the images in each dataset.
-        When a duplicate is found, a DataFrame is created with further information, like if the duplicate 
-        images have the same class or image name. A duplicate with diffrent classes can have more negative 
+        When a duplicate is found, a DataFrame is created with further information, like if the duplicate
+        images have the same class or image name. A duplicate with diffrent classes can have more negative
         impact than a duplicate with the same class, since it can lead to misclassification.
 
         Args:
@@ -365,8 +371,12 @@ class CreateOverviewDf:
 
                 if group_counts["diffrent_image_name"].all() == False:
 
-
-                    group_counts = pd.merge(group_counts,df[["sha256", "data_set_version" , "image", "class"]], on = ["sha256", "data_set_version"], how = "left")
+                    group_counts = pd.merge(
+                        group_counts,
+                        df[["sha256", "data_set_version", "image", "class"]],
+                        on=["sha256", "data_set_version"],
+                        how="left",
+                    )
 
                 group_counts["count"] = group_counts["count"].astype(int)
 
@@ -386,8 +396,10 @@ class CreateOverviewDf:
                     the phash is not unique for similar images and raises false positives"
             )
 
-    def _add_one_hot_encoded_versions_and_group_by(self, df: pd.DataFrame) -> pd.DataFrame:
-        """ add One-hot encode columns for each data set versions in the DataFrame and group by the hash column, image name and class.
+    def _add_one_hot_encoded_versions_and_group_by(
+        self, df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """add One-hot encode columns for each data set versions in the DataFrame and group by the hash column, image name and class.
 
         One-hot encodes the `data_set_version` column and groups the DataFrame by the image name, class
         and the hash column (based on the hash algorithm being used). Within each group, the maximum /latest value
@@ -408,7 +420,9 @@ class CreateOverviewDf:
         # Check if the required columns are present in the DataFrame to prevent errors
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
-            raise ValueError(f"The following required columns are missing: {missing_columns}")
+            raise ValueError(
+                f"The following required columns are missing: {missing_columns}"
+            )
 
         # One-hot encode the data_set_versions column
         df = pd.get_dummies(
@@ -416,14 +430,16 @@ class CreateOverviewDf:
         )
 
         # group by hash value an keep the maximum value of each columns in the group and preserve the columns order
-        df = df.groupby(["image", "class", self.hash_algorithm], as_index=False, sort=False).max()
+        df = df.groupby(
+            ["image", "class", self.hash_algorithm], as_index=False, sort=False
+        ).max()
 
         return df
 
     def _prepare_split_paths_from_txt(self, datapath: str, version: str) -> dict:
-        """ Pepare and  if the txt files containing thesplits exist in the data folder for version 1.
+        """Pepare and  if the txt files containing thesplits exist in the data folder for version 1.
 
-        It assumes that the txt files are stored in a folder called 'zoolake_train_test_val_separated' 
+        It assumes that the txt files are stored in a folder called 'zoolake_train_test_val_separated'
         within the provided datapath. This only applies to version 1. After ing the existence of the txt files,
         it generates the paths to the train/test/val .txt files and stores them in a dictionary.
 
@@ -433,7 +449,7 @@ class CreateOverviewDf:
 
         Returns:
            dict: Dictionary containing the data set version and subdictionory with the paths to the train/test/val .txt files
-                 as values and the split name as key. 
+                 as values and the split name as key.
 
         Raises:
             FileNotFoundError: If a txt files do not exist in the folder
@@ -451,16 +467,19 @@ class CreateOverviewDf:
         }
 
         #  if a txt file does not exist in the folder
-        missing_files = [file for file in self._split_file_paths[version].values() if not os.path.exists(file)]
+        missing_files = [
+            file
+            for file in self._split_file_paths[version].values()
+            if not os.path.exists(file)
+        ]
 
         # raise a error if a file is missing
         if missing_files:
-            raise FileNotFoundError(f"The following files are missing for version {version}: {', '.join(missing_files)}")
-
+            raise FileNotFoundError(
+                f"The following files are missing for version {version}: {', '.join(missing_files)}"
+            )
 
         return self._split_file_paths
-    
-            
 
     def _prepare_split_paths_from_pickle(self, datapath: str, version: str) -> dict:
         """Search if a pickle file containing the splits exist in the folder
@@ -468,7 +487,7 @@ class CreateOverviewDf:
         Searches if they are any pickle files inside the datapath. If the search does not return a result
         it raises a warning, since it could be possible for a new dataset. When the search resuluts with
         multiple pickle files, it raises a valueerror. The pickle file is expected to contain the
-          train/test/val splits for the given ZooLake dataset version. 
+          train/test/val splits for the given ZooLake dataset version.
 
         Args:
             datapath (str): Path to the folder containg the data for the given ZooLake Version as string
@@ -482,7 +501,9 @@ class CreateOverviewDf:
             ValueError: If multiple pickle files are found in the folder, as only one pickle file is expected
         """
         pickle_files = [
-            file for file in os.listdir(datapath) if file.endswith(".pickle") or file.endswith(".pkl")
+            file
+            for file in os.listdir(datapath)
+            if file.endswith(".pickle") or file.endswith(".pkl")
         ]
 
         #  if a pickle file exists
@@ -496,7 +517,7 @@ class CreateOverviewDf:
                 f"Multiple pickle files found in {datapath}. Please provide only one pickle file"
             )
 
-        else: 
+        else:
 
             # Prepare file path for the pickle file
             path_pickle_file = os.path.join(datapath, pickle_files[0])
@@ -507,13 +528,13 @@ class CreateOverviewDf:
     def _prepare_split_paths(self) -> dict:
         """Prepare the file paths for the train/test/val splits for the different ZooLake dataset versions
 
-        Prepares the file paths for different versions of the ZooLake dataset. 
-        - For version 1, it looks for train/test/val splits stored as .txt files. 
-        - For version 2 (or higher), it assumes that the splits are stored in a pickle file. 
+        Prepares the file paths for different versions of the ZooLake dataset.
+        - For version 1, it looks for train/test/val splits stored as .txt files.
+        - For version 2 (or higher), it assumes that the splits are stored in a pickle file.
         - For version "Q", it skips the preparation, as it is the collection of unlabelled or unreleased images.
 
-        The preparation is unboudled from the loading of the splits, to be able to  the existence of 
-        missing files at an early stage. 
+        The preparation is unboudled from the loading of the splits, to be able to  the existence of
+        missing files at an early stage.
 
         Args:
             None
@@ -551,10 +572,10 @@ class CreateOverviewDf:
     def _load_split_overview_from_pickle(self, version: str) -> dict:
         """Load the train/val and test image splits from a pickle file into a dictionary
 
-        It loads the pickle file based on the prepared data path inside the split_file_paths dictionary and uses 
+        It loads the pickle file based on the prepared data path inside the split_file_paths dictionary and uses
         the given Version String as key, to get the path.
-        
-        It assumes that the pickle file contains a DataFrame with the image paths for the train, test, and validation splits. 
+
+        It assumes that the pickle file contains a DataFrame with the image paths for the train, test, and validation splits.
         The order of the splits is based on Cheng Chen function SplitFromPickle inside [train_val_test_split.py  in the
         Plankiformer_OOD](https://github.com/cchen07/Plankiformer_OOD/blob/main/utils_analysis/train_val_test_split.py)
         repository.
@@ -591,7 +612,7 @@ class CreateOverviewDf:
         # catch errors that occur while unpickling the file
         except (pickle.UnpicklingError, EOFError) as e:
             raise ValueError(f"Error unpickling file {path_pickle_file}: {e}")
-        
+
         # any other unexpected error
         except Exception as e:
             raise Exception(
@@ -603,7 +624,7 @@ class CreateOverviewDf:
 
         Loads the image paths for the training, test, and validation splits from the .txt files based
         on the prepared data path inside the split_file_paths dictionary with the version string as key.
-    
+
 
         Args:
            version (str): Version of the ZooLake dataset as string to load the splits from split_file_paths dictionary
@@ -619,12 +640,12 @@ class CreateOverviewDf:
         """
         splits = ["train", "test", "val"]
 
-        # get the paths from the prepared paths dictionary 
+        # get the paths from the prepared paths dictionary
         path_txt_files = self._split_file_paths[version]
 
         # create a dictionary with the splits and the corresponding image paths
         return {split: np.loadtxt(path_txt_files[split], dtype=str) for split in splits}
-    
+
     def _add_split_column(self, df, image_paths, split_name):
         """Add a column to the DataFrame indicating whether an image is in the split of the given column name
 
@@ -644,7 +665,7 @@ class CreateOverviewDf:
         df[split_name] = df["image"].isin(lst)
 
         return df
-    
+
     def _apply_splits_to_dataframe(self, images_paths_split, version, df):
         """Applies __add_split_column to the DataFrame for each split in the images_paths_split dictionary
 
@@ -671,20 +692,18 @@ class CreateOverviewDf:
 
         return df
 
-
-
     def _process_versions_splits_by_version(self, df: pd.DataFrame) -> pd.DataFrame:
         """Applies the corresponding helper function for each different prepraed split path
 
-        Iterates over the different prepared paths for each version of the ZooLake dataset, orchestrating 
+        Iterates over the different prepared paths for each version of the ZooLake dataset, orchestrating
         the loading of the images names for each version split. After loading the image paths the data frame
-        is updated by applieng a helper function that creates a columns indicating the train/test/val 
+        is updated by applieng a helper function that creates a columns indicating the train/test/val
         split for each version.
 
-    
+
         - For version 1, a own helper class for handling .txt split files is used to load the image names.
         - For other versions, the helper function for loading the pickle file is used.
-    
+
         Args:
             df : DataFrame containing at least the image file names
 
@@ -699,9 +718,8 @@ class CreateOverviewDf:
                 images_paths_split = self._load_split_overview_from_txt(version)
 
             else:
-                # load the split from the pickle file 
+                # load the split from the pickle file
                 images_paths_split = self._load_split_overview_from_pickle(version)
-
 
             # update the DataFrame with the splits
             df = self._apply_splits_to_dataframe(images_paths_split, version, df)
@@ -713,8 +731,7 @@ class CreateOverviewDf:
             df = self.get_raw_df()
             self.check_duplicates(df)
         return self._duplicates_df
-    
-    
+
     def get_raw_df(self):
         """Get the raw DataFrame containing only the image metadata and hashes, without any further processing."""
         #  if the images list is empty
@@ -735,17 +752,16 @@ class CreateOverviewDf:
         if self._overview_with_splits_df is None:
             self._overview_with_splits_df = self.main()
         return self._overview_with_splits_df
-    
+
     def save_overview_with_splits_df(self, path):
         if self._overview_with_splits_df is None:
-           self._overview_with_splits_df = self.get_overview_with_splits_df(self)
+            self._overview_with_splits_df = self.get_overview_with_splits_df(self)
         df = self._overview_with_splits_df
-        df.to_csv(path = path, index = False)
-        
+        df.to_csv(path=path, index=False)
 
     def main(self, load_new=False):
         """Main function to create the overview DataFrame with columns indicating the belonging to the train/test/val splits.
-        
+
         Args:
             load_new (bool): If True, the function will reload the data and prepare the splits again.
 
@@ -756,7 +772,7 @@ class CreateOverviewDf:
         if self._split_file_paths is None or load_new:
             self._prepare_split_paths()
 
-        if self._images_list == []  or load_new:
+        if self._images_list == [] or load_new:
             self.get_raw_df()
 
         if self._overview_df is None or load_new:
@@ -781,6 +797,7 @@ if __name__ == "__main__":
 
     # start time measurement
     from time import time
+
     start = time()
     dataset_creator.main()
     print(f"Time taken: {time() - start}")
