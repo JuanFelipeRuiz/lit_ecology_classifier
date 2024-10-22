@@ -15,7 +15,10 @@ class TestCreateDataFrame:
     @pytest.fixture(autouse=True)
     def setup_method(self):
         '''Setup for each test case'''
-        self.create_dataset = CreateOverviewDf()
+        with patch('os.path.exists') as mocked_exists:
+            # Mock os.path.exists to return True for required paths
+            mocked_exists.return_value = True
+            self.create_dataset = CreateOverviewDf()
 
     # extract_timestamp_from_filename -------------------------------------------------------------------------------------------
 
@@ -33,12 +36,12 @@ class TestCreateDataFrame:
     # extract_plankton_class_datalake -------------------------------------------------------------------------------------------
 
     def test_extract_plankton_class_datalake_v2(self):
-        image_path = 'class/image.jpeg'
+        image_path = os.path.join('class','image.jpeg')
         expected_class = 'class'
         assert self.create_dataset._extract_plankton_class(image_path,'2') == expected_class
 
     def test_extract_plankton_class_datalake_v1(self):
-        image_path = 'class/training/image.jpeg'
+        image_path = os.path.join('class','training','image.jpeg')
         expected_class = 'class'
         assert self.create_dataset._extract_plankton_class(image_path,'1') == expected_class
 
