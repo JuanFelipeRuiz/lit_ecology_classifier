@@ -11,25 +11,26 @@ import numpy as np
 import pandas as pd
 from PIL import Image
 
+
 class CreateOverviewDf:
     """Generate an overview DataFrame based on the different ZooLake dataset versions, including images and metadata.
 
     Image Processing and Metadata Extraction:
         Each image in the dataset is processed individually to extract metadata from its file name and folder path.
         The SHA256 hashing algorithm is used to calculate a unique hash value for each image, which enables identical
-        duplicate detection by identifying images with the same hash value. The hash value also facilitates merging 
+        duplicate detection by identifying images with the same hash value. The hash value also facilitates merging
         images from different dataset versions into a single DataFrame, with a one-hot encoded column indicating in
         which data set versions the image occurs.
 
     Additional columns can be generated to indicate in which split (train, test, or validation) the image appears,
-    based on a pickle files. For version 1, the split information is stored in separate .txt files and is also 
+    based on a pickle files. For version 1, the split information is stored in separate .txt files and is also
     implemented in this class. The process assumes that the images are stored externally with the original
     structure of the corresponding ZooLake dataset version.
 
     Attributes:
         zoolake_version_paths (dict): Maps dataset versions to their corresponding file paths.
 
-        split_file_paths  (dict): Maps dataset versions to their corresponding file paths for the 
+        split_file_paths  (dict): Maps dataset versions to their corresponding file paths for the
                                     train/test/validation splits.
 
         hash_algorithm (str): Specifies the hashing algorithm to use, either "sha256" or "phash".
@@ -39,7 +40,7 @@ class CreateOverviewDf:
 
         _overview_df (pd.DataFrame): DataFrame containing image metadata and hash values.
 
-        overview_with_splits_df (pd.DataFrame): DataFrame containing image metadata, hashvalue and columns indicating which split 
+        overview_with_splits_df (pd.DataFrame): DataFrame containing image metadata, hashvalue and columns indicating which split
                                                     (train/test/validation) the image belongs to.
 
         duplicates_df (pd.DataFrame):  DataFrame listing duplicate images in the dataset based on hash values.
@@ -124,7 +125,9 @@ class CreateOverviewDf:
                 return hashlib.sha256(img_data).hexdigest()
 
         except PermissionError as pe:
-            raise PermissionError(f"Permission denied when accessing {image_path}:{pe}") from pe
+            raise PermissionError(
+                f"Permission denied when accessing {image_path}:{pe}"
+            ) from pe
 
         except Exception as e:
             raise Exception(f"Error hashing {image_path} with SHA256: {e}") from e
@@ -152,7 +155,9 @@ class CreateOverviewDf:
             return str(imagehash.phash(img))
 
         except PermissionError as pe:
-            raise PermissionError(f"Permission denied when accessing {image_path}: {pe}") from pe
+            raise PermissionError(
+                f"Permission denied when accessing {image_path}: {pe}"
+            ) from pe
 
         except Exception as e:
             raise Exception(f"Error hashing {image_path} with phash: {e}") from e
@@ -192,7 +197,7 @@ class CreateOverviewDf:
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting and creating timestamp from {image_path}: {e}" 
+                f"Error extracting and creating timestamp from {image_path}: {e}"
             ) from e
 
     def _extract_plankton_class(self, image_path: str, version: str) -> str:
@@ -313,7 +318,9 @@ class CreateOverviewDf:
 
         return list(
             itertools.chain.from_iterable(
-                map(self._collect_image_paths_from_folder,self.zoolake_version_paths.items(),
+                map(
+                    self._collect_image_paths_from_folder,
+                    self.zoolake_version_paths.items(),
                 )
             )
         )
@@ -363,24 +370,24 @@ class CreateOverviewDf:
 
         # save the duplicates hash values in a list
         duplicates = df[
-                df.duplicated(subset=["sha256", "data_set_version"], keep=False)
-            ].copy()
+            df.duplicated(subset=["sha256", "data_set_version"], keep=False)
+        ].copy()
 
         if duplicates.empty:
-                
-                print("No duplicates found in the dataset")
-                return None
-        else: 
-                # Group by hash_col and DataSetVersion
+
+            print("No duplicates found in the dataset")
+            return None
+        else:
+            # Group by hash_col and DataSetVersion
             group_counts = (
                 duplicates.groupby(["sha256", "data_set_version"])
                 .agg(
                     # Count the number of duplicates
-                   count=("class", "size"),
+                    count=("class", "size"),
                     # Check if the class and image name are the same for all duplicates
                     diffrent_class=("class", lambda x: x.nunique() != 1),
                     diffrent_image_name=("image", lambda x: x.nunique() != 1),
-                    )
+                )
                 .reset_index()
             )
 
@@ -398,11 +405,8 @@ class CreateOverviewDf:
             self._duplicates_df = group_counts[group_counts["count"] > 0]
 
             warnings.warn(f"Duplicates found in the dataset: {duplicates.shape[0]}")
-            
-            return self._duplicates_df
-                
 
-       
+            return self._duplicates_df
 
     def _add_one_hot_encoded_versions_and_group_by(
         self, df: pd.DataFrame
@@ -762,7 +766,6 @@ class CreateOverviewDf:
             self._overview_with_splits_df = self.main()
         return self._overview_with_splits_df
 
-
     def main(self, load_new=False):
         """Main function to create the overview DataFrame with columns indicating the belonging to the train/test/val splits.
 
@@ -776,7 +779,7 @@ class CreateOverviewDf:
         if self._split_file_paths is None or load_new:
             self._prepare_split_paths()
 
-        if not self._images_list  or load_new:
+        if not self._images_list or load_new:
             self.get_raw_df()
 
         if self._overview_df is None or load_new:
