@@ -23,7 +23,8 @@ class CreateOverviewDf:
 
     Additional columns can be generated to indicate in which split (train, test, or validation) the image appears,
     based on a pickle files. For version 1, the split information is stored in separate .txt files and is also 
-    implemented in this class. The process assumes that the images are stored externally with the original structure of the corresponding ZooLake dataset version.
+    implemented in this class. The process assumes that the images are stored externally with the original
+    structure of the corresponding ZooLake dataset version.
 
     Attributes:
         zoolake_version_paths (dict): Maps dataset versions to their corresponding file paths.
@@ -215,10 +216,8 @@ class CreateOverviewDf:
                 # Get the second parent / grandparent directory for ZooLake version 1
                 return os.path.basename(os.path.dirname(os.path.dirname(image_path)))
 
-            else:
-
-                # get the parent directory for each other ZooLake version
-                return os.path.basename(os.path.basename(os.path.dirname(image_path)))
+            # get the parent directory for each other ZooLake version
+            return os.path.basename(os.path.basename(os.path.dirname(image_path)))
 
         except Exception as e:
             raise ValueError(
@@ -356,54 +355,54 @@ class CreateOverviewDf:
             A new DataFrame containing the duplicates in the dataset based on hash values
         """
 
-        if self.hash_algorithm == "sha256":
-
-            # save the duplicates hash values in a list
-            duplicates = df[
-                df.duplicated(subset=["sha256", "data_set_version"], keep=False)
-            ].copy()
-
-            if duplicates.empty:
-
-                print("No duplicates found in the dataset")
-                return None
-            else: 
-                # Group by hash_col and DataSetVersion
-                group_counts = (
-                    duplicates.groupby(["sha256", "data_set_version"])
-                    .agg(
-                        # Count the number of duplicates
-                        count=("class", "size"),
-                        # Check if the class and image name are the same for all duplicates
-                        diffrent_class=("class", lambda x: x.nunique() != 1),
-                        diffrent_image_name=("image", lambda x: x.nunique() != 1),
-                    )
-                    .reset_index()
-                )
-
-                if group_counts["diffrent_image_name"].all() is False:
-
-                    group_counts = pd.merge(
-                        group_counts,
-                        df[["sha256", "data_set_version", "image", "class"]],
-                        on=["sha256", "data_set_version"],
-                        how="left",
-                    )
-
-                group_counts["count"] = group_counts["count"].astype(int)
-
-                self._duplicates_df = group_counts[group_counts["count"] > 0]
-
-                warnings.warn(f"Duplicates found in the dataset: {duplicates.shape[0]}")
-
-                return self._duplicates_df
-                
-
-        else:
+        if self.hash_algorithm != "sha256":
             warnings.warn(
                 "Duplicates  is only available for sha256 hash algorithm since \
                     the phash is not unique for similar images and raises false positives"
             )
+
+        # save the duplicates hash values in a list
+        duplicates = df[
+                df.duplicated(subset=["sha256", "data_set_version"], keep=False)
+            ].copy()
+
+        if duplicates.empty:
+                
+                print("No duplicates found in the dataset")
+                return None
+        else: 
+                # Group by hash_col and DataSetVersion
+            group_counts = (
+                duplicates.groupby(["sha256", "data_set_version"])
+                .agg(
+                    # Count the number of duplicates
+                   count=("class", "size"),
+                    # Check if the class and image name are the same for all duplicates
+                    diffrent_class=("class", lambda x: x.nunique() != 1),
+                    diffrent_image_name=("image", lambda x: x.nunique() != 1),
+                    )
+                .reset_index()
+            )
+
+            if group_counts["diffrent_image_name"].all() is False:
+
+                group_counts = pd.merge(
+                    group_counts,
+                    df[["sha256", "data_set_version", "image", "class"]],
+                    on=["sha256", "data_set_version"],
+                    how="left",
+                )
+
+            group_counts["count"] = group_counts["count"].astype(int)
+
+            self._duplicates_df = group_counts[group_counts["count"] > 0]
+
+            warnings.warn(f"Duplicates found in the dataset: {duplicates.shape[0]}")
+            
+            return self._duplicates_df
+                
+
+       
 
     def _add_one_hot_encoded_versions_and_group_by(
         self, df: pd.DataFrame
@@ -620,13 +619,13 @@ class CreateOverviewDf:
 
         # catch errors that occur while unpickling the file
         except (pickle.UnpicklingError, EOFError) as e:
-            raise ValueError(f"Error unpickling file {path_pickle_file}: {e}")
+            raise ValueError(f"Error unpickling file {path_pickle_file}: {e}") from e
 
         # any other unexpected error
         except Exception as e:
             raise Exception(
                 f"An unexpected error occurred while loading the pickle file: {e}"
-            )
+            ) from e
 
     def _load_split_overview_from_txt(self, version: str) -> dict:
         """Loads the image path in the corresponing splits from diffrent .txt files into a dictionary
@@ -763,12 +762,6 @@ class CreateOverviewDf:
             self._overview_with_splits_df = self.main()
         return self._overview_with_splits_df
 
-    def save_overview_with_splits_df(self, path):
-        """Get the """
-        if self._overview_with_splits_df is None:
-            self._overview_with_splits_df = self.get_overview_with_splits_df(self)
-        df = self._overview_with_splits_df
-        df.to_csv(path=path, index=False)
 
     def main(self, load_new=False):
         """Main function to create the overview DataFrame with columns indicating the belonging to the train/test/val splits.
