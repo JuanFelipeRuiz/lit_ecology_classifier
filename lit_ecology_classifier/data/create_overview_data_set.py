@@ -27,13 +27,20 @@ class CreateOverviewDf:
 
     Attributes:
         zoolake_version_paths (dict): Maps dataset versions to their corresponding file paths.
-        split_file_paths  (dict): Maps dataset versions to their corresponding file paths for the train/test/validation splits.
+
+        split_file_paths  (dict): Maps dataset versions to their corresponding file paths for the 
+                                    train/test/validation splits.
+
         hash_algorithm (str): Specifies the hashing algorithm to use, either "sha256" or "phash".
+
         _images_list (list): List of dictionaries containing the image metadata and hashes for all images
-                             in the given dataset versions
+                                in the given dataset versions
+
         _overview_df (pd.DataFrame): DataFrame containing image metadata and hash values.
+
         overview_with_splits_df (pd.DataFrame): DataFrame containing image metadata, hashvalue and columns indicating which split 
-                                                (train/test/validation) the image belongs to.
+                                                    (train/test/validation) the image belongs to.
+
         duplicates_df (pd.DataFrame):  DataFrame listing duplicate images in the dataset based on hash values.
 
     Main methods:
@@ -116,10 +123,10 @@ class CreateOverviewDf:
                 return hashlib.sha256(img_data).hexdigest()
 
         except PermissionError as pe:
-            raise PermissionError(f"Permission denied when accessing {image_path}:{pe}")
+            raise PermissionError(f"Permission denied when accessing {image_path}:{pe}") from pe
 
         except Exception as e:
-            raise Exception(f"Error hashing {image_path} with SHA256: {e}")
+            raise Exception(f"Error hashing {image_path} with SHA256: {e}") from e
 
     def _hash_image_phash(self, image_path: str) -> str:
         """Calculate the perceptual hash (pHash) from the binary data of the image.
@@ -144,10 +151,10 @@ class CreateOverviewDf:
             return str(imagehash.phash(img))
 
         except PermissionError as pe:
-            raise PermissionError(f"Permission denied when accessing {image_path}: {pe}")
+            raise PermissionError(f"Permission denied when accessing {image_path}: {pe}") from pe
 
         except Exception as e:
-            raise Exception(f"Error hashing {image_path} with phash: {e}")
+            raise Exception(f"Error hashing {image_path} with phash: {e}") from e
 
     def _extract_timestamp_from_filename(self, image_path: str) -> dt:
         """Extract the timestamp from the image filename and convert it to a datetime object in UTC timezone.
@@ -184,8 +191,8 @@ class CreateOverviewDf:
 
         except Exception as e:
             raise ValueError(
-                f"Error extracting and creating timestamp from {image_path}: {e}"
-            )
+                f"Error extracting and creating timestamp from {image_path}: {e}" 
+            ) from e
 
     def _extract_plankton_class(self, image_path: str, version: str) -> str:
         """Extract  plankton class from the image path based on version.
@@ -268,7 +275,7 @@ class CreateOverviewDf:
             return image_metadata
 
         except Exception as e:
-            raise Exception(f"Error processing image {image_path}: {e}")
+            raise Exception(f"Error processing image {image_path}: {e}") from e
 
     def _collect_image_paths_from_folder(self, version_path) -> list[str]:
         """Prepares a list of file paths for all images with a `.jpeg` extension in the given folder recursively.
@@ -356,8 +363,11 @@ class CreateOverviewDf:
                 df.duplicated(subset=["sha256", "data_set_version"], keep=False)
             ].copy()
 
-            if not duplicates.empty:
+            if duplicates.empty:
 
+                print("No duplicates found in the dataset")
+                return None
+            else: 
                 # Group by hash_col and DataSetVersion
                 group_counts = (
                     duplicates.groupby(["sha256", "data_set_version"])
@@ -371,7 +381,7 @@ class CreateOverviewDf:
                     .reset_index()
                 )
 
-                if group_counts["diffrent_image_name"].all() == False:
+                if group_counts["diffrent_image_name"].all() is False:
 
                     group_counts = pd.merge(
                         group_counts,
@@ -387,10 +397,7 @@ class CreateOverviewDf:
                 warnings.warn(f"Duplicates found in the dataset: {duplicates.shape[0]}")
 
                 return self._duplicates_df
-
-            else:
-                print("No duplicates found in the dataset")
-                return None
+                
 
         else:
             warnings.warn(
