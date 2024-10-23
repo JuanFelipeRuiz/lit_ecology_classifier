@@ -1,3 +1,7 @@
+"""
+Contains the class to create a overview dataframe based on the given data path
+"""
+
 from datetime import datetime as dt
 from datetime import timezone
 import itertools
@@ -22,10 +26,11 @@ class CreateOverviewDf:
         images from different dataset versions into a single DataFrame, with a one-hot encoded column indicating in
         which data set versions the image occurs.
 
-    Additional columns can be generated to indicate in which split (train, test, or validation) the image appears,
-    based on a pickle files. For version 1, the split information is stored in separate .txt files and is also
-    implemented in this class. The process assumes that the images are stored externally with the original
-    structure of the corresponding ZooLake dataset version.
+    Tain,val and test split columns :
+        Additional columns can be generated to indicate in which split (train, test, or validation) the image appears,
+        based on a pickle files. For version 1, the split information is stored in separate .txt files and is also
+        implemented in this class. The process assumes that the images are stored externally with the original
+        structure of the corresponding ZooLake dataset version.
 
     Attributes:
         zoolake_version_paths (dict): Maps dataset versions to their corresponding file paths.
@@ -377,36 +382,35 @@ class CreateOverviewDf:
 
             print("No duplicates found in the dataset")
             return None
-        else:
-            # Group by hash_col and DataSetVersion
-            group_counts = (
-                duplicates.groupby(["sha256", "data_set_version"])
-                .agg(
-                    # Count the number of duplicates
-                    count=("class", "size"),
-                    # Check if the class and image name are the same for all duplicates
-                    diffrent_class=("class", lambda x: x.nunique() != 1),
-                    diffrent_image_name=("image", lambda x: x.nunique() != 1),
-                )
-                .reset_index()
+        
+        # Group by hash_col and DataSetVersion
+        group_counts = (
+            duplicates.groupby(["sha256", "data_set_version"])
+            .agg(
+                # Count the number of duplicates
+                count=("class", "size"),
+                # Check if the class and image name are the same for all duplicates
+                diffrent_class=("class", lambda x: x.nunique() != 1),
+                diffrent_image_name=("image", lambda x: x.nunique() != 1),
             )
+            .reset_index()
+        )
 
-            if group_counts["diffrent_image_name"].all() is False:
+        # merge image names based on the hash code and datalake version
+        group_counts = pd.merge(
+                group_counts,
+                df[["sha256", "data_set_version", "image", "class"]],
+                on=["sha256", "data_set_version"],
+                how="left",
+        )
 
-                group_counts = pd.merge(
-                    group_counts,
-                    df[["sha256", "data_set_version", "image", "class"]],
-                    on=["sha256", "data_set_version"],
-                    how="left",
-                )
+        group_counts["count"] = group_counts["count"].astype(int)
 
-            group_counts["count"] = group_counts["count"].astype(int)
+        self._duplicates_df = group_counts[group_counts["count"] > 0]
 
-            self._duplicates_df = group_counts[group_counts["count"] > 0]
+        warnings.warn(f"Duplicates found in the dataset: {duplicates.shape[0]}")
 
-            warnings.warn(f"Duplicates found in the dataset: {duplicates.shape[0]}")
-
-            return self._duplicates_df
+        return self._duplicates_df
 
     def _add_one_hot_encoded_versions_and_group_by(
         self, df: pd.DataFrame
