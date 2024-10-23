@@ -160,19 +160,21 @@ class TestCreateDataFrame:
 
         excepted_output = pd.DataFrame(
             {
-                "sha256": ["hash1"],
-                "data_set_version": ["1"],
-                "count": [2],
-                "diffrent_class": [False],
-                "diffrent_image_name": [True],
+                "sha256": ["hash1", "hash1"],
+                "data_set_version": ["1", "1"],
+                "count": [2,2],
+                "diffrent_class": [False, False],
+                "diffrent_image_name": [True, True],
+                "image": ["image1.jpeg","image2.jpeg"],
+                "class": ["A","A"]
             },
-            index=[0],
+            index=[0, 1],
         )
 
         with patch("warnings.warn") as mock_warn:
             output_df = self.create_dataset.check_duplicates(input_df)
             mock_warn.assert_called_once_with(f"Duplicates found in the dataset: 2")
-            pd.testing.assert_frame_equal(output_df, excepted_output)
+            pd.testing.assert_frame_equal(output_df, excepted_output), print(output_df.head())
 
     def test_duplicate_check_no_duplicate(self):
         """Test if the function does not raise a warning if there are no duplicates in the dataframe"""

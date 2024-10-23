@@ -382,7 +382,7 @@ class CreateOverviewDf:
 
             print("No duplicates found in the dataset")
             return None
-        
+
         # Group by hash_col and DataSetVersion
         group_counts = (
             duplicates.groupby(["sha256", "data_set_version"])
@@ -398,10 +398,10 @@ class CreateOverviewDf:
 
         # merge image names based on the hash code and datalake version
         group_counts = pd.merge(
-                group_counts,
-                df[["sha256", "data_set_version", "image", "class"]],
-                on=["sha256", "data_set_version"],
-                how="left",
+            group_counts,
+            df[["sha256", "data_set_version", "image", "class"]],
+            on=["sha256", "data_set_version"],
+            how="left",
         )
 
         group_counts["count"] = group_counts["count"].astype(int)
@@ -528,16 +528,14 @@ class CreateOverviewDf:
             return None
 
         #  if there are multiple pickle files
-        elif len(pickle_files) > 1:
+        if len(pickle_files) > 1:
             raise ValueError(
                 f"Multiple pickle files found in {datapath}. Please provide only one pickle file"
             )
 
-        else:
-
-            # Prepare file path for the pickle file
-            path_pickle_file = os.path.join(datapath, pickle_files[0])
-            self._split_file_paths[version] = {"pickle": path_pickle_file}
+        # Prepare file path for the pickle file
+        path_pickle_file = os.path.join(datapath, pickle_files[0])
+        self._split_file_paths[version] = {"pickle": path_pickle_file}
 
         return self._split_file_paths
 
