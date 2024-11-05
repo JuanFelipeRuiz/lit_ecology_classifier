@@ -810,4 +810,4 @@ if __name__ == "__main__":
     start = time()
     dataset_creator.main()
     print(f"Time taken: {time() - start}")
-    dataset_creator()
+    print(getattr(dataset_creator, "image_paths"))
