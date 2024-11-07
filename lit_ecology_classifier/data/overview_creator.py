@@ -222,7 +222,7 @@ class OverviewCreator:
 
         # One-hot encode the data_set_versions column
         df = pd.get_dummies(
-            df, columns=["data_set_version"], drop_first=False, prefix="ZooLake"
+            df, columns=["data_set_version"], drop_first=False, prefix="version"
         )
 
         # group by hash value an keep the maximum value of each columns in the group and preserve the columns order
