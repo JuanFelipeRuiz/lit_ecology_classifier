@@ -83,8 +83,8 @@ class BaseImageMover:
         Returns
            (pd.dataframe): Dataframe containg the source paths with the base path
         """
-
-        return df["src"].apply(lambda x: os.path.join(self.src_base_path, x["src"]))
+        df["src"] = df["src"].apply(lambda x: os.path.join(self.src_base_path, x))
+        return df
 
     def copy_image(self, src_path: str, tgt_path: str):
         """
