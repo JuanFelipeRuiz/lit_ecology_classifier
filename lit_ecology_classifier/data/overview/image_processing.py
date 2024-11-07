@@ -1,14 +1,12 @@
 """
-Process the image to extract metadata and calculate the hash value.
+Process the image to extract metadata and hash value.
 """
 
 import logging
 import os
-import hashlib
 from datetime import datetime as dt, timezone
-from PIL import Image
 
-import imagehash
+from ...helpers.hashing import HashGenerator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -43,54 +41,7 @@ class ProcessImage:
                                             Defaults to "sha256".
         """
         self.hash_algorithm = hash_algorithm
-
-    def hash_image(self, image_path: str, hash_algorithm: str) -> str:
-        """Calculate the hash from the binary data of the image using the given hash algorithm.
-
-        Args:
-            image_path (str): Path to the image file as string
-
-        Returns:
-            str: Hash value of the image as string
-
-        Raises:
-            PermissionError: If the image cannot be read due to permission issues
-            Exception: If the image cannot be hashed due to other issues
-        """
-        try:
-
-            with Image.open(image_path) as img:
-
-                #  if image_path ends with .jpeg or .png
-                if img.format not in ["JPEG", "PNG"]:
-                    logging.error(
-                        "Error hashing %s with SHA256: Invalid file format %s",
-                        image_path,
-                        img.format,
-                    )
-                    raise ValueError(
-                        f"Error hashing {image_path} with SHA256: Invalid file format {img.format}"
-                    )
-
-                if hash_algorithm == "sha256":
-                    img_data = img.tobytes()
-                    return hashlib.sha256(img_data).hexdigest()
-                if hash_algorithm == "phash":
-                    return str(imagehash.phash(img))
-
-                logging.error("Unsupported hash algorithm: %s", hash_algorithm)
-                raise ValueError(f"Unsupported hash algorithm: {hash_algorithm}")
-
-        except PermissionError as pe:
-            logging.error("Permission denied when accessing %s: %s", image_path, pe)
-            raise PermissionError(
-                f"Permission denied when accessing {image_path}:{pe}"
-            ) from pe
-
-        except Exception as e:
-            logging.error("Error hashing image %s with SHA256: %s", image_path, e)
-            raise Exception(f"Error hashing {image_path} with SHA256: {e}") from e
-
+    
     def _extract_timestamp_from_filename(self, image_path: str) -> dt:
         """Extract the timestamp from the image filename and convert it to a datetime object.
 
@@ -185,7 +136,7 @@ class ProcessImage:
 
         image_date = self._extract_timestamp_from_filename(image_path)
         plankton_class = self._extract_plankton_class(image_path, version)
-        image_hash = self.hash_image(image_path, self.hash_algorithm)
+        image_hash = HashGenerator.hash_image(image_path, self.hash_algorithm)
 
         image_metadata = {
             "image": os.path.basename(image_path),
