@@ -8,8 +8,8 @@ import os
 
 import pandas as pd
 
-from .base_mover import BaseImageMover
-from ..overview_creator import OverviewCreator
+from lit_ecology_classifier.data.mover.base_mover import BaseImageMover
+from lit_ecology_classifier.data.overview_creator import OverviewCreator
 
 
 logger = logging.getLogger(__name__)

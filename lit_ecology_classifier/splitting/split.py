@@ -4,15 +4,20 @@ and the creation of new splits based on the provided split strategy, data set ve
 The moving of the images is handled by the SplitImageMover class.
 """
 
+# TODO: Add the missing import, Specifiy classes and methods
+
+
 import importlib
 import logging
 import os
-
+import types
 
 import pandas as pd
-from ..splitting.split_strategies.split_strategy import SplitStrategy
-from ..data.mover.split_images_mover import SplitImageMover
-from ..helpers.hashing import HashGenerator
+from lit_ecology_classifier.data.mover.split_images_mover import SplitImageMover
+from lit_ecology_classifier.helpers.hashing import HashGenerator
+from lit_ecology_classifier.splitting.split_strategies.split_strategy import SplitStrategy
+from lit_ecology_classifier.splitting.split_strategies.stratified2 import Stratified2
+
 
 
 logger = logging.getLogger(__name__)
@@ -38,10 +43,12 @@ class SplitProcessor:
         SplitProcessor (SplitProcessor): Base class for methods
 
     """
+    
+
 
     def __init__(
         self,
-        split_strategy = None,
+        split_strategy : SplitStrategy | str = None,
         dataset_version = None,
         ood_version=None,
         image_overview_path=None,
@@ -63,40 +70,45 @@ class SplitProcessor:
         self.image_overview_df = self._init_image_overview_df(image_overview_path)
         self.split_overview_df = self._init_split_overview_df(split_overview)
         self.ood_version = ood_version
-        self.dataset_version = dataset_version
-        self.split_strategy_str, self.split_strategy_instance  = self._init_split_strategy(split_strategy)
+        self.dataset_version = dataset_version #self._init_version(dataset_version)
+        self.split_strategy_str = split_strategy if isinstance(split_strategy, str) else split_strategy.__class__.__name__  
+        self.split_strategy  = split_strategy if isinstance(split_strategy, SplitStrategy) else None
         self.split_df = None
 
-    def _init_split_strategy(self, split_strategy):
-        """Initializes the split strategy 
 
-        Checks if the provided split strategy is a valid class or just a string. If it is a string,
-        no class is provided
+
+    def _init_version(self, version : str | list[str]) -> list[str]:
+        """Initializes the dataset version 
 
         Args:
-            split_strategy (str): Name of the split strategy class.
+            version (str | lstr ): Version of the dataset to be used.
 
         Returns:
-            SplitStrategy_str: name of the split strategy class.
-            SplitStrategy_class: Instance of the split strategy class.
+            str: Version of the dataset.
         """
+        if version is None:
+            logger.info("No dataset version provided, using all images.")
+            return None
 
-        if isinstance(split_strategy, str):
-            split_strategy_str = split_strategy
-            return split_strategy_str, None
-            
-        elif isinstance(split_strategy, SplitStrategy):
-            split_strategy_str = split_strategy.__class__.__name__
-            split_strategy_instance = split_strategy
-            return split_strategy_str, split_strategy_instance
+        if isinstance(version, str):
+            logger.info("Dataset version provided: %s", version)
+            return list(version)
 
-        else:
-            raise ValueError("split_strategy must be a string or an instance of SplitStrategy.")
+        if isinstance(version, list):
+            logger.info("Dataset versions provided: %s", version)
+            return version
+        
         
     def _search_split_strategy(self):
         """Search for the split strategy inside the split_strategies folder.
         """
-        # try to import the split strategy module
+
+        if self.split_strategy_str is None:
+            # Verwende die Basisimplementierung
+            self.split_strategy = SplitStrategy()
+            return self.split_strategy
+
+
         try:
             modul = importlib.import_module(
                 "lit_ecology_classifier.splitting.split_strategies." + self.split_strategy_str
@@ -108,14 +120,17 @@ class SplitProcessor:
 
         try:
             imported_class = getattr(modul, self.split_strategy_str.capitalize())
-            self.split_strategy_instance = imported_class()
+            instance = imported_class()
+            if not isinstance(instance, SplitStrategy):
+                raise TypeError(f"{self.split_strategy_str} is not a valid SplitStrategy.")
+            self.split_strategy = instance
 
         except AttributeError as e:
             logger.error("Split strategy %s not found inside the module %s", 
                          self.split_strategy_str,
                          modul)
             raise e
-        return self.split_strategy_instance
+        return self.split_strategy
 
     def _init_image_overview_df(self, overview_df: pd.DataFrame = None) -> pd.DataFrame:
         """Initializes the image overview DataFrame.
@@ -240,7 +255,7 @@ class SplitProcessor:
                     |img2 |2    |val  |
                     |img3 |3    |test |
         """
-        logger.info("Existing split found. Reloading split.")
+
         hash_value = df["combined_split_hash"].values[0]
         filepath = self._prepare_filepath(hash_value)
         if not os.path.exists(filepath):
@@ -304,10 +319,10 @@ class SplitProcessor:
             dict: Dictionary containing split data.
         """
 
-        if self.split_strategy_instance is None:
-            self.split_strategy_instance = self._search_split_strategy()
+        if self.split_strategy is None:
+            self.split_strategy = self._search_split_strategy()
             
-        return self.split_strategy_instance.perform_split(df, **kwargs)
+        return self.split_strategy.perform_split(df, **kwargs)
 
     def _transform_split_dict(self, split_dict: dict) -> pd.DataFrame:
         """Transform the split dictionary into a dataframe with the columns image and split.

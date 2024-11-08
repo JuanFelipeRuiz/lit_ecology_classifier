@@ -7,7 +7,7 @@ import os
 import pandas as pd
 import logging
 
-from .base_mover import BaseImageMover
+from lit_ecology_classifier.data.mover.base_mover import BaseImageMover
 
 logger = logging.getLogger(__name__)
 
