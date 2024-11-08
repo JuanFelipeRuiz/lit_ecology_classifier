@@ -73,7 +73,7 @@ class SplitImageCopier(BaseImageCopier):
         )
         return df
 
-    def copy_to_splits(self, df: pd.DataFrame):
+    def copy_to_split_folder(self, df: pd.DataFrame):
         """
         Copy images from the source to the target path based on the split DataFrame.
 
