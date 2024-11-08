@@ -1,7 +1,7 @@
 """
 Main module for the split process. Provides all necessary functions to check for used splits
 and the creation of new splits based on the provided split strategy, data set version and out
-The moving of the images is handled by the SplitImageMover class.
+The moving of the images is handled by the SplitImageCopier class.
 """
 
 # TODO: Add the missing import, Specifiy classes and methods
@@ -10,14 +10,11 @@ The moving of the images is handled by the SplitImageMover class.
 import importlib
 import logging
 import os
-import types
 
 import pandas as pd
-from lit_ecology_classifier.data.mover.split_images_mover import SplitImageMover
+from lit_ecology_classifier.splitting.split_image_copier import SplitImageCopier
 from lit_ecology_classifier.helpers.hashing import HashGenerator
 from lit_ecology_classifier.splitting.split_strategies.split_strategy import SplitStrategy
-from lit_ecology_classifier.splitting.split_strategies.stratified2 import Stratified2
-
 
 
 logger = logging.getLogger(__name__)
@@ -66,7 +63,7 @@ class SplitProcessor:
             split_overview_path (str, df): Df containing the split overview or path to CSV.
             image_base_paths (str, optional): Bas epath to the image directory.
         """
-        self.imgage_mover = self._init_image_mover(image_base_paths, tgt_base_path)
+        self.imgage_copier = self._init_image_copier(image_base_paths, tgt_base_path)
         self.image_overview_df = self._init_image_overview_df(image_overview_path)
         self.split_overview_df = self._init_split_overview_df(split_overview)
         self.ood_version = ood_version
@@ -161,17 +158,17 @@ class SplitProcessor:
         
         return overview_df
 
-    def _init_image_mover(
+    def _init_image_copier(
         self, image_base_paths: None | str, tgt_path: None | str
-    ) -> SplitImageMover:
-        """Initializes the image paths. If not provided, a default basepath is used.
+    ) -> SplitImageCopier:
+        """Initializes the image paths for the copier If not provided, a default basepath is used.
 
         Args:
             image_base_paths (str): Path to the image directory. Default path: "data/interim/ZooLake".
             tgt_path (str): Path to the target directory. Default path: "data/processed".
 
         Returns:
-            SplitImageMover: Instance of the SplitImageMover class.
+            SplitImageCopier: Instance of the SplitImageCopier.
 
         """
         if image_base_paths is None:
@@ -190,7 +187,7 @@ class SplitProcessor:
                     f"Target path not found: {tgt_path}, please provide a valid path."
                 )
 
-        return SplitImageMover(src_base_path=image_base_paths, tgt_base_path=tgt_path)
+        return SplitImageCopier(src_base_path=image_base_paths, tgt_base_path=tgt_path)
 
     def _init_split_overview_df(
         self,
@@ -467,7 +464,7 @@ class SplitProcessor:
 
     def copy_images(self):
         """Copies the images based on the split DataFrame."""
-        self.imgage_mover.copy_images(self.split_df)
+        self.imgage_copier.copy_to_split_folder
         logger.info("Images copied successfully.")
 
 
