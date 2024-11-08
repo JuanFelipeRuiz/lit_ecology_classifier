@@ -1,5 +1,5 @@
 """
-Module to move images based on a split DataFrame. It inherits the main functionalities from the BaseImageMover class (image_mover.py).
+Module to copy images based on a split DataFrame. It inherits the main functionalities from the BaseImageCopier class.
 Build the target and source paths based on therow values and provided base paths.
 """
 
@@ -7,23 +7,23 @@ import os
 import pandas as pd
 import logging
 
-from lit_ecology_classifier.data.mover.base_mover import BaseImageMover
+from lit_ecology_classifier.helpers.base_copier import BaseImageCopier
 
 logger = logging.getLogger(__name__)
 
 
-class SplitImageMover(BaseImageMover):
+class SplitImageCopier(BaseImageCopier):
     """
-    Mover class to move images based on a split DataFrame. It inherits the main functionalities
-    from the BaseImageMover class.
+    Copies images based on a split DataFrame from a src folder to the folder fot the modelling. It inherits the main functionalities
+    from the BaseImageCopier class.
 
     Inherits from:
-        BaseImageMover (BaseImageMover): Base class for methods to create, copy, and clean folders for images.
+        BaseImageCopier (BaseImageCopier): Base class for methods to create, copy, and clean folders for images.
     """
 
     def __init__(self, src_base_path: str, tgt_base_path: str):
         """
-        Initialize the SplitImageMover with source and destination base paths and a split DataFrame.
+        Initialize the SplitImageCopier with source and destination base paths and a split DataFrame.
 
         Args:
             src_base_path (str): Base path to the folder containing the class folder and images.
@@ -73,9 +73,9 @@ class SplitImageMover(BaseImageMover):
         )
         return df
 
-    def copy_images(self, df: pd.DataFrame):
+    def copy_to_splits(self, df: pd.DataFrame):
         """
-        Move images from the source to the target path based on the split DataFrame.
+        Copy images from the source to the target path based on the split DataFrame.
 
         Args:
             df (pd.DataFrame): DataFrame containing the image names, class and the corresponding split.
@@ -90,9 +90,9 @@ class SplitImageMover(BaseImageMover):
         # prepare the target path column 
         df = self._prepare_tgt_path(df)
         
-        # filter columns 
+        # filter needed columns 
         df = df[["src", "tgt"]]
 
-        # move images
-        super().move_images(df)
+        # copy images
+        super().copy_images(df)
         return None
