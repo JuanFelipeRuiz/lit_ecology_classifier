@@ -238,15 +238,36 @@ def TTA_collate_fn(batch: dict):
         batch_images: All rotations stacked row-wise
         batch_labels: Labels of the images
     """
+    logging.debug("\n Collate function for TTA")
+    logging.debug("Dataype of input batch: %s", type(batch))
     batch_images = {rot: [] for rot in ["0", "90", "180", "270"]}
     batch_labels = []
-    for rotated_images, label in batch:
-        for rot in batch_images:
-            batch_images[rot].append(rotated_images[rot])
-        batch_labels.append(label)
-    batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
-    batch_labels = torch.tensor(batch_labels)
-    return batch_images, batch_labels
+
+    if train:
+        for rotated_images, label in batch:
+            for rot in batch_images:
+                batch_images[rot].append(rotated_images[rot])
+            batch_labels.append(label)
+        batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
+        batch_labels = torch.tensor(batch_labels)
+        return batch_images, batch_labels
+
+    else:
+        logging.debug("Batch length: %s", len(batch))
+        for rotated_images in batch:
+            logging.debug("Datatype rotated images: %s", type(rotated_images))
+            for rot in batch_images:
+                logging.debug("Datarype of rot %s: %s",rot, type(rot))
+                logging.debug("Datatype of rotated images: %s", type(rotated_images))
+                logging.debug("Rotated : %s", rotated_images)
+
+                batch_images[rot].append(rotated_images[0][rot])
+        batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
+        logging.debug("Successfully stacked images")
+        return batch_images
+
+
+
 
 
 def plot_loss_acc(logger):
@@ -416,5 +437,5 @@ def _extract_class_map(tar_or_dir_path):
     sorted_class_names = sorted(class_map.keys())
     logging.info(f"Found {len(sorted_class_names)} classes.")
     class_map = {class_name: idx for idx, class_name in enumerate(sorted_class_names)}
-
+    logging.info("Class map: %s", class_map)
     return class_map

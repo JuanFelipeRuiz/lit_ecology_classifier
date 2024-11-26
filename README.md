@@ -33,7 +33,7 @@ python -m lit_ecology_classifier.main --max_epochs 20 --dataset phyto --priority
 To run inference on unlabelled data, use the following command:
 
 ```bash
-python -m lit_ecology_classifier.predict --datapath /path/to/data.tar --model_path /path/to/model.ckpt --outpath ./predictions/
+python -m lit_ecology_classifier.predict --datapath ZooLake2/Predict --model_path phyto_priority_cyanos.ckpt --outpath ./predictions/
 ```
 
 ## Configuration

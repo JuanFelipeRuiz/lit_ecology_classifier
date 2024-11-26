@@ -138,12 +138,21 @@ class TarImageDataset(Dataset):
         Returns:
             int: The label index corresponding to the class.
         """
-        label = filename.split("/")[1]
-        if self.priority_classes!=[]:
-            label = self.class_map.get(label, 0)
-        else:
-            label = self.class_map[label]
-        return label
+        try:
+
+            label = filename.split("/")[1]
+            if self.priority_classes!=[]:
+                label = self.class_map.get(label, 0)
+            else:
+                label = self.class_map[label]
+            return label
+        
+        except KeyError:
+            logging.error(f"Class not found for filename: {filename}")
+            raise KeyError(f"Class not found for filename: {filename}")
+        except Exception as e:
+            logging.error(f"Error in get_label_from_filename: {e}")
+            raise e
 
     def shuffle(self):
         """

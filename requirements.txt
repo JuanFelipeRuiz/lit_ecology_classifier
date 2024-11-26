@@ -8,4 +8,4 @@ sphinx
 sphinx_rtd_theme
 sphinx-autodoc-typehints
 scikit-learn
-timm
+timm ==0.9.2  

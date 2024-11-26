@@ -6,6 +6,7 @@ import json
 from lightning.pytorch.strategies import DDPStrategy
 import pathlib
 import sys
+import json
 from time import time
 
 import lightning as l
@@ -24,7 +25,7 @@ from .models.model import LitClassifier
 time_begin = time()
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - -%(message)s")
 
 ###############
 # MAIN SCRIPT #
@@ -35,33 +36,53 @@ if __name__ == "__main__":
 
     # Parse Arguments for training
     parser = argparser()
+    
     args = parser.parse_args()
     # Create Output Directory if it doesn't exist
     pathlib.Path(args.train_outpath).mkdir(parents=True, exist_ok=True)
     gpus =torch.cuda.device_count() if not args.no_gpu else 0
     logging.info(f"Using {gpus} GPUs for training.")
+    
+    logging.info(args)
+    if isinstance(args.priority_classes, str):
+        if args.priority_classes!="":
+            with open(args.priority_classes) as file:
+                priority_class=json.load(file)["priority_classes"]
+                args.priority_classes=priority_class
+        else:
+            args.priority_classes=[]
+    
+    if isinstance(args.rest_classes, str):
+        if args.rest_classes!="":
+            with open(args.rest_classes) as file:
+                rest=json.load(file)["rest_classes"]
+                args.rest_classes=rest
+        else:
+            args.rest_classes=[]
 
-    if args.priority_classes!="":
-        with open(args.priority_classes) as file:
-            priority_class=json.load(file)["priority_classes"]
-            args.priority_classes=priority_class
-    else:
-        args.priority_classes=[]
-    if args.rest_classes!="":
-        with open(args.rest_classes) as file:
-            rest=json.load(file)["rest_classes"]
-            args.rest_classes=rest
-    else:
-        args.rest_classes=[]
     # Initialize the Data Module
-    # Initialize the Data Module
-    model = LitClassifier(**vars(args), pretrained=True)
-    datamodule = DataModule(**model.hparams)
+
+    # check if class map is None or a empty dict
+    if args.class_map is None or args.class_map == {}:
+        with open("config/class_map.json") as file:
+            class_map = json.load(file)
+
+    else:
+        class_map = args.class_map
+
+    logging.info("Class map: %s", format(class_map))
+        
+    
+    datamodule = DataModule(**vars(args), class_map=class_map)
     datamodule.setup("fit")
-    if args.balance_classes:
-        class_weights=calculate_class_weights(datamodule.train_dataset)
-        models.loss = torch.nn.CrossEntropyLoss(class_weights) if not "loss" in list(models.hparams) or not models.hparams.loss=="focal" else FocalLoss(alpha=class_weights ,gamma=1.75)
+
+    # TODO: not implemented in main, but could be useful. Find out if the implementation is still needed and correct
+
+    #if args.balance_classes:
+    #    class_weights=calculate_class_weights(datamodule.train_dataset)
+    #    models.loss = torch.nn.CrossEntropyLoss(class_weights) if not "loss" in list(models.hparams) or not models.hparams.loss=="focal" else FocalLoss(alpha=class_weights ,gamma=1.75)
     # Initialize the loggers
+    
     if args.use_wandb:
         logger = WandbLogger(
             project=args.dataset,
@@ -75,6 +96,12 @@ if __name__ == "__main__":
     torch.backends.cudnn.allow_tf32 = False
 
 
+    args.num_classes = len(datamodule.class_map)
+    if args.balance_classes:
+        args.class_weights = calculate_class_weights(datamodule)
+    else:
+        args.class_weights = None
+    model = LitClassifier(**vars(args), finetune=True)  # TODO: check if this works on cscs, maybe add a file that downlaods model first
     model.load_datamodule(datamodule)
 
     # Initialize the Trainer

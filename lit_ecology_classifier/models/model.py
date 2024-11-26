@@ -20,8 +20,9 @@ class LitClassifier(LightningModule):
         """
         super().__init__()
         self.save_hyperparameters()
-
-        if 'class_map' not in self.hparams.keys():
+        
+        if 'class_map' not in self.hparams:
+            print("Setting up class map")
             self.hparams.class_map = setup_classmap(datapath=self.hparams['datapath'], priority_classes=self.hparams['priority_classes'], rest_classes=self.hparams['rest_classes'])
             self.class_map = self.hparams.class_map
             self.hparams.num_classes = len(self.class_map.keys())

@@ -1,5 +1,33 @@
 import argparse
 import os
+import json
+
+def load_json_file(path):
+    """Load the arguments from a JSON file.
+
+    Loads and returns the arguments from a JSON file if it is a JSON file.
+
+    Arguments:
+        path: str
+            Path to the file to check as a JSON file.
+
+    Returns:
+        Loaded args from JSON file if it is a JSON file.
+
+    Raises:
+        argparse.ArgumentTypeError: If the file is not a JSON file.
+
+    """
+
+    if not os.path.exists(path):
+        raise argparse.ArgumentTypeError(f"{path} does not exist.")
+    if not path.endswith(".json"):
+        raise argparse.ArgumentTypeError(f"{path} is not a JSON file.")
+    
+    with open(path) as file:
+        args = json.load(file)
+    
+    return args
 
 def argparser():
     """
@@ -100,6 +128,7 @@ def inference_argparser():
     parser.add_argument("--gpu_id", type=int, default=0, help="GPU ID to use for inference")
     parser.add_argument("--prog_bar", action="store_true", help="Enable progress bar")
     parser.add_argument("--limit_pred_batches", type=int, default=0, help="Limit the number of batches to predict")
+    parser.add_argument("--config", type=str, default="", help="Path to the JSON file containing the configuration")
     return parser
 
 
