@@ -1,8 +1,6 @@
 """
-Manages the handling and initialization of the filter strategy and applies the 
-filter strategy to the image overview. with the method `apply_filter`.
-
-Can handle the following input types for the filter strategy:
+Manages the diffrent types of filter strategy for the splitting of the image overview.
+Ît can handle the following input types for the filter strategy:
 
 - a string with the class name of the filter strategy to be used
     currently only packages in the `lit_ecology_classifier.splitting.filtering` are supported
@@ -10,6 +8,8 @@ Can handle the following input types for the filter strategy:
 - a subclass of the BaseFilter class that need to be initialized with the filter_args
 - if no filter strategy is provided, a error is raised.
 
+The main function of the class is the `apply_filter` method that applies the filter strategy
+on the given image overview.
 """
 
 import logging
@@ -23,7 +23,15 @@ from lit_ecology_classifier.splitting.filtering.base_filter import BaseFilter
 logger = logging.getLogger(__name__)
 
 
-class _FilterManager:
+class FilterManager:
+    """Manages the diffrent types of filter strategy for splitting of the image overview.
+    
+    Attributes:
+        filter_strategy: The filter strategy to be used for the filtering of the image overview.
+        filter_args: A optional dictionary containing the arguments to be used for the filter strategy.
+                    If a initialized instance of the filter strategy is given, the filter_args
+                    are not used.
+    """
 
     def __init__(
         self,

@@ -2,17 +2,17 @@
 Provides a abstract base class for the creation of custom filters to
 filter the image overview before splitting the data into train and test sets.
 It allows Users to implement their own filters by subclassing the `BaseImageFilter`
-class ensuring that the needed logic for the pipeline is implemented.
+class ensuring that the needed methods are implemented.
 
-It is necessary that the class is named in CamelCase and the file 
-has exactly the same name in snake_case.
+To work properly, the custom filter has to be saved in a file in the `filtering` module.
+The class name has to be in CamelCase and the file the exactly same name in snake_case.
+If the created class is given uninitialized to the custom filter, the SplitProcessor will
+initialize the filter with the given arguments. This would ensure the correctsaving of 
+arguments inside the split overview.
 
 Usage:
     - Define a custom filter by subclassing `BaseImageFilter`.
     - Implement the `filter_image_overview` method in the subclass.
-    - Give the custom filter to the SplitProcessor to use it in the pipeline.
-        Can be a initialized instance of the custom filter or the class instance
-        with the filter arguments to be initialized inside of the SplitProcessor.
     - Optional: To save the custom filter, add it to the `filters` module and 
         name the file with the name of the custom filter in snake_case.
 
@@ -23,8 +23,7 @@ Example:
 
             return filtered_image_overview
 
-
-    # Optional: Save the custom filter in a file named my_own_filter.py
+# Optional: Save the custom filter in a file named my_own_filter.py
     
 """
 
