@@ -12,50 +12,45 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def prepare_versions_to_filter(version_input: Optional[str | list[str]]) -> list[str]:
-    """Prepare the dataset version to be used for filtering.
+def prepare_args_to_filter(arg_input: Optional[str | list[str]]) -> list[str]:
+    """Prepare a arg input to be used for filtering the image overview dataframe.
 
     Args:
-        version: Version of the dataset to be used.
+        arg_input: A string or list of strings containing the column suffic to filter by.
+                    If "all" or None is given, an empty list is returned to indicate
+                    no filtering.
 
     Returns:
-        A list of the dataset versions to filter by. If "all" or
-        None is given, an empty list is returned to indicate no filtering.
+        A list of the given arg_input to filter the image overview dataframe.
 
     Examples:
         - simple string: "v1" -> ["v1"]
         - list of strings: ["v1", "v2"] -> ["v1", "v2"]
         - "all" or None -> []
     """
-    if version_input is None:
-        logger.info("No dataset version provided, using all images.")
+    if arg_input is None:
         return []
 
-    if isinstance(version_input, str):
-        if version_input == "all":
-            logger.info("No dataset version provided, using all images.")
+    if isinstance(arg_input, str):
+        if arg_input == "all":
             return []
 
-        logger.info("Dataset version provided: %s", version_input)
-        return [version_input]
+        return [arg_input]
 
-    if isinstance(version_input, list):
-        logger.info("Dataset versions provided: %s", version_input)
-        return version_input
+    if isinstance(arg_input, list):
+        return arg_input
 
-    raise ValueError(
-        f"Dataset version {version_input} could not be processed. {type(version_input)}"
-    )
+    raise ValueError(f"{arg_input} could not be processed.")
 
 
-def filter_versions(version_list: list, df: pd.DataFrame) -> pd.DataFrame:
-    """Filter the image overview dataframe based on the dataset versions provided.
+def filter_versions(df: pd.DataFrame, version_list: list[str]) -> pd.DataFrame:
+    """Filter the image overview to include images that are part of the given dataset version.
 
     Args:
         df:  Dataframe to filter  with version columns as "version_" + version_str.
 
-        version_list:  A List containing the dataset versions to filter by.
-                        If a empty list is no version filtering will be applied.
+        version_list:  A List containing the dataset versions to include in the dataset.
+                          If empty, the original dataframe is returned.
 
     Returns:
         Dataframe fitlered by the dataset versions.
@@ -80,6 +75,7 @@ def filter_versions(version_list: list, df: pd.DataFrame) -> pd.DataFrame:
     logger.debug(
         "Filtering the dataframe based on the dataset versions: %s", version_list
     )
+    # if version list is empty, use empty()
     if version_list == []:
         logger.debug("No dataset version provided, returning the original dataframe")
         return df
@@ -98,60 +94,34 @@ def filter_versions(version_list: list, df: pd.DataFrame) -> pd.DataFrame:
     return df.drop(df.filter(regex="version_").columns, axis=1)
 
 
-def filter_class_mapping(
-    class_map: dict, rest_classes: list[str] = [], priority_classes: list[str] = []
-) -> pd.DataFrame:
-    """Prepares the class map based on the provided rest and priority classes.
+def filter_ood_images(df: pd.DataFrame, ood_list: list[str]) -> pd.DataFrame:
+    """Filters the given OOD images from the image overview dataframe out of the dataset.
 
-    To focus the training on specific classes, the class map is updated to set classes
-    that are not in the priority classes to 0. The rest classes are to filter, wich classes
-    should be kept in the class map alongside the priority classes. Empty rest and priority
-    classes will result in no filtering.
+    Out-of-Dataset (OOD) are images that are not part of the train, validation or test set.
+    This were introduced by the research of cheng chen in the paper "Producing Plankton
+    Classifiers that are Robust to Dataset Shift".
 
     Args:
-        class_map: Contains the class labels and their corresponding values.
-        priority_classes : List of classes that keep their original mapping value.
-                           If atleast one class is defined, all other classes are set to 0.
-                           If empty, no priority classes are set.
-
-        rest_classes: Classes to keep alonside the priority classes in the class map.
-                        If empty, no classes are removed.
-
+        df: Dataframe to filter with the ood column.
+        ood: A string to filter the dataframe by the ood column.
+             If None, no filtering is applied.
 
     Returns:
-        A dictionary containing the updated class labels isnide the rest classes and
-        priority classes.
-
-    Examples:
-        Given:
-
-        .. code-block:: python
-            priority_classes = ["class1"]
-            rest_classes = ["class2"]
-
-            class_map = {
-                "class1": 1,
-                "class2": 2,
-                "class3": 3
-
-        The resulting class map would be:
-
-        ..code-block:: python
-            {
-                "class1": 1,
-                "class3": 0
-            }
+        Dataframe filtered by the ood column.
     """
 
-    logging.info(
-            "Classes to keep based on defined priority classes, if emtpy no prio are set:%s \n \
-            Classes to keep based on defined rest classes. If empty, no class are filtered out: %s",
-        rest_classes,
-        priority_classes,
-    )
+    if ood_list == [] or ood_list is None:
+        logger.debug("No OOD defined, not filterig based on the OOD images.")
+        return df
 
-    return {
-        key: (value if key in priority_classes or priority_classes == [] else 0)
-        for key, value in class_map.items()
-        if key in priority_classes or key in rest_classes
-    }
+    logger.debug("Filtering the dataframe based on the OOD images: %s", ood_list)
+    ood_col_name = ["OOD_" + version_str for version_str in ood_list]
+
+    if not any(col in df.columns for col in ood_col_name):
+        raise ValueError(f"OOD columns {ood_col_name} not found in the dataframe.")
+
+    ood_filter = df[ood_list].any(axis=1)
+
+    df = df[~ood_filter]
+
+    return df.drop(df.filter(regex="OOD_").columns, axis=1)
