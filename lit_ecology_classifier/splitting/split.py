@@ -1,20 +1,24 @@
 """
-Main module for the split process. Provides all necessary functions to check for used splits
-and the creation of new splits based on the provided split strategy, data set version and out
-The moving of the images is handled by the SplitImageCopier class.
+Main module to ensure reproducibility and  all necessary functions to check for existing splits.
+Contains the logic to:
+- check for existing splits based on the given arguments or based on the hash value.
+- reload a specific split based on the given arguments or hash value
+- orcheestrate the creation of a new split based on the given split- and filter strategy
+    with the help of the filter and split manager.
 """
 
-# TODO: Add the missing import, Specifiy classes and methods
-
-
-import importlib
 import logging
 import os
 
 import pandas as pd
-from lit_ecology_classifier.splitting.split_image_copier import SplitImageCopier
+
+from lit_ecology_classifier.splitting.split_strategies.base_split_strategy import BaseSplitStrategy
+from lit_ecology_classifier.splitting.filtering.base_filter import BaseFilter
+from lit_ecology_classifier.splitting.split_strategies.split_manager import SplitManager
 from lit_ecology_classifier.helpers.hashing import HashGenerator
-from lit_ecology_classifier.splitting.split_strategies.split_strategy import SplitStrategy
+import lit_ecology_classifier.helpers.helpers as helpers
+from lit_ecology_classifier.data.overview_creator import OverviewCreator
+from lit_ecology_classifier.splitting.filtering.filter_manager import FilterManager
 
 
 logger = logging.getLogger(__name__)
@@ -22,474 +26,497 @@ logger = logging.getLogger(__name__)
 
 class SplitProcessor:
     """
-    Provides the main functionalities to manage the split process. It includes the
-    checking of existing splits, the creation of new splits aand executing the image
-    moving based on the split. To ensure the correct reproducibility of the split and
-    to simplify the checking of existing splits, the used images hashes are reduced to
-    a single hash value.
+    Process the  the checking of existing splits with used arguments and orchestrate the creation of new splits 
+    with the help of the filter and split manager modul. 
+
+    It gives the possibility to search for existing splits based on the given arguments or based on the hash value.
+    The hash value is used a unique identifier for the split and is generated based on the images hash values grouped
+    by each split and hashed together.
 
     Attributes:
-        split_strategy (SplitStrategy): Split strategy to be used.
-        dataset_version (str): Version of the dataset,
-        ood_version (str): Out-of-Distribution (OOD) version.
-        image_overview_path (str): Path to the image overview CSV.
-        split_overview_path (str): Path to the split overview CSV.
-        image_base_paths (str): Path to the image directory.
+        split_df: 
+            DataFrame containing the split data with the image names, class labels and the split
+            labels. 
+        image_overview_df:
+            A DataFrame containing the overview of the images to be split. It needs to contain
+            at least the columns "image", "class" and a hash value of the images.
+        split_overview_df:
+            A DataFrame containing the overview of created splits. It needs to contain data
+            on the used split and filter strategies, the used arguments and the combined split 
+            hash.
+        split_outpath:
+            Paths to save the split overview and the split data.
+        split_strategy:
+            The split strategy to be used for the split process. Can be a custom instance of a
+            SplitStrategy or a class name to use already implemented split strategies. To ensure
+            the correct reproducibility of the split, the given 
+            It is better
+            to give a already initialized instance.
+        split_args:
+            Arguments to be passed to the split strategy.
+        filter_strategy:
+            Instance of the filter strategy to filter the image overview before the split process.
+            Initialized with the given filter arguments.
+        filter_args:
+            Arguments to be passed to the filter strategy.
+        class_map:
+            Dictionary containing the class mapping of the class labels. 
+        priority_classes:
+            List of class labels to be prioritized in the class mapping.
+        rest_classes:
+            List of class labels to keep in the class mapping. All other classes that are neither
+            in the priority_classes nor in the rest_classes are removed from the class mapping and
+            not used for the further split and training process
 
-    Inheritance:
-        SplitProcessor (SplitProcessor): Base class for methods
+    Methods:
+        search_splits: 
+            Search for existing splits based on the given arguments or based on the hash value.
+            Will be executed at the initialization of the SplitProcessor and can be re-executed 
+            to search or create new splits based on the given arguments. OOnly one split will 
+            be available at the same time.
 
     """
+
+    _FilterManager =  FilterManager
+    _SplitManager = SplitManager
     
-
-
     def __init__(
         self,
-        split_strategy : SplitStrategy | str = None,
-        dataset_version = None,
-        ood_version=None,
-        image_overview_path=None,
-        split_overview=None,
-        image_base_paths=None,
-        tgt_base_path=None,
+        image_overview: str | pd.DataFrame | OverviewCreator,
+        split_overview: str | pd.DataFrame = None,
+        split_hash: str = None,
+        split_folder: str = None,
+        split_strategy: BaseSplitStrategy | str = None,
+        split_args: dict = None,
+        filter_strategy: BaseFilter | str = None,
+        filter_args: dict = None,
+        class_map: dict[str, int] = None,
+        rest_classes: list[str] = None,
+        priority_classes: list[str] = None,
     ):
-        """Initializes the SplitProcessor with necessary parameters.
+        """Initialisation of the SplitProcessor.
 
         Args:
-            split_strategy: An instance of a SplitStrategy.
-            dataset_version (str): Version of the dataset.
-            ood_version (str, optional): Out-of-Distribution (OOD) version.
-            image_overview_path (str, df): Df containing the image overview or path to CSV.
-            split_overview_path (str, df): Df containing the split overview or path to CSV.
-            image_base_paths (str, optional): Bas epath to the image directory.
+            image_overview:
+                String, DataFrame or OverviewCreator instance  containing the image overview with
+                the image, class labels, image hashes and other relevant informations of the images
+                to be split.
+            split_overview:
+                Optional, a DataFrame or string path to a CSV file containing the split overview
+                with the split strategy, filter strategy, arguments and the combined split hash to
+                check and reload existing splits.
+            split_hash:
+                Optional, a hash value to reload a specific split based on the hash value.
+            Split_folders:
+                Optional, path to the folder with the split data. 
+            split_strategy:
+                Split strategy to be used for the split process. Can be a custom instance of a
+                SplitStrategy or a class name to use already implemented split strategies.
+                Example: "random_split"
+            split_args:
+                Arguments to be passed to the split strategy. Example: {"test_size": 0.7}
+            filter_strategy:
+                Filter strategy to filter the image overview before the split process. Can be a
+                custom instance of a FilterStrategy or a class name to use already implemented
+                filter strategies. Example: "plankton_filter"
+            filter_args:
+                Arguments to be passed to the filter strategy. Example: {"dataset_version": "v1"}
+            class_map:
+                Optional, dictionary containing the class mapping of the class labels. If no class
+                mapping is provided, the class mapping is extracted from the image overview.
+            priority_classes:
+                Optional, list of class labels to be prioritized in the class mapping.
+            rest_classes:
+                Optional, list of class labels to keep in the class mapping. All other classes that 
+                are neither in the priority_classes nor in the rest_classes are removed from the 
+                class mapping. And not used for the futher split and training process.
         """
-        self.imgage_copier = self._init_image_copier(image_base_paths, tgt_base_path)
-        self.image_overview_df = self._init_image_overview_df(image_overview_path)
+        self.split_folder = split_folder
+
+        self.class_map = class_map if class_map is not None else {}
+        self.rest_classes = rest_classes if rest_classes is not None else []
+        self.priority_classes = priority_classes if priority_classes is not None else []
+
+        # Check if needed data is provided as DataFrame or as path to a CSV file
+        self.image_overview_df = self._init_image_overview_df(image_overview)
         self.split_overview_df = self._init_split_overview_df(split_overview)
-        self.ood_version = ood_version
-        self.dataset_version = dataset_version #self._init_version(dataset_version)
-        self.split_strategy_str = split_strategy if isinstance(split_strategy, str) else split_strategy.__class__.__name__  
-        self.split_strategy  = split_strategy if isinstance(split_strategy, SplitStrategy) else None
-        self.split_df = None
 
+        self.filter_strategy = filter_args 
+        self.split_strategy = split_args 
+        self.filter_args = None
+        self.split_args = None
 
+        self.split_df = self.search_splits(
+            split_strategy=split_strategy,
+            filter_strategy=filter_strategy,
+            hash_value=split_hash,
+            filter_args=self.filter_args,
+            split_args=self.split_args,
+        )
 
-    def _init_version(self, version : str | list[str]) -> list[str]:
-        """Initializes the dataset version 
+        self.row_to_append = None
 
+    def _init_image_overview_df(
+        self, image_overview: pd.DataFrame = None | str | OverviewCreator
+    ) -> pd.DataFrame:
+        """Initializes the image overview DataFrame based on the given input. 
+       
         Args:
-            version (str | lstr ): Version of the dataset to be used.
+            image_overview_df:
+                Can be one of the following:
+                - a string path to a CSV file containing the image overview data.
+                - a DataFrame containing the image overview.
+                - an OverviewCreator instance to extract the image overview from
 
         Returns:
-            str: Version of the dataset.
-        """
-        if version is None:
-            logger.info("No dataset version provided, using all images.")
-            return None
-
-        if isinstance(version, str):
-            logger.info("Dataset version provided: %s", version)
-            return list(version)
-
-        if isinstance(version, list):
-            logger.info("Dataset versions provided: %s", version)
-            return version
+            A DataFrame containing the image overview data.
         
-        
-    def _search_split_strategy(self):
-        """Search for the split strategy inside the split_strategies folder.
+        Raises:
+            FileNotFoundError: If the loading of the image overview would fail because
+                                the file could not be found.
         """
 
-        if self.split_strategy_str is None:
-            # Verwende die Basisimplementierung
-            self.split_strategy = SplitStrategy()
-            return self.split_strategy
+        # check if the overview_df is a string path or a DataFrame
+        if isinstance(image_overview, str):
 
-
-        try:
-            modul = importlib.import_module(
-                "lit_ecology_classifier.splitting.split_strategies." + self.split_strategy_str
-            )
-        except ModuleNotFoundError as e:
-            logger.error("Split strategy %s not found in registry.", self.split_strategy_str)
-            raise e
-        
-
-        try:
-            imported_class = getattr(modul, self.split_strategy_str.capitalize())
-            instance = imported_class()
-            if not isinstance(instance, SplitStrategy):
-                raise TypeError(f"{self.split_strategy_str} is not a valid SplitStrategy.")
-            self.split_strategy = instance
-
-        except AttributeError as e:
-            logger.error("Split strategy %s not found inside the module %s", 
-                         self.split_strategy_str,
-                         modul)
-            raise e
-        return self.split_strategy
-
-    def _init_image_overview_df(self, overview_df: pd.DataFrame = None) -> pd.DataFrame:
-        """Initializes the image overview DataFrame.
-
-        If no DataFrame is provided, a default CSV is loaded.
-
-        Args:
-            overview_df (pd.DataFrame|str ): Df containing the columns image names and class labels.  
-                                             Or path to the image overview CSV.  
-
-        Returns:
-            pd.DataFrame: Loaded image overview DataFrame.
-        """
-
-        # if no overview_df is provided, load the default overview.csv
-        if overview_df is None:
-            default_path = os.path.join("data", "interim", "overview.csv")
-            types = {
-                "dataset_version": "str",
-                "OOD": "str",
-                "split_strategy": "str",
-                "combined_split_hash": "str",
-                "description": "str"
-            }
-            return pd.read_csv(default_path, dtype=types)
-        if type(overview_df) == str:
-            return pd.read_csv(overview_df)
-        
-        return overview_df
-
-    def _init_image_copier(
-        self, image_base_paths: None | str, tgt_path: None | str
-    ) -> SplitImageCopier:
-        """Initializes the image paths for the copier If not provided, a default basepath is used.
-
-        Args:
-            image_base_paths (str): Path to the image directory. Default path: "data/interim/ZooLake".
-            tgt_path (str): Path to the target directory. Default path: "data/processed".
-
-        Returns:
-            SplitImageCopier: Instance of the SplitImageCopier.
-
-        """
-        if image_base_paths is None:
-            image_base_paths = os.path.join("data", "interim", "ZooLake")
-            if not os.path.exists(image_base_paths):
-                logger.error("Image base path not found:%s", image_base_paths)
+            # check if the file exists
+            if not os.path.exists(image_overview):
+                logger.error("Image overview file not found: %s", image_overview)
                 raise FileNotFoundError(
-                    f"Image base path not found: {image_base_paths}, please provide a valid path."
+                    f"Image overview file not found: {image_overview}"
                 )
 
-        if tgt_path is None:
-            tgt_path = os.path.join("data", "processed")
-            if not os.path.exists(tgt_path):
-                logger.error("Target path not found:%s", tgt_path)
-                raise FileNotFoundError(
-                    f"Target path not found: {tgt_path}, please provide a valid path."
-                )
+            # load the overview_df
+            image_overview = pd.read_csv(image_overview)
 
-        return SplitImageCopier(src_base_path=image_base_paths, tgt_base_path=tgt_path)
+        elif isinstance(image_overview, OverviewCreator):   
+            image_overview = image_overview.get_overview_df()
+
+        logger.debug("Image overview column types: %s", image_overview.dtypes)
+        return image_overview
 
     def _init_split_overview_df(
-        self,
-        split_overview: None | pd.DataFrame,
+        self, split_overview: str | pd.DataFrame
     ) -> pd.DataFrame:
         """Initializes the split overview DataFrame.
 
-        If no Split overview is provided, a default CSV is loaded or a new one is created.
+        Detects if a split overview DataFrame is provided or a string path to a CSV file.
 
         Args:
-            split_overview_path (pd.DataFrame, optional): DataFrame containing split overview.
+            split_overview: Can be one of the following:
+                - a string path to a CSV file containing the split overview data.
+                - a DataFrame containing the split overview.
 
         Returns:
-            pd.DataFrame: Loaded or newly created split overview DataFrame.
+            The split overview DataFrame
+
+        Raises:
+            FileNotFoundError: If the loading of the split overview would fail because
+                                the file could not be found.
         """
+
         if split_overview is None:
-            default_path = os.path.join(
-                "data", "interim", "train_test_val", "split_overview.csv"
+            logger.info(
+                "No split overview provided, no search for existing splits possible"
             )
-            if not os.path.exists(default_path):
-                logger.warning(
-                    "General split overview not found. Creating a new one at:%s",
-                    {default_path},
+            return None
+
+        if isinstance(split_overview, str):
+            if not os.path.exists(split_overview):
+                logger.error("Split overview file not found: %s", split_overview)
+                raise FileNotFoundError(
+                    f"Split overview file not found: {split_overview}"
                 )
-                type_dict = {
-                    
-                    "dataset_version" : "str",
-                    "split_strategy":"str",
-                    "ood_version":"str",
-                    "combined_split_hash":"str",
-                    "description" : "str",
-                    
-                }
-            return pd.read_csv(default_path, dtype=type_dict)
+            split_overview = pd.read_csv(split_overview)
+        logger.info("Split overview loaded.")
         return split_overview
+    
+    def _ensure_class_name(self, input_: str | BaseFilter | BaseSplitStrategy) -> str:
+        """Ensures the Class name is written in CamelCase for the comparison.
+
+        Args:
+            input_: Can be a string, an instance of BaseFilter or SplitStrategy 
+            to be checked.
+
+        Returns:
+            A string representation of the given input in CamelCase.
+        
+        Raises:
+            A ValueError if the given input is in snake_case or starts in lower case.
+        """
+        # extract class name if the given string is an instance of BaseFilter or SplitStrategy
+        if isinstance(input_, (BaseFilter, BaseSplitStrategy)):
+            input_ = input_.__class__.__name__
+
+        # check if the given string is a string, else raise an error
+        if not isinstance(input_, str):
+            raise ValueError(
+                "The given string has to be a string or an instance of BaseFilter or SplitStrategy"
+            )
+
+        # check if the string is written in CamelCase
+        if "_" in input_ or input_.islower():
+            raise ValueError(
+                "The given string has to be written in CamelCase for the comparison. Please rename the input: %s",
+                input_
+            )
+        
+        logger.debug("Class name: %s", input_)
+        return input_
 
     def _prepare_filepath(self, hash_value: str) -> str:
         """Prepares the file path based on the provided hash.
 
         Args:
-            hash_value (str): Hash value.
+            hash_value: A hash value to be used for the file name.
 
         Returns:
-            str: Prepared file path.
+            The file path based on the hash value and given split outputpath.
         """
         filename = f"{str(hash_value)[:24]}.csv"
-        filepath = os.path.join("data", "interim", "UsedSplits", filename)
+
+
+        filepath = os.path.join(self.split_folder, filename)
         return filepath
 
-    def _reload_split(self, df):
-        """Reloads an existing split based on the hash.
+    def _reload_split(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Reloads an existing split based on the row of the split overview DataFrame.
 
         Args:
-            existing_split_df (pd.DataFrame): DataFrame containing existing split information.
+           df: A DataFrame with one row containing the split to be reloaded.
 
         Returns:
-            pd.DataFrame: Reloaded split DataFrame. Example:
-
-                    |image|class|split|
-                    |-----|-----|-----|
-                    |img1 |1    |train|
-                    |img2 |2    |val  |
-                    |img3 |3    |test |
+           The split DataFrame based on the given hash value.
         """
 
         hash_value = df["combined_split_hash"].values[0]
+        logger.info("Reloading split based on hash value: %s", hash_value)  
+        
         filepath = self._prepare_filepath(hash_value)
+        logger.info("Split file path: %s", filepath)
         if not os.path.exists(filepath):
             logger.error("Split file not found:%s", filepath)
             raise FileNotFoundError(f"Split file not found: {filepath}")
-        return pd.read_csv(filepath)
-    
-    def _get_version_col_name(self, df):
-        """Prepare the version column based on the dataset and ood version.
-
-        Args:
-            df (Dataframe): Dataframe containing the image names and the class labels for the split
-
-        Returns: Dataframe containing the image names and the class labels for the split
-        """
-
-        version_col_name = "version_" + self.dataset_version
         
-        if version_col_name not in df.columns:
-            logger.error("Dataset version not found in image overview")
-            raise ValueError("Dataset version not found in image overview")
-            
-        
-        return version_col_name
-
-
-    def _filter_df(self, df):
-        """Filter the overview dataframe based on the dataset and out of dataset (ood) version.
-
-        To prevent the split of images that are not part of the dataset version or are part of
-        the ood version. It ensures the repoducibility of old models by providing the same data
-        version.
-
-        Args:
-            df (Dataframe): Dataframe containing the image names and the class labels for the split
-
-
-        Returns: Filtered Dataframe containing the image names and the class labels for the split
-        """
-        logger.debug("Filtering data based on dataset version: %s", self.dataset_version)
-   
-        version_col_name = self._get_version_col_name(df)
-
-        df = df[df[version_col_name] == True]
-
-        logger.debug("Filtering dataframe: %s", df.shape)
-        if self.ood_version is not None:
-            df = df[df["ood_version"] != self.ood_version]
-
-        return df
-
-    def execute_split(self, df: pd.DataFrame, **kwargs) -> dict:
-        """
-        Executes the split using the provided split strategy.
-
-        Args:
-            df (pd.DataFrame): Filtered DataFrame.
-            **kwargs: Additional parameters for the split strategy.
-
-        Returns:
-            dict: Dictionary containing split data.
-        """
-
-        if self.split_strategy is None:
-            self.split_strategy = self._search_split_strategy()
-            
-        return self.split_strategy.perform_split(df, **kwargs)
-
-    def _transform_split_dict(self, split_dict: dict) -> pd.DataFrame:
-        """Transform the split dictionary into a dataframe with the columns image and split.
-
-        Args:
-            split_dict (dict): Dictionary containing the split data. Example:
-                {
-                    "train": img1, img2, ...
-                    "val": img3, img4, ...
-                    "test": img5, img6, ...
-                }
-
-        Returns:
-            pd.DataFrame: DataFrame containing the split data and further informations. Example:
-                        |image|split|
-                        | ---- | ---- |
-                        |img1 |train|
-                        |img2 |train|
-        """
-
-        # List to store DataFrames with split labels
-        combined_list = []
-
-        # Iterate over each split (key) and its corresponding data (value) in the dictionary
-        for split_name, (X, y) in split_dict.items():
+        return pd.read_csv(filepath_or_buffer = filepath)
     
-            split_df = pd.concat([X, y], axis=1)
-            # Add the "split" column with the split name (e.g., "train", "test", etc.)
-            split_df["split"] = split_name
-            # Append to the list of DataFrames
-            combined_list.append(split_df)
-
-        # Concatenate all split DataFrames into one DataFrame
-        combined_df = pd.concat(combined_list, ignore_index=True)
-
-        logger.debug("Split data transformed successfully.")
-        return combined_df
-
-
-    def _merge_split_df(self, split_df: pd.DataFrame) -> pd.DataFrame:
-        """Merge the split dataframe with the image overview dataframe.
-
+    def _find_with_existing_hash(self, hash_value: str) -> pd.DataFrame:
+        """Finds a split based on the given hash value.
+        
         Args:
-            split_df (Dataframe): Dataframe containing the image names and split labels. 
-                                 Example:
-                                    |image|split|
-                                    |-----|-----|
-                                    |img1 |train|
-                                    |img2 |val  |
-
-
+            hash_value: Hash value to reload an existing split.
+        
         Returns:
-            pd.DataFrame: Merged DataFrame. Example:
-                            |image|class|hash|split|
-                            |-----|-----|----|-----|    
-                            |img1 |1    |hash|train|
-                            |img2 |2    |hash|vall|
+           The split DataFrame based on the given hash value.
+        """
+        existing_split = self.split_overview_df[
+            self.split_overview_df["combined_split_hash"] == hash_value
+        ]
+        if existing_split.empty:
+            raise ValueError("No split found with the given hash value.")
+        return self._reload_split(df=existing_split)
+    
 
+    def _find_existing_split(self, filter_strategy, split_strategy) -> pd.DataFrame:
+        """Find an existing split based on filter and split strategy
+        
+        Args:
+            filter_strategy: Filter strategy to be used for the split.
+            split_strategy: Split strategy to be used for the split.
+        
+        Returns:
+            A DataFrame containing rows that match the given filter and split strategy.
+        """
+        return self.split_overview_df[
+            (self.split_overview_df["filter_strategy"] == self._ensure_class_name(filter_strategy)) &
+            (self.split_overview_df["split_strategy"] == self._ensure_class_name(split_strategy))
+        ]
 
+    def _arguments_match(self, existing_split: pd.DataFrame) -> bool:
+        """Check if the arguments match the existing split
+        
+        Args:
+            existing_split: DataFrame containing the prefiltered split overview
+            based on the filter and split strategy.
+        
+        Returns:
+            A boolean value indicating if the arguments match the existing split.
+        """
+        columns_to_check = list(self.split_args.keys()) + list(self.filter_args.keys())
+
+        for column in columns_to_check:
+            if column in self.split_overview_df.columns:
+                if self.split_overview_df[column].iloc[0] != existing_split[column].iloc[0]:
+                    return False
+        return True
+    
+    def _merge_class_map(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Merge the class map to the DataFrame
+        
+        Args:
+            df: DataFrame to merge the class map to.
+        
+        Returns:
+            A DataFrame containing the merged class map.
+        """
+        try:
+            df = df.set_index("class")
+            class_map_df = pd.DataFrame(self.class_map.items(), columns=["class", "class_map"]).set_index("class")
+
+           
+            return df.merge(class_map_df, left_index=True, right_index=True).reset_index()
+
+        except Exception as e:
+            logger.error("Merging class map into filtered DataFrame failed: %s", e)
+            raise ValueError("Merging class map failed.") from e
+        
+    def _generate_class_map(self, df: pd.DataFrame) -> dict[str, int]:
+        """Generate a class map based on the given DataFrame
+        
+        Args:
+            df: DataFrame containing the class labels.
+        
+        Returns:
+            A dictionary containing the class mapping of the class labels.
         """
 
-        df_to_merge = self.image_overview_df[["image", "class", "sha256"]]
-        return split_df.merge(
-            df_to_merge,  on=["image","class"], how="left"
+        if self.class_map is None or not self.class_map:
+            logger.info("No class map provided, generating class map.")
+            self.class_map =  helpers.extract_class_mapping_df(df = df,
+                )
+        
+        logger.info("Class map generated: %s", self.class_map )
+
+        self.class_map = helpers.filter_class_mapping(
+            self.class_map, self.priority_classes, self.rest_classes
         )
-       
 
-    def append_split_overview(self, 
-                              combined_split_hash: str,
-                              description: str = None):
+        logger.info("Class map generated: %s", self.class_map)
+
+    def _generate_split_hash(self, split_df: pd.DataFrame) -> str:
+        """Generate hashes for the split data."""
+        try:
+            split_hashes = HashGenerator.generate_hash_dict_from_split(
+                split_df, col_to_hash="split"
+            )
+            self.combined_split_hash = HashGenerator.sha256_from_list(split_hashes.values())
+        except Exception as e:
+            logger.error("Hash generation failed: %s", e)
+            raise ValueError("Hash generation failed.") from e
+
+    def _generate_row_to_append(self, description: str = None):
         """
         Appends the split metadata to the split overview DataFrame.
 
         Args:
-            split_df (pd.DataFrame): Split DataFrame.
-            combined_split_hash (str): Combined split hash.
-        """
-        new_entry = {
-            "dataset_version": self.dataset_version,
-            "split_strategy": self.split_strategy_str,
-            "ood": self.ood_version,
-            "combined_split_hash": combined_split_hash,
-            "description": description,
-        }
-
-        row_to_append = pd.DataFrame(new_entry, index=[0])
-        self.split_overview_df = pd.concat([self.split_overview_df, row_to_append], ignore_index=True)
-        logger.info("Split overview updated.")
-
-    def save_split(self, split_df: pd.DataFrame, combined_split_hash: str):
-        """
-        Saves the split DataFrame to a CSV file.
-
-        Args:
-            split_df (pd.DataFrame): Split DataFrame.
-            combined_split_hash (str): Combined split hash.
-        """
-        filepath = self._prepare_filepath(combined_split_hash)
-        split_df.to_csv(filepath, index=False)
-        logger.info("Split saved at: %s", filepath)
-
-    def save_split_overview(self):
-        """Saves the split overview DataFrame to a CSV file.
-
-        Args:
-            split_df (pd.DataFrame): Split DataFrame.
-            combined_split_hash (str): Combined split hash.
-        """
-        self.split_overview_df.to_csv(
-            os.path.join("data", "interim", "USedSplits", "split_overview.csv"),
-            index=False,
-        )
-        logger.info("Split overview saved.")
-
-
-    def _create_split(self) -> pd.DataFrame:
-        """Create a new split based on the provided DataFrame.
-
-        Mangaes the entire split process by filtering the DataFrame, executing the split,
-        transforming the split data and generating hashes for the split data.
-        """
-        filtered_df = self._filter_df(self.image_overview_df)
-        split_dict = self.execute_split(filtered_df)
-        logger.info("Splitted data successfully with %s", self.split_strategy_str)
-        logger.debug("Starting transformation of split%s", split_dict)
-        split_df = self._transform_split_dict(split_dict)
-        logger.debug("Starting merge of split with overview df.")
-        split_df = self._merge_split_df(split_df)
-        logger.debug("Starting generation of hashes.")
-        split_hashes = HashGenerator.generate_hash_dict_from_split(split_df, col_to_hash="sha256")
-        combined_split_hash = HashGenerator.sha256_from_list(split_hashes.values())
-
-        self.append_split_overview(combined_split_hash)
-
-
-        return split_df
-    
-    def save_changes(self):
-        """Saves the changes to the split overview."""  
-        self.save_split(self.split_df, self.split_overview_df["combined_split_hash"].values[0])
-        self.save_split_overview(self.split_overview_df, self.split_overview_df["combined_split_hash"].values[0])
-
-    def copy_images(self):
-        """Copies the images based on the split DataFrame."""
-        self.imgage_copier.copy_to_split_folder
-        logger.info("Images copied successfully.")
-
-
-    def main(self) -> pd.DataFrame:
-        """
-        Executes the entire split process.
+            combined_split_hash: A hash value to be used for the file name.
 
         Returns:
-            pd.DataFrame: Final split DataFrame.
         """
-        existing_split = self.split_overview_df[
-            (self.split_overview_df["dataset_version"] == self.dataset_version)
-            & (
-                self.split_overview_df["split_strategy"]
-                == self.split_strategy_str
+        new_entry = {
+            "split_strategy": self.split_strategy.__class__.__name__,
+            "filter_strategy": self.filter_strategy.__class__.__name__,
+            "combined_split_hash": self.combined_split_hash,
+            "description": description,
+            "class_map": self.class_map,
+            **self.split_args,
+            **self.filter_args,
+        }
+
+        return pd.DataFrame(new_entry, index=[0])
+        
+
+    def _new_split(self, split_strategy, filter_strategy) -> pd.DataFrame:
+        """Create a new split based on the given split and filter strategy
+        
+        Args:
+            split_strategy: Split strategy to be used for the split.
+            filter_strategy: Filter strategy to be used for the split.
+        
+        Returns:
+            A DataFrame containing the split data based on the given split and filter strategy.
+        """
+
+        logger.info(
+            "Creating a new split based on the given split and filter strategy.:%s", 
+                    type(self.image_overview_df)
             )
-        ]
+        
+        # Filter the image overview
+        filter_manager = FilterManager(filter_strategy=filter_strategy, filter_args= self.filter_args)
+        filtered_df = filter_manager.apply_filter(self.image_overview_df)
+
+        # Generate the class map
+        self._generate_class_map(filtered_df)
+
+        filtered_df = self._merge_class_map(filtered_df)
+
+        split_manager = SplitManager(
+            split_strategy=split_strategy, split_args=self.split_args
+        )
+
+        split_df = split_manager.perfom_split(filtered_df)
+
+        # join the split data with the filtered df to keep the metadata
+        self.split_df = filtered_df.merge(split_df, on="image")
+
+        self.combined_split_hash = self._generate_split_hash(self.split_df)
+        self._generate_row_to_append()
+        return self.split_df 
+
+    def search_splits(
+        self,
+        filter_strategy: str | BaseFilter = None,
+        filter_args: dict = None,
+        split_strategy: str | BaseSplitStrategy = None,
+        split_args: dict = None,
+        hash_value: str = None,
+    ) -> pd.DataFrame:
+        """
+        Search for existing splits based on the given split- and filter strategy 
+        or based on the hash_value.
+
+        Args:
+            filter_strategy: String or instance of the filter module to search for.
+            filter_args: Arguments for the filter strategy.
+            split_strategy: String or instance of the split strategy to search for.
+            split_args: Arguments for the split strategy.
+            hash_value: Hash value to reload an existing split.
+
+        Returns:
+            pd.DataFrame: The split DataFrame based on the given arguments.
+        """
+        # Reload split based on hash value
+        if hash_value:
+            return self._find_with_existing_hash(hash_value)
+
+        # Initialize split_args and filter_args if not provided
+        split_args = split_args or {}
+        filter_args = filter_args or {}
+
+        # Update internal arguments if they have changed
+        if split_args != self.split_args or filter_args != self.filter_args:
+            self.split_args = split_args
+            self.filter_args = filter_args
+            logger.debug("Updated split args: %s", self.split_args)
+            logger.debug("Updated filter args: %s", self.filter_args)
+
+        # Check if the split overview exists
+        if self.split_overview_df is None:
+            logger.info("No split overview found, creating a new split.")
+            return self._new_split(split_strategy=split_strategy, filter_strategy=filter_strategy)
+
+        # Filter existing splits based on strategies
+        existing_split = self._find_existing_split(filter_strategy, split_strategy)
 
         if not existing_split.empty:
-            logger.info("Existing split found, reloading split.")
-            split_df = self._reload_split(existing_split)
-        else:
-            logger.info("No existing split found, creating new split.")
-            split_df = self._create_split()
+            # Validate arguments against existing splits
+            if self._arguments_match(existing_split):
+                logger.info("Existing split found, reloading split.")
+                return self._reload_split(existing_split)
 
-        self.split_df = split_df
-        return split_df
+            logger.info("Arguments do not match, creating a new split.")
+            return self._new_split(split_strategy=split_strategy, filter_strategy=filter_strategy)
 
+        logger.info("No existing split found, creating a new split.")
+        return self._new_split(split_strategy=split_strategy, filter_strategy=filter_strategy)

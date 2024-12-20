@@ -132,7 +132,6 @@ class SplitManager:
         |img2 | val |
         |img3 | test|
         """
-
         # Create a combined DataFrame by iterating through the dictionary
         combined_df = pd.concat(
             [
@@ -148,19 +147,20 @@ class SplitManager:
 
         return combined_df
 
-    def perform_split(self, filtered_df: pd.DataFrame) -> dict:
-        """Perfroms the split strategy on the given image overview.
+    def perfom_split(self, filtered_df: pd.DataFrame) -> pd.DataFrame:
+        """Perform a split on the given image overview based on the split strategy.
 
         Args:
             filtered_df: The filtered image overview to be splitted
 
         Returns:
-            A dictionary containing the split name as key and the split data as value.
+            A DataFrame containing the split data and further informations.
         """
-        return self.split_strategy.perform_split(filtered_df, y_col="class_map")
+        split_df = self.split_strategy.perform_split(filtered_df, y_col="class_map")
+        return self._transform_split_dict(split_df)
 
-    def get_transformed_split(self, split_dict: dict) -> pd.DataFrame:
-        """Transform the split dictionary into a DataFrame with the columns image and split.
+    def get_untransformed_split(self, filtered_df) -> pd.DataFrame:
+        """Gets the untrensformed split data from the split strategy.
 
         Args:
             split_dict: A dictionary with the split name as key and the split data as value.
@@ -168,4 +168,4 @@ class SplitManager:
         Returns:
             A DataFrame containing the split data and further informations.
         """
-        return self._transform_split_dict(split_dict)
+        return self.split_strategy.perform_split(filtered_df, y_col="class_map")
