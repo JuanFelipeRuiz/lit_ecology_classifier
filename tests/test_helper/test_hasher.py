@@ -18,6 +18,6 @@ def test_generate_hash_dict_from_split():
         'train': 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad',
         'test': '959a45d44e6fcf58361ed004681556fe50129f2109e817dec098c00c9e5d2578'
     }
-    assert HashGenerator.generate_hash_dict_from_split(split, hash_col_name= 'hash_value') == expected_hash
+    assert HashGenerator.generate_hash_dict_from_split(split, col_to_hash= 'hash_value', group_by_col= "split") == expected_hash
 
 

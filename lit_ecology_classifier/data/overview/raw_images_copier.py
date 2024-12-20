@@ -8,17 +8,17 @@ import os
 
 import pandas as pd
 
-from .base_mover import BaseImageMover
-from ..overview_creator import OverviewCreator
+from lit_ecology_classifier.helpers.base_copier import BaseImageCopier
+from lit_ecology_classifier.data.overview_creator import OverviewCreator
 
 
 logger = logging.getLogger(__name__)
 
 
-class RawImageMover(BaseImageMover):
-    """Mover class to move the images from the raw folder to the interim folder.
+class RawImageCopier(BaseImageCopier):
+    """Copies the images from the raw folder to the interim folder.
      
-    It inherits the main functionalities from the BaseImageMover. The image paths created 
+    It inherits the main functionalities from the BaseImageCopier. The image paths created 
     by the overview creator are used for the source paths. The target paths are created based 
     on the class of the image.
 
@@ -29,7 +29,7 @@ class RawImageMover(BaseImageMover):
 
     def __init__(self, tgt_base_path: str, overview_creator: OverviewCreator):
         """
-        Initialize the RawImageMover with the target base path and the OverviewCreator instance.
+        Initialize the RawImageCopier with the target base path and the OverviewCreator instance.
 
         Args:
             tgt_base_path (str): Target base path where the images will be copied.
@@ -104,10 +104,10 @@ class RawImageMover(BaseImageMover):
         logger.info("Prepared target paths for the images %s", df.head())
         return df
 
-    def move_raw_to_interim(self):
+    def copy_raw_to_interim(self):
         """Moves the images from the raw folder to the interim folder."""
 
-        logger.info("Start preparing paths to move raw images to interim folder")
+        logger.info("Start preparing paths to copyraw images to interim folder")
         path_dict = self._images_paths
 
         df = self._image_paths_to_df(path_dict)
@@ -115,6 +115,6 @@ class RawImageMover(BaseImageMover):
         df["src"] = df["image_path"]
 
         logger.info("Start moving raw images to interim folder")
-        self.move_images(df)
+        self.copy_images(df)
 
         logger.info("Finished moving raw images to interim folder")

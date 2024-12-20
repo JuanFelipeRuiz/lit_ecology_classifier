@@ -1,6 +1,7 @@
 import hashlib
 import logging
 
+import pandas as pd
 from PIL import Image
 import imagehash
 
@@ -23,7 +24,11 @@ class HashGenerator:
         return hashlib.sha256(concatenated.encode()).hexdigest()
 
     @staticmethod
-    def generate_hash_dict_from_split(df, col_to_hash = "hash") -> list[str]:
+    def generate_hash_dict_from_split(df : pd.DataFrame,
+                                      col_to_hash = "hash256", 
+                                      group_by_col = "split"
+
+                                      ) -> list[str]:
         """Generate a hash for each value inside the split column.
 
         Args:
@@ -40,13 +45,13 @@ class HashGenerator:
         """
 
         hash_dict = (
-            df.groupby("split")[col_to_hash].apply(HashGenerator.sha256_from_list).to_dict()
+            df.groupby(group_by_col)[col_to_hash].apply(HashGenerator.sha256_from_list).to_dict()
         )
 
         return hash_dict
     
     @staticmethod
-    def hash_image(image_path: str, hash_algorithm: str) -> str:
+    def hash_image(image_path: str, hash_algorithm: str = "256") -> str:
         """Calculate the hash from the binary data of the image using the given hash algorithm.
 
         Args:
