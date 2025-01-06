@@ -2,7 +2,7 @@
 #SBATCH --job-name=test_2epoch  
 #SBATCH --account="em09"
 #SBATCH --partition=normal
-#SBATCH --constraint='gpu'
+#SBATCH --constraint=gpu
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks-per-node=1
