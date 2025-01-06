@@ -1,0 +1,48 @@
+// launch configuration for predictions
+
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python Debugger: Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "lit_ecology_classifier.predict",
+            "args": ["--datapath", "ZooLake2/Predict", "--model_path", "models/benno/zoo3.ckpt", "--outpath", "./predictions/"],
+        }
+    ]
+}
+
+
+// launch configuration for training a model
+/*
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Python Debugger: Module",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "lit_ecology_classifier.main",
+            "args": [
+            "--max_epochs", "3",
+            "--dataset", "ZooLake3Test",
+            "--datapath", "zoo3.tar",
+            //"--priority", "config/priority.json",
+            "--batch_size", "32",
+            "--use_wandb" 
+            //"--rest_classes", "config/rest_classes.json"
+            ]
+        }
+        
+    ]
+}
+    */
