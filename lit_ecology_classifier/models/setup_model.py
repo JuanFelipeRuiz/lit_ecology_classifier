@@ -4,7 +4,7 @@ import timm
 import torch
 from safetensors.torch import load_file
 
-def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints_sh/backbone.safetensors", **kwargs):
+def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints/backbone.safetensors", **kwargs):
     """
     Set up and return the specified model architecture.
 
