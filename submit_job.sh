@@ -1,11 +1,12 @@
 #!/bin/bash
+#SBATCH --job-name=test_2epoch  
 #SBATCH --account="em09"
+#SBATCH --partition=normal
 #SBATCH --constraint='gpu'
 #SBATCH --nodes=2
 #SBATCH --ntasks-per-core=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
-#SBATCH --partition=normal
 #SBATCH --hint=nomultithread
 #SBATCH --output=slurm/slurm_%j.out
 #SBATCH --error=slurm/slurm_%j.err
