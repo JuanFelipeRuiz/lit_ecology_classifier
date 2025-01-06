@@ -63,17 +63,17 @@ if __name__ == "__main__":
     # Initialize the Data Module
 
     # check if class map is None or a empty dict
-    if args.class_map is None or args.class_map == {}:
-        with open("config/class_map.json") as file:
-            class_map = json.load(file)
+    #if args.class_map is None or args.class_map == {}:
+    #    with open("config/class_map.json") as file:
+    #        class_map = json.load(file)
 
-    else:
-        class_map = args.class_map
+    #else:
+    #    class_map = args.class_map
 
-    logging.info("Class map: %s", format(class_map))
+    #logging.info("Class map: %s", format(class_map))
         
     
-    datamodule = DataModule(**vars(args), class_map=class_map)
+    datamodule = DataModule(**vars(args))
     datamodule.setup("fit")
 
     # TODO: not implemented in main, but could be useful. Find out if the implementation is still needed and correct
