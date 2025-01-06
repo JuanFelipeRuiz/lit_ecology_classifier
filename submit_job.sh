@@ -1,6 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name="test_2epoch"  
 #SBATCH --account="em09"
+#SBATCH --constraint='gpu'
 #SBATCH --partition=normal
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-core=1
