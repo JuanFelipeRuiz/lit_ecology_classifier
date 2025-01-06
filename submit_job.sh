@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=test_2epoch  
+#SBATCH --job-name="test_2epoch"  
 #SBATCH --account="em09"
 #SBATCH --partition=normal
 #SBATCH --constraint=gpu
