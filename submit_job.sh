@@ -10,7 +10,7 @@
 #SBATCH --output=slurm/slurm_%j.out
 #SBATCH --error=slurm/slurm_%j.err
 export OMP_NUM_THREADS=12 #$SLURM_CPUS_PER_TASK
-cd ${SCRATCH}/lit_ecology_classifier
+cd ${SCRATCH}/plankton_classifier/lit_ecology_classifier
 module purge
 module load daint-gpu cray-python
 source lit_ecology/bin/activate
