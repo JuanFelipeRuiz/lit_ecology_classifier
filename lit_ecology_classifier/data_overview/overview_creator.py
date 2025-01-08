@@ -5,9 +5,9 @@ import warnings
 import pandas as pd
 
 from lit_ecology_classifier.checks.duplicates import check_duplicates
-from lit_ecology_classifier.data.overview.image_processing import ProcessImage
-from lit_ecology_classifier.data.overview.raw_split_preparer import RawSplitPathPreparer
-from lit_ecology_classifier.data.overview.raw_split_applier import RawSplitApplier
+from lit_ecology_classifier.data_overview.utils.image_processing import ProcessImage
+from lit_ecology_classifier.data_overview.utils.raw_split_preparer import RawSplitPathPreparer
+from lit_ecology_classifier.data_overview.utils.raw_split_applier import RawSplitApplier
 
 
 class OverviewCreator:

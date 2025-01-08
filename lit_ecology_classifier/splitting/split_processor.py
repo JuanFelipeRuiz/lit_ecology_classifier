@@ -17,7 +17,7 @@ from lit_ecology_classifier.splitting.filtering.base_filter import BaseFilter
 from lit_ecology_classifier.splitting.split_strategies.split_manager import SplitManager
 from lit_ecology_classifier.helpers.hashing import HashGenerator
 import lit_ecology_classifier.helpers.helpers as helpers
-from lit_ecology_classifier.data.overview_creator import OverviewCreator
+from lit_ecology_classifier.data_overview.overview_creator import OverviewCreator
 from lit_ecology_classifier.splitting.filtering.filter_manager import FilterManager
 
 

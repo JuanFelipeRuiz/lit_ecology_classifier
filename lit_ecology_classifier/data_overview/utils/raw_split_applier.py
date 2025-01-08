@@ -3,7 +3,6 @@ Class to read and add the split information to the DataFrame based on the paths 
 """
 import os
 import pickle
-import warnings
 
 import numpy as np
 import pandas as pd
