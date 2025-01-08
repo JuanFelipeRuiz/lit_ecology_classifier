@@ -7,7 +7,7 @@ import pickle
 import numpy as np
 import pandas as pd
 
-class RawSplitApplier:
+class _RawSplitApplier:
     """ Add columns that shows the corresponding split of the image perprovided  by the split list 
     
     load the image paths for the training, test, and validation splits  based on 

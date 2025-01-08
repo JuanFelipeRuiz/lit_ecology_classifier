@@ -1,33 +1,8 @@
 import argparse
 import os
 import json
+from typing import Union
 
-def load_json_file(path):
-    """Load the arguments from a JSON file.
-
-    Loads and returns the arguments from a JSON file if it is a JSON file.
-
-    Arguments:
-        path: str
-            Path to the file to check as a JSON file.
-
-    Returns:
-        Loaded args from JSON file if it is a JSON file.
-
-    Raises:
-        argparse.ArgumentTypeError: If the file is not a JSON file.
-
-    """
-
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError(f"{path} does not exist.")
-    if not path.endswith(".json"):
-        raise argparse.ArgumentTypeError(f"{path} is not a JSON file.")
-    
-    with open(path) as file:
-        args = json.load(file)
-    
-    return args
 
 def argparser():
     """
@@ -69,17 +44,26 @@ def argparser():
     """
     parser = argparse.ArgumentParser(description="Configure, train and run the machine learning model for image classification.")
 
-    # Paths and directories
+    # Paths and directories to use
     parser.add_argument("--datapath",  default="/store/empa/em09/aquascope/phyto.tar", help="Path to the tar file containing the training data")
     parser.add_argument("--train_outpath", default="./train_out", help="Output path for training artifacts")
-    parser.add_argument("--main_param_path", default="./params/", help="Main directory where the training parameters are saved")
+    parser.add_argument("--main_param_path", default="./params/", help="Main directory where the training parameters are stored")
     parser.add_argument("--dataset", default="phyto", help="Name of the dataset")
     parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
     parser.add_argument("--no_use_multi", action="store_true", help="Use multiple GPUs for training")
+
+    # Args for the split process
+    parser.add_argument("--split_hash", type=str, default= "", help="Hash of the split to reuse. If empty, no hash search is used")
+    parser.add_argument("--split_strategy", type=str, default= "", help="Split strategy to use. Needs to be saved in the lit_ecology_classifier/split_strategies folder")
+    parser.add_argument("--filter_strategy", type=str, default= "", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
+    # Args for the split process, that can be loaded from a json file
+    parser.add_argument("--split_args", type=load_dict, default= {}, help="Path to the file containing the arguments for the split strategy")
+    parser.add_argument("--filter_args", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
+    parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
+    parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
+    
     
     # Model configuration and training options
-    parser.add_argument("--priority_classes", type=str, default="", help="Path to the JSON file specifying priority classes for training")
-    parser.add_argument("--rest_classes", type=str, default="", help="Path to the JSON file specifying rest classes for training")
     parser.add_argument("--balance_classes", action="store_true", help="Balance the classes for training")
     parser.add_argument("--batch_size", type=int, default=180, help="Batch size for training")
     parser.add_argument("--max_epochs", type=int, default=20, help="Number of epochs to train")
@@ -131,6 +115,68 @@ def inference_argparser():
     parser.add_argument("--limit_pred_batches", type=int, default=0, help="Limit the number of batches to predict")
     parser.add_argument("--config", type=str, default="", help="Path to the JSON file containing the configuration")
     return parser
+
+def overview_argparser():
+    parser = argparse.ArgumentParser(description="Create a data overview for the given dataset.")
+    parser.add_argument("--name", default="overview", help="Name of the overview")
+    parser.add_argument("--image_version_path_dict", type=load_dict, help="Dictionary or path to the json file containing the image versions and their corresponding paths")
+    parser.add_argument("--output", default=".", help="Directory where the overview will be saved")
+    parser.add_argument("--summarise", action="store_true", help="Summarise all unique images into the outputfolder")
+    return parser
+
+def load_dict(input: Union[str, dict]) -> dict:
+    """Load the training arguments from a JSON file.
+
+    args:
+        input: Path or dict containing the args.
+
+    Returns:
+        a dict containing the training arguments.
+
+    Raises:
+        argparse.ArgumentTypeError: If the input is not a dict or a exisisting path to a .json file.
+    """
+
+    if isinstance(input, dict):
+        return input
+    
+    if input == "":
+        return {}
+    
+    if input.endswith(".json"):
+        if not os.path.exists(input):
+            raise argparse.ArgumentTypeError(f"{input} file not found.")
+        
+        with open(input) as file:
+            return json.load(file)
+        
+    raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
+
+
+def load_class_definitions(input: Union[str,list]) -> list:
+    """Load the the priority or rest classes from a JSON file.
+    """
+
+    if isinstance(input, list):
+        return input
+
+    if input.endswith(".json"):
+        if not os.path.exists(input):
+            raise argparse.ArgumentTypeError(f"{input} file not found.")
+        
+        with open(input) as file:
+            class_dict = json.load(file)
+        
+        # check if priority_classes key exists
+        if "priority_classes" in class_dict:
+            return class_dict["priority_classes"]
+        
+        if "rest_classes" in class_dict:
+            return class_dict["rest_classes"]
+        
+        raise argparse.ArgumentTypeError(f"{input} does not contain a known  class definitions.")
+        
+    raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or list containing the class definitions")
 
 
 # Example of using the argument parser

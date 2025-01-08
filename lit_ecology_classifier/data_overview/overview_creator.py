@@ -6,41 +6,55 @@ import pandas as pd
 
 from lit_ecology_classifier.checks.duplicates import check_duplicates
 from lit_ecology_classifier.data_overview.utils.image_processing import ProcessImage
-from lit_ecology_classifier.data_overview.utils.raw_split_preparer import RawSplitPathPreparer
-from lit_ecology_classifier.data_overview.utils.raw_split_applier import RawSplitApplier
+from lit_ecology_classifier.data_overview.utils.raw_split_preparer import _RawSplitPathPreparer
+from lit_ecology_classifier.data_overview.utils.raw_split_applier import _RawSplitApplier
 
 
 class OverviewCreator:
-    """Create an overview of the images in the difffrent ZooLake dataset versions
+    """Create an image overview of the given dataset versions
 
-    The OverviewCreator is used to create an overview of the images based on the diffrent 
-    ZooLake dataset versions that are provided.
+    The OverviewCreator is used to create an overview of the images based on the probided
+    dataset versions. Momentanly the main functionalities of the OverviewCreator are customed
+    to the ZooLake dataset versions. With the help of helper classes, the OverviewCreator
+    can also reload and join the split information of each image. Currently it detects only
+    spplits saved inside of pickle files.
+
+    Following helper classes are used:
+
+    - _RawSplitPathPreparer: Prepares and checks the paths to the different splits summarys for each data set version
+    - _RawSplitApplier: Applies the split summary to the overview DataFrame
+    - ProcessImage: Processes the image metadata and hashes, currently only customed for the ZooLake dataset 
     """
-    raw_split_applier = RawSplitApplier
-    raw_split_preparer = RawSplitPathPreparer
+    raw_split_applier = _RawSplitApplier
+    raw_split_preparer = _RawSplitPathPreparer
+    process_image = ProcessImage
 
-    def __init__(self, zoolake_version_paths: dict = None, hash_algorithm: str = None):
+    def __init__(self, zoolake_version_paths: dict = None, hash_algorithm: str = "sha256"):
+        """Initialize the OverviewCreator with the given ZooLake dataset versions and hash algorithm
 
-        # Initialize the hash algorithm and check for validity
-        self.hash_algorithm = self._init_hash_algorithm(hash_algorithm)
+        Args:
+            zoolake_version_paths : A dictionary containing the paths to the different ZooLake dataset versions. 
+                                        Defaults to None.
+            hash_algorithm: Hash algorithm to use for hashing images. Currenty only 'sha256' is supported.
+        """
 
-        # Initialize the ZooLake dataset versions with the given paths or default paths and check for existence
-        self.zoolake_version_paths = self._init_zoolake_version_paths(
+        self.hash_algorithm = self._prepare_hash_algorithm(hash_algorithm)
+
+        self.zoolake_version_paths = self._prepare_zoolake_version_paths(
             zoolake_version_paths
         )
 
-        # Prepare the image paths for all images in the dataset versions
         self.image_paths = self._prepare_image_paths()
 
         # Initialize the image processor
         self.image_processor = ProcessImage(hash_algorithm=self.hash_algorithm)
-        self.split_applier = None  #Typ: Optional[SplitApplier]
+        self.split_applier = None  
         self._images_list = []
         self._overview_df = None
         self._overview_with_splits_df = None
         self._duplicates_df = None
 
-    def _init_zoolake_version_paths(self, zoolake_version_paths: dict) -> dict:
+    def _prepare_zoolake_version_paths(self, zoolake_version_paths: dict) -> dict:
         """Initialize the ZooLake dataset versions with the given paths or default paths and check for existence
 
         Args:
@@ -63,7 +77,7 @@ class OverviewCreator:
 
         return zoolake_version_paths
 
-    def _init_hash_algorithm(self, hash_algorithm: str) -> str:
+    def _prepare_hash_algorithm(self, hash_algorithm: str) -> str:
         """Initialize the hash algorithm with the given value or default to sha256 and check for validity
 
         Args:
@@ -72,9 +86,6 @@ class OverviewCreator:
         Returns:
             str: Hash algorithm to use for hashing images
         """
-        # if no hash algorithm is provided, default to sha256
-        if hash_algorithm is None:
-            hash_algorithm = "sha256"
 
         if hash_algorithm not in ["sha256", "phash"]:
             raise ValueError(
@@ -310,4 +321,3 @@ if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     overview_creator = OverviewCreator()
     overview_df = overview_creator.get_overview_with_splits_df()
-    print(overview_df.head())

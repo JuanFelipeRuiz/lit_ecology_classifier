@@ -9,7 +9,7 @@ import os
 import warnings
 
 
-class RawSplitPathPreparer:
+class _RawSplitPathPreparer:
     """Prepare the file paths for the train/test/val splits for each ZooLake dataset versions.
 
     The RawSplitPathPreparer is used to prepare the file paths for the train/test/val 

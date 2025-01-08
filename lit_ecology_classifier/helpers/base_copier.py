@@ -1,6 +1,6 @@
 """
 Provides the main functionalities to copy images from a source directory to a destination directory.
-Besides the copy functionality, it provides functionality to create and clean folders for images.
+Besides the copy functionality, it provides functionality to create and clean the target folder if needed.
 """
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -16,35 +16,63 @@ logger = logging.getLogger(__name__)
 
 class BaseImageCopier:
     """
-    Base class for copying images from a source directory to a destination directory.
-    It provides methods to create, copy, and clean folders for images.
+    Base class for copying images from a source directory to a target directory with the `copy_iamge` method. 
+    Before copying the images, it ensures that thearget folders exist and creates them if they do not exist. 
+    The target folderS can also be e,ptiedbefore copying the images with the method.
+
+    The images to copy should be be provided to the `copy_iamge` method as a DataFrame or a list of tuples containing the source and 
+    target paths. The dataframe should have the columns 'src' and 'tgt' and the list of tuples should have the source path as the first
+    element and the target path as the second element to ensure the correct transformation to a DataFrame. 
 
     Attributes:
         src_base_path (str): Source base path to the folder containing the class folder and images.
+                                Should be used if only the class folder is provided in the source path.
         tgt_base_path (str): Target base path to the folder containing the class folder and images.
+
+    Examples:
+
+        ```python
+
+        import pandas as pd
+
+        from lit_ecology_classifier.helpers.base_copier import BaseImageCopier
+
+        # example of a DataFrame
+        paths = pd.DataFrame(
+            { path/to/image1, path/to/target_folder},
+            columns=["src", "tgt"]
+        )
+
+        # example of a list of tuples
+        paths = [ (path/to/image1, path/to/target_folder)]
+
+        copier = BaseImageCopier(src_base_path="path/to/source", tgt_base_path="path/to/target")
+        copier.copy_images(paths)
+        ```
     """
 
     def __init__(self, src_base_path: str = None, tgt_base_path: str = None):
-        """
-        Initialize the BaseImageCopier with source and destination base paths.
+        """ Initialize the BaseImageCopier with the base source and target paths.
 
         Args:
-            src_base_path (str): Optional base path to the folder containing the
+            src_base_path: Optional base path to the folder containing the
                                  class folders with images.
-            tgt_base_path (str): Base path to the terget folder.
+            tgt_base_path: Optional base path to the folder where the images should be copied.
         """
         self.src_base_path = src_base_path
         self.tgt_base_path = tgt_base_path
 
     def create_tgt_folder(self, folder_path: str):
-        """
-        Creates a folder at the specified target path after checking if it exists.
+        """Creates a folder at the specified target path after checking if it exists.
 
         The creation of the folder is done with the exist_ok=True parameter to avoid
-        train/test errors if the folder already exists.
+        errors if the folder already exists.
 
         Args:
             folder_path (str): Path to the folder to be created.
+
+        Raises:
+            Exception: If an error occurs while creating the folder.
         """
         try:
             os.makedirs(folder_path, exist_ok=True)
@@ -54,21 +82,20 @@ class BaseImageCopier:
             raise
 
     def _prepare_target_folders(self, paths_df: pd.DataFrame):
-        """
-        Prepare the target folders for the images to be copied.
+        """Prepare the target folders for the images to be copied.
 
-        Filters all unique target folders and applies the function to create a folder to each one.
+        Finds all unique target folders in the provided DataFrame and creates them if they do not exist.
 
         Args:
-            paths_df (pd.DatFrame): Dataframe containing the target path
+            paths_df: A Dataframe containing the target path
         """
 
-        # filter all unique dir paths
+        # filter all unique target folders
         unique_tgt_folders = paths_df["tgt"].unique()
 
         logger.debug("Unique target folders: %s", unique_tgt_folders)
 
-        # create a folder for each unqiue dir path
+        # create a folder for each unqiue directory found in the target column
         list(
             map(
                 lambda tgt_folder: self.create_tgt_folder(str(tgt_folder)),
@@ -77,24 +104,23 @@ class BaseImageCopier:
         )
 
     def _append_src_base_path(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Apends the base source paths to the proved source column
+        """Apends the base source paths to the provided source column
 
         Args:
-            df (pd.dataframe): Contains the source paths
+            df: A dataframe containing the source paths in the 'src' column
 
         Returns
-           (pd.dataframe): Dataframe containg the source paths with the base path
+           A Dataframe containg the source paths.
         """
         df["src"] = df["src"].apply(lambda x: os.path.join(self.src_base_path, x))
         return df
 
     def copy_single_image(self, src_path: str, tgt_path: str):
-        """
-        Copy image from source path to target path.
+        """ Copy a single image from the source path to the target path.
 
         Args:
-            src_path (str): Source path of the image.
-            tgt_path (str): target path to copy the image.
+            src_path: Complete path to the image to be copied.
+            tgt_path: Target path to copy the image. 
 
         """
         try:
@@ -102,18 +128,18 @@ class BaseImageCopier:
             return None
         except Exception as e:
             logger.error("Error at copyng %s to %s: %s", src_path, tgt_path, e)
-            raise
+            raise ValueError
 
-    def _check_input(self, paths: Union[pd.DataFrame, List[Tuple[str, str]]]):
+    def _check_input(self, paths: Union[pd.DataFrame, List[Tuple[str, str]]]) -> pd.DataFrame:
         """Check if the input is a DataFrame or a list of tuples containing source and target paths.
-        Turn
+        
 
         Args:
-            paths (Union[pd.DataFrame, List[Tuple[str, str]]]):
-                DataFrame with 'src' and 'tgt' columns or list of tuples (src, tgt).
+            paths:
+                A DataFrame with 'src' and 'tgt' columns or list of tuples (src, tgt).
 
         Returns:
-            (pd.Dataframe): A dataframe containing a src and tgt column
+            A dataframe containing a src and tgt column
         """
         if isinstance(paths, pd.DataFrame):
             if not {"src", "tgt"}.issubset(paths.columns):
@@ -125,6 +151,7 @@ class BaseImageCopier:
                     f"Dataframe needs to have 'src' and 'tgt' columns.{paths.columns}"
                 )
             paths_df = paths[["src", "tgt"]].copy()
+
         elif isinstance(paths, list):
             paths_df = pd.DataFrame(paths, columns=["src", "tgt"])
         else:
@@ -135,7 +162,7 @@ class BaseImageCopier:
         return paths_df
 
     def _iterate_over_paths(self, paths_df: pd.DataFrame):
-        """Simple iteration over the src and targets paths to copythe images
+        """Simple iteration over the src and targets paths to copy the images
 
         Args:
             paths_df (pd.DataFrame): Df with target and souce paths
@@ -165,8 +192,8 @@ class BaseImageCopier:
         """Copies the images with parallesization to make the copy faster.
 
         Args:
-            paths_df (pd.DataFrame): dataframe containg the source and target path as columns
-            max_worker (int): Number of workers to use for the copy job
+            paths_df: dataframe containg the source and target path as columns
+            max_worker: Maximal number of workers for the ThreadPoolExecutor
 
         """
 
@@ -188,7 +215,9 @@ class BaseImageCopier:
                 else:
                     failure_count += 1
 
-    def copy_images(
+        logger.info("%s of %s images copied successfully.", success_count, len(paths_df))
+
+    def execute_copieng_of_images(
         self,
         paths: Union[pd.DataFrame, List[Tuple[str, str]]],
         parallel: bool = False,
@@ -198,15 +227,15 @@ class BaseImageCopier:
         Copy images based on a DataFrame or list of tuples containing source and target paths.
 
         Args:
-            paths (pd.Dataframe | tuple): df or list of tuples containing source and target paths.
+            paths: df or list of tuples containing source and target paths.
                                           Example of the DataFrame:
 
                                                | src            |   tgt                |
                                                |----------------|----------------------|
                                                | path/to/image1 | path/to/target_folder|
 
-            parallel (bool): Flag to enable parallel processing.
-            max_workers (int): Maximum number of workers for parallel processing.
+            parallel: Flag to enable parallel processing.
+            max_workers: Maximum number of workers for parallel processing.
 
         """
         paths_df = self._check_input(paths)
@@ -221,14 +250,12 @@ class BaseImageCopier:
         else:
             self._iterate_over_paths(paths_df)
 
-        logger.info("Images copied successfully.")
-
     def clean_folder(self, folder_path: str):
         """
         Cleans the folder at the specified path by deleting all diffrent contents
 
         Args:
-            folder_path (str): Folder path to be cleaned.
+            folder_path: Folder path to be cleaned.
         """
         try:
             if os.path.exists(folder_path):

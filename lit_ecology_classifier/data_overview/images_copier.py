@@ -11,12 +11,10 @@ import pandas as pd
 from lit_ecology_classifier.helpers.base_copier import BaseImageCopier
 from lit_ecology_classifier.data_overview.overview_creator import OverviewCreator
 
-
 logger = logging.getLogger(__name__)
 
-
-class RawImageCopier(BaseImageCopier):
-    """Copies the images from the raw folder to the interim folder.
+class ImageCopier(BaseImageCopier):
+    """Copies the images from the given folder to the target
      
     It inherits the main functionalities from the BaseImageCopier. The image paths created 
     by the overview creator are used for the source paths. The target paths are created based 
@@ -100,21 +98,34 @@ class RawImageCopier(BaseImageCopier):
         df["class"] = df.apply(
             lambda x: self._class_finder(x["data_set_version"], x["image_path"]), axis=1
         )
+
         df["tgt"] = df["class"].apply(lambda c: os.path.join(self.tgt_base_path, c))
         logger.info("Prepared target paths for the images %s", df.head())
         return df
+    
+    def _prepare_copy_df(self):
+        """
+        Interne Methode zur Vorbereitung der Quell- und Zielpfade.
+        """
+        logger.info("Preparing paths for copying images.")
+        path_dict = self._images_paths
+        df = self._image_paths_to_df(path_dict)
+        df = self._prepare_tgt_paths(df)
+        df["src"] = df["image_path"]
+        return df
 
-    def copy_raw_to_interim(self):
-        """Moves the images from the raw folder to the interim folder."""
 
-        logger.info("Start preparing paths to copyraw images to interim folder")
+    def copy_images(self):
+        """Copues the raw images to the interim folder"""
+
+        logger.info("Starting preparation of paths to copy images")
         path_dict = self._images_paths
 
         df = self._image_paths_to_df(path_dict)
         df = self._prepare_tgt_paths(df)
         df["src"] = df["image_path"]
 
-        logger.info("Start moving raw images to interim folder")
-        self.copy_images(df)
+        logger.info("Start copying images to %s folder", self.tgt_base_path)
+        self.execute_copieng_of_images(df)
 
-        logger.info("Finished moving raw images to interim folder")
+        logger.info("Finished copying images to %s folder", self.tgt_base_path)
