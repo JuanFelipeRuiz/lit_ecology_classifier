@@ -9,7 +9,7 @@ import os
 import pandas as pd
 
 from lit_ecology_classifier.helpers.base_copier import BaseImageCopier
-from lit_ecology_classifier.data.overview_creator import OverviewCreator
+from lit_ecology_classifier.data_overview.overview_creator import OverviewCreator
 
 
 logger = logging.getLogger(__name__)
