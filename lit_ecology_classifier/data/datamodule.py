@@ -10,8 +10,10 @@ from torch.utils.data import DataLoader, Dataset, DistributedSampler, random_spl
 
 from ..data.imagedataset import ImageFolderDataset
 from ..data.tardataset import TarImageDataset
+from ..data.dataframe_dataset import DataFrameDataset
 from ..helpers.helpers import TTA_collate_fn
 
+logger = logging.getLogger(__name__)
 
 class DataModule(LightningDataModule):
     """
@@ -50,6 +52,7 @@ class DataModule(LightningDataModule):
             self.train_split, self.val_split = splits
 
         self.split_overview = splits if isinstance(splits, pd.DataFrame) else None
+            
         
         self.class_map = class_map
 
@@ -68,8 +71,16 @@ class DataModule(LightningDataModule):
         """
         # Load the dataset
         if stage != "predict":
-            logging.debug("Setting up datasets for model training.")
-            if self.train_split
+            logger.debug("Setting up datasets for model training.")
+            if self.split_overview is not None:
+                # Load the dataset from the split overview
+                full_dataset = DataFrameDataset(
+                image_overview = self.split_overview,
+                data_dir = self.datapath,
+                train = True, 
+                TTA = self.TTA
+                )
+
             if self.datapath.find(".tar") == -1:
                 full_dataset = ImageFolderDataset(
                     self.datapath,
@@ -92,24 +103,23 @@ class DataModule(LightningDataModule):
             print("Number of classes:", len(self.class_map))
 
             # Calculate dataset splits
-            train_size = int(self.train_split * len(full_dataset))
-            val_size = int(self.val_split * len(full_dataset))
-            test_size = len(full_dataset) - train_size - val_size
-            print("Train size:", train_size)
-            print("Validation size:", val_size)
-            print("Test size:", test_size)
-            # Randomly split the dataset into train, validation, and test sets
-            self.train_dataset, self.val_dataset, self.test_dataset = random_split(
-                full_dataset,
-                [train_size, val_size, test_size],
-                generator=torch.Generator().manual_seed(42),
-            )
+            if self.split_overview is None:
+                
+                # Randomly split the dataset into train, validation, and test sets
+                self.train_dataset, self.val_dataset, self.test_dataset = self.create_new_split(
+                    train_split = self.train_split,
+                    val_split = self.val_split, 
+                    full_dataset = full_dataset
+                )
+            else:
+                self.train_dataset, self.val_dataset, self.test_dataset = self.extract_datasets_from_overview(self.split_overview)
+
             # Set train flag to False for validation and test datasets
             self.val_dataset.train = False
             self.test_dataset.train = False
         else:
             if self.datapath.find(".tar") == -1:
-                logging.debug(
+                logger.debug(
                     "Using ImageFolderDataset for prediction, no tar file found."
                 )
                 self.predict_dataset = ImageFolderDataset(
@@ -122,7 +132,7 @@ class DataModule(LightningDataModule):
                 )
 
             else:
-                logging.debug("Using tar file for prediction.")
+                logger.debug("Using tar file for prediction.")
                 self.predict_dataset = TarImageDataset(
                     self.datapath,
                     self.class_map,
@@ -131,6 +141,52 @@ class DataModule(LightningDataModule):
                     TTA=self.TTA,
                     train=False,
                 )
+
+    def create_new_split(self, 
+                         train_split: float,
+                         val_split: float,
+                         full_dataset: Dataset
+                        )-> tuple:
+        """
+        Create a new split overview from the provided splits.
+
+        Args:
+            splits: Proportions to split the dataset into training, validation, and testing.
+        Returns:
+            The different splits of the dataset.
+        """
+        # determine the size of each split based on the provided proportions
+        train_size = int(self.train_split * len(full_dataset))
+        val_size = int(self.val_split * len(full_dataset))
+        test_size = len(full_dataset) - train_size - val_size
+
+        logger.info("Train size: %s", train_size)
+        logger.info("Validation size: %s", val_size)
+        logger.info("Test size: %s", test_size)
+
+        # Randomly split the dataset into train, validation, and test sets
+        return random_split(
+                full_dataset,
+                [train_size, val_size, test_size],
+                generator=torch.Generator().manual_seed(42),
+            )
+    
+    def extract_datasets_from_overview(self, overview: pd.DataFrame)-> tuple:
+        """
+        Extract the datasets from the provided split overview
+
+        Args:
+            overview: The split overview containing the dataset splits.
+
+        Returns:
+            A tuple containing the different splits of the dataset.
+        """
+        # extract the different splits from the overview
+        train_set = overview[overview["split"] == "train"]
+        val_set = overview[overview["split"] == "val"]
+        test_set = overview[overview["split"] == "test"]
+
+        return train_set, val_set, test_set
 
     def train_dataloader(self):
         """
