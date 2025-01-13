@@ -10,6 +10,7 @@ Contains the logic to:
 import logging
 import os
 import pathlib 
+from typing import Union, Optional
 
 import pandas as pd
 
@@ -81,17 +82,17 @@ class SplitProcessor:
     
     def __init__(
         self,
-        image_overview: str | pd.DataFrame | OverviewCreator,
-        split_overview: str | pd.DataFrame = None,
-        split_hash: str = None,
-        split_folder: str = None,
-        split_strategy: BaseSplitStrategy | str = None,
-        split_args: dict = None,
-        filter_strategy: BaseFilter | str = None,
-        filter_args: dict = None,
-        class_map: dict[str, int] = None,
-        rest_classes: list[str] = None,
-        priority_classes: list[str] = None,
+        image_overview: Union[str, pd.DataFrame, OverviewCreator, None],
+        split_overview: Union[str , pd.DataFrame, None]  = None,
+        split_hash:Union[str, None] = None,
+        split_folder: Union[str, None] = None,
+        split_strategy: Union[BaseSplitStrategy, str, None] = None,
+        split_args: Optional[dict] = None,
+        filter_strategy: Union[BaseFilter, str, None] = None,
+        filter_args: Optional[dict] = None,
+        class_map: Optional[dict[str, int]] = None,
+        rest_classes: Optional[list[str]] = None,
+        priority_classes: Optional[list[str]] = None,
     ):
         """Initialisation of the SplitProcessor.
 
@@ -157,7 +158,7 @@ class SplitProcessor:
         
 
     def _init_image_overview_df(
-        self, image_overview: pd.DataFrame = None | str | OverviewCreator
+        self, image_overview: Union[pd.DataFrame, str ,OverviewCreator] = None 
     ) -> pd.DataFrame:
         """Initializes the image overview DataFrame based on the given input. 
        
@@ -196,7 +197,7 @@ class SplitProcessor:
         return image_overview
 
     def _init_split_overview_df(
-        self, split_overview: str | pd.DataFrame
+        self, split_overview: Union[str, pd.DataFrame]
     ) -> pd.DataFrame:
         """Initializes the split overview DataFrame.
 
@@ -231,7 +232,7 @@ class SplitProcessor:
         logger.info("Split overview loaded.")
         return split_overview
     
-    def _ensure_class_name(self, input_: str | BaseFilter | BaseSplitStrategy) -> str:
+    def _ensure_class_name(self, input_: Union[str, BaseFilter, BaseSplitStrategy]) -> str:
         """Ensures the Class name is written in CamelCase for the comparison.
 
         Args:
@@ -469,11 +470,11 @@ class SplitProcessor:
 
     def search_splits(
         self,
-        filter_strategy: str | BaseFilter = None,
-        filter_args: dict = None,
-        split_strategy: str | BaseSplitStrategy = None,
-        split_args: dict = None,
-        hash_value: str = None,
+        filter_strategy: Union[str, BaseFilter, None] = None,
+        filter_args: Optional[dict] = None,
+        split_strategy: Union[str, BaseSplitStrategy, None] = None,
+        split_args: Optional[dict] = None,
+        hash_value: Optional[str] = None,
     ) -> pd.DataFrame:
         """
         Search for existing splits based on the given split- and filter strategy 
@@ -532,7 +533,7 @@ class SplitProcessor:
         logger.info("No existing split found, creating a new split.")
         return self._new_split()
     
-    def save_split(self, description: str = None):
+    def save_split(self, description: Optional[str] = None):
         """Save the split data to a CSV file and append the metadata to the split overview.
 
         Args:
