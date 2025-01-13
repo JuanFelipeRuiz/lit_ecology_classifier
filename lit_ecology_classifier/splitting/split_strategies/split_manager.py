@@ -83,18 +83,15 @@ class SplitManager:
         # initialize the split strategy based on the given string
         if isinstance(split_strategy, str):
 
-            # import the class based on the given string
-
             imported_class = helpers.import_class(
                 class_name=split_strategy,
                 modul_path="lit_ecology_classifier.splitting.split_strategies.",
             )
 
-            # intialize the split strategy without arguments if no split_args are given
+            # intialize the split strategy based on the given arguments
             if split_args == {} or split_args is None:
                 return imported_class()
 
-            # initialize the imported split strategy with the given arguments
             return imported_class(**split_args)
 
         logger.error(
