@@ -14,6 +14,7 @@ on the given image overview.
 
 import logging
 import inspect
+from typing import Union, Optional
 
 import pandas as pd
 
@@ -35,8 +36,8 @@ class FilterManager:
 
     def __init__(
         self,
-        filter_strategy: str | BaseFilter,
-        filter_args: dict = None,
+        filter_strategy: Union[ str, BaseFilter],
+        filter_args: Optional[dict] = None,
     ):
 
         self.filter_strategy = self._initialize_filter_strategy(
@@ -44,7 +45,9 @@ class FilterManager:
         )
 
     def _initialize_filter_strategy(
-        self, filter_strategy: str | BaseFilter, filter_args: dict = None
+        self,
+        filter_strategy: Union[str, BaseFilter],
+        filter_args: Optional[dict] = None
     ) -> BaseFilter:
         """Handels the initialization of the filter strategy based on the given input.
 

@@ -14,6 +14,7 @@ More information can be found in the docstring of the modul `base_split_strategy
 
 import inspect
 import logging
+from typing import Union, Optional
 
 import pandas as pd
 
@@ -41,15 +42,17 @@ class SplitManager:
 
     def __init__(
         self,
-        split_strategy: str | BaseSplitStrategy,
-        split_args: dict = None,
+        split_strategy: Union[str,BaseSplitStrategy],
+        split_args: Optional[dict] = None,
     ):
         self.split_strategy = self._initialize_split_strategy(
             split_strategy, split_args
         )
 
     def _initialize_split_strategy(
-        self, split_strategy: str | BaseSplitStrategy, split_args: dict = None
+        self, 
+        split_strategy: Union[str,BaseSplitStrategy], 
+        split_args: Optional[dict] = None
     ) -> BaseSplitStrategy:
         """Handels the initialization of the split strategy based on the given input.
 
