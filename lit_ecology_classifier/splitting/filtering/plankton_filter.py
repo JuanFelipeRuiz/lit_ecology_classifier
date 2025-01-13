@@ -7,6 +7,7 @@ of cheng chen.
 """
 
 import logging
+from typing import Union
 
 import pandas as pd
 
@@ -33,7 +34,9 @@ class PlanktonFilter(BaseFilter):
     """
 
     def __init__(
-        self, dataset_version: str | list[str] = None, ood: str | list[str] = None
+        self, 
+        dataset_version: Union[str, list[str], None] = None, 
+        ood: Union[str, list[str]] = None
     ):
         """
         Initializes the PlankifierVersionFilter.
