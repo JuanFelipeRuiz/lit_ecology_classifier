@@ -83,7 +83,8 @@ class SplitProcessor:
     def __init__(
         self,
         image_overview: Union[str, pd.DataFrame, OverviewCreator, None],
-        split_overview: Union[str , pd.DataFrame, None]  = None,
+        split_overview_path: Union[str, pathlib.Path, None] = None,
+        split_overview_df: Union[str , pd.DataFrame, None]  = None,
         split_hash:Union[str, None] = None,
         split_folder: Union[str, None] = None,
         split_strategy: Union[BaseSplitStrategy, str, None] = None,
@@ -131,8 +132,11 @@ class SplitProcessor:
                 are neither in the priority_classes nor in the rest_classes are removed from the 
                 class mapping. And not used for the futher split and training process.
         """
-        self.split_folder = split_folder
-
+        
+        self.split_overview_df,self.split_overview_path = self._prepare_split_overview(
+            split_overview_df=split_overview_df, split_overview_path=split_overview_path
+        )
+        self.split_folder = self._prepare_split_folder(split_folder)
         self.class_map = class_map or {}
         self.rest_classes = rest_classes or []
         self.priority_classes = priority_classes or []
@@ -141,7 +145,8 @@ class SplitProcessor:
 
         # Check if needed data is provided as DataFrame or as path to a CSV file
         self.image_overview_df = self._init_image_overview_df(image_overview)
-        self.split_overview_df = self._init_split_overview_df(split_overview)
+
+        
 
         self.filter_args = None
         self.split_args = None
@@ -196,41 +201,52 @@ class SplitProcessor:
         logger.debug("Image overview column types: %s", image_overview.dtypes)
         return image_overview
 
-    def _init_split_overview_df(
-        self, split_overview: Union[str, pd.DataFrame]
-    ) -> pd.DataFrame:
-        """Initializes the split overview DataFrame.
-
-        Detects if a split overview DataFrame is provided or a string path to a CSV file.
+    def _prepare_split_folder(self, split_folder: Union[str, None] = None) -> str:
+        """Prepare the split folder based on the given input.
 
         Args:
-            split_overview: Can be one of the following:
-                - a string path to a CSV file containing the split overview data.
-                - a DataFrame containing the split overview.
-
+            split_folder:
+                A path to the folder containing the split data.
+        
         Returns:
-            The split overview DataFrame
-
-        Raises:
-            FileNotFoundError: If the loading of the split overview would fail because
-                                the file could not be found.
+            The path to the split folder.
         """
 
-        if split_overview is None:
-            logger.info(
-                "No split overview provided, no search for existing splits possible"
-            )
-            return None
+        # create pathfoler inside of the parent folder of the split overview
+        if split_folder is None:
+            split_folder=  pathlib.Path(self.split_overview_path).parent / "splits"
+        
+        # check exsistence of the folder 
+        pathlib.Path(split_folder).mkdir(parents=True, exist_ok=True)
+        
+        return split_folder
 
-        if isinstance(split_overview,  (str, pathlib.Path)):
-            if not os.path.exists(split_overview):
-                logger.error("Split overview file not found: %s", split_overview)
-                raise FileNotFoundError(
-                    f"Split overview file not found: {split_overview}"
-                )
-            split_overview = pd.read_csv(split_overview)
-        logger.info("Split overview loaded.")
-        return split_overview
+    def _prepare_split_overview(
+        self, 
+        split_folder: Union[str, None] = None,
+        split_overview_df: Optional[pd.DataFrame] = None,
+        split_overview_path: Union[str, pathlib.Path, None] = None
+    ) -> tuple[str, pd.DataFrame]:
+        """
+        Prepare the split overview DataFrame based on the given input.
+
+        Args:
+            split_overview_df:
+                A DataFrame containing the split overview data.
+            split_overview_path:
+                A path to a CSV file containing the split overview data.
+        
+        Returns:
+            A tuple containing the split overview DataFrame and the path to the split overview CSV file.
+        """
+        if split_overview_path is None:
+            return split_overview_df, os.path.join(".", "split_overview.csv")
+        
+        if split_overview_df is None:
+            if os.path.exists(split_overview_path):
+                split_overview_df = pd.read_csv(split_overview_path)
+
+        return split_overview_df, split_overview_path
     
     def _ensure_class_name(self, input_: Union[str, BaseFilter, BaseSplitStrategy]) -> str:
         """Ensures the Class name is written in CamelCase for the comparison.
@@ -272,8 +288,6 @@ class SplitProcessor:
         logger.debug("Class name: %s", input_)
         return input_
     
-    
-
     def _prepare_filepath(self, hash_value: str) -> str:
         """Prepares the file path based on the provided hash.
 
@@ -284,7 +298,6 @@ class SplitProcessor:
             The file path based on the hash value and given split outputpath.
         """
         filename = f"{str(hash_value)[:24]}.csv"
-
 
         filepath = os.path.join(self.split_folder, filename)
         return filepath
@@ -407,7 +420,7 @@ class SplitProcessor:
             split_hashes = HashGenerator.generate_hash_dict_from_split(
                 split_df, col_to_hash="split"
             )
-            self.combined_split_hash = HashGenerator.sha256_from_list(split_hashes.values())
+            return HashGenerator.sha256_from_list(split_hashes.values())
         except Exception as e:
             logger.error("Hash generation failed: %s", e)
             raise ValueError("Hash generation failed.") from e
@@ -422,8 +435,8 @@ class SplitProcessor:
         Returns:
         """
         new_entry = {
-            "split_strategy": self.split_strategy.__class__.__name__,
-            "filter_strategy": self.filter_strategy.__class__.__name__,
+            "split_strategy": self.split_strategy,
+            "filter_strategy": self.filter_strategy,
             "combined_split_hash": self.combined_split_hash,
             "description": description,
             "class_map": self.class_map,
@@ -543,21 +556,18 @@ class SplitProcessor:
             logger.error("No split data found, nothing to save.")
             return
 
-        if self.split_folder is None:
-            logger.error("No split folder provided, cannot save the split data.")
-            return
-
         # Save the split data
         filepath = self._prepare_filepath(self.combined_split_hash)
+
+        logger.info("Saving split data to: %s", filepath)
         self.split_df.to_csv(filepath, index=False)
         logger.info("Split data saved to: %s", filepath)
 
         # Append the metadata to the split overview
         self.row_to_append = self._generate_row_to_append(description)
-        self.split_overview_df = self.split_overview_df.append(self.row_to_append, ignore_index=True)
-        self.split_overview_df.to_csv(self.split_overview, index=False)
-        logger.info("Split metadata appended to the split overview.")
-        logger.info("Split overview saved to: %s", self.split_overview)
+        self.split_overview_df = pd.concat([self.split_overview_df, self.row_to_append], ignore_index=True)
+        self.split_overview_df.to_csv(path_or_buf=self.split_overview_path, index=False)
+        logger.info("Split metadata appended saved to: %s", self.split_overview_path)
 
         return filepath
     
