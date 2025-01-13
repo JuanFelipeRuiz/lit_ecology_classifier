@@ -32,6 +32,7 @@ time_begin = time()
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s - %(levelname)s - -%(message)s")
+logger = logging.getLogger(__name__)
 
 
 if __name__ == "__main__":
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     # Parse Arguments for creating the overview
     parser = overview_argparser()
     args = parser.parse_args()
-    logging.info(args)
+    logger.info(args)
 
 
     # create the overview 
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     output = pathlib.Path(args.dataset_name, args.overview_filename)
 
     # save overview to file and overwrite if it exist
-    if output.exists:
+    if os.path.exists(output):
         os.remove(output)
 
     df.to_csv(output, index=False)
