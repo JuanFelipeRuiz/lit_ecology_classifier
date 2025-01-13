@@ -10,9 +10,12 @@ The following parsers are included:
 """
 
 import argparse
-import os
 import json
+import logging
+import os
 from typing import Union
+
+logger = logging.getLogger(__name__)
 
 def base_argparser():
     """
@@ -134,7 +137,7 @@ def overview_argparser():
     # override description of the base parser
     parser.description = "Create an overview of the dataset."
     parser.add_argument("--image_version_path_dict", type=load_dict, help="Dictionary or path to the json file containing the image versions and their corresponding paths")
-    parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path.")
+    parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
     return parser
 
 def split_argparser():
@@ -150,6 +153,7 @@ def split_argparser():
     # Args for the split process, that can be loaded from a json file
     parser.add_argument("--split_args", type=load_dict, default= {}, help="Path to the file containing the arguments for the split strategy")
     parser.add_argument("--filter_args", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
+    parser.add_argument("--class_map", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
     parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
     parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
 
@@ -175,8 +179,8 @@ def load_dict(input: Union[str, dict]) -> dict:
     if isinstance(input, dict):
         return input
     
-    if input == "":
-        return {}
+    if input == "" or input is None or input == {}:
+        return None
     
     if input.endswith(".json"):
         if not os.path.exists(input):
@@ -188,7 +192,7 @@ def load_dict(input: Union[str, dict]) -> dict:
     raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
 
 
-def load_class_definitions(input: Union[str,list]) -> list:
+def load_class_definitions(input: Union[str, list[str]]) -> list:
     """Load the the priority or rest classes from a JSON file.
     """
 
@@ -210,10 +214,9 @@ def load_class_definitions(input: Union[str,list]) -> list:
             return class_dict["rest_classes"]
         
         raise argparse.ArgumentTypeError(f"{input} does not contain a known  class definitions.")
-        
-    raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or list containing the class definitions")
-
-
+    
+    return None
+    
 # Example of using the argument parser
 if __name__ == "__main__":
     parser = argparser()
