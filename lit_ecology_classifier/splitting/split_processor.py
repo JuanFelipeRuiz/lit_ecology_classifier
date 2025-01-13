@@ -151,6 +151,7 @@ class SplitProcessor:
         self.filter_args = None
         self.split_args = None
         self.row_to_append = None
+        self.reloaded = None
 
         self.split_df = self.search_splits(
             split_strategy=split_strategy,
@@ -302,6 +303,23 @@ class SplitProcessor:
         filepath = os.path.join(self.split_folder, filename)
         return filepath
 
+
+    def _reconstruct_arguments(self, df: pd.DataFrame):
+        """
+        Reconstructs the split_args and filter_args from a DataFrame row by removing prefixes.
+
+        Args:
+            df: A DataFrame with one row containing the split overview metadata.
+        """
+        # Extract and process split_ columns
+        split_columns = df.filter(like="split_")
+        self.split_args = split_columns.rename(columns=lambda x: x[len("split_"):]).iloc[0].to_dict()
+
+        # Extract and process filter_ columns
+        filter_columns = df.filter(like="filter_")
+        self.filter_args = filter_columns.rename(columns=lambda x: x[len("filter_"):]).iloc[0].to_dict()
+
+
     def _reload_split(self, df: pd.DataFrame) -> pd.DataFrame:
         """Reloads an existing split based on the row of the split overview DataFrame.
 
@@ -316,10 +334,15 @@ class SplitProcessor:
         logger.info("Reloading split based on hash value: %s", hash_value)  
         
         filepath = self._prepare_filepath(hash_value)
-        logger.info("Split file path: %s", filepath)
+
         if not os.path.exists(filepath):
             logger.error("Split file not found:%s", filepath)
             raise FileNotFoundError(f"Split file not found: {filepath}")
+        
+        logger.info("Path to used split: %s", filepath)
+        self._reconstruct_arguments(df)
+
+        self.reloaded = True
         
         return pd.read_csv(filepath_or_buffer = filepath)
     
@@ -365,7 +388,10 @@ class SplitProcessor:
         Returns:
             A boolean value indicating if the arguments match the existing split.
         """
-        columns_to_check = list(self.split_args.keys()) + list(self.filter_args.keys())
+        prefixed_split_args = {f"split_{key}": value for key, value in self.split_args.items()}
+        prefixed_filter_args = {f"filter_{key}": value for key, value in self.filter_args.items()}
+        
+        columns_to_check = list(prefixed_split_args.keys()) + list(prefixed_filter_args.keys())
 
         for column in columns_to_check:
             if column in self.split_overview_df.columns:
@@ -382,12 +408,11 @@ class SplitProcessor:
         Returns:
             A DataFrame containing the merged class map.
         """
+        logger.info("Df columns: %s", df.columns)
         try:
-            df = df.set_index("class")
             class_map_df = pd.DataFrame(self.class_map.items(), columns=["class", "class_map"]).set_index("class")
-
            
-            return df.merge(class_map_df, left_index=True, right_index=True).reset_index()
+            return df.merge(class_map_df, left_on="class", right_index=True).reset_index(drop=True)
 
         except Exception as e:
             logger.error("Merging class map into filtered DataFrame failed: %s", e)
@@ -434,16 +459,18 @@ class SplitProcessor:
 
         Returns:
         """
+        prefixed_split_args = {f"split_{key}": value for key, value in self.split_args.items()}
+        prefixed_filter_args = {f"filter_{key}": value for key, value in self.filter_args.items()}
+
         new_entry = {
             "split_strategy": self.split_strategy,
             "filter_strategy": self.filter_strategy,
             "combined_split_hash": self.combined_split_hash,
             "description": description,
             "class_map": self.class_map,
-            **self.split_args,
-            **self.filter_args,
+            **prefixed_split_args,
+            **prefixed_filter_args,
         }
-
         return pd.DataFrame(new_entry, index=[0])
         
 
@@ -475,10 +502,11 @@ class SplitProcessor:
         split_df = split_manager.perfom_split(filtered_df)
 
         # join the split data with the filtered df to keep the metadata
-        self.split_df = filtered_df.merge(split_df, on="image")
+        self.split_df = filtered_df.merge(split_df[["image", "split"]], on="image")
 
         self.combined_split_hash = self._generate_split_hash(self.split_df)
         self._generate_row_to_append()
+        self.reloaded = False
         return self.split_df 
 
     def search_splits(
@@ -552,9 +580,9 @@ class SplitProcessor:
         Args:
             description: Optional, a description to be added to the split overview.
         """
-        if self.split_df is None:
-            logger.error("No split data found, nothing to save.")
-            return
+        if self.reloaded:
+            return None
+
 
         # Save the split data
         filepath = self._prepare_filepath(self.combined_split_hash)
@@ -569,7 +597,7 @@ class SplitProcessor:
         self.split_overview_df.to_csv(path_or_buf=self.split_overview_path, index=False)
         logger.info("Split metadata appended saved to: %s", self.split_overview_path)
 
-        return filepath
+        return None
     
     def get_split_df(self) -> pd.DataFrame:
         """Return the split DataFrame."""
