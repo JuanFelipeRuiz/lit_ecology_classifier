@@ -1,8 +1,9 @@
 import logging
 import os
-from collections.abc import Iterable
+from typing import Iterable, Union
 
 import torch
+import pandas as pd
 from lightning import LightningDataModule
 from lightning.pytorch.utilities.combined_loader import CombinedLoader
 from torch.utils.data import DataLoader, Dataset, DistributedSampler, random_split
@@ -36,7 +37,7 @@ class DataModule(LightningDataModule):
         class_map: dict = {},
         priority_classes: list = [],
         rest_classes: list = [],
-        splits: Iterable = [0.7, 0.15],
+        splits: Union(Iterable, pd.DataFrame) = [0.7, 0.15],
         **kwargs
     ):
         super().__init__()
@@ -45,7 +46,11 @@ class DataModule(LightningDataModule):
         self.TTA = TTA  # Enable Test Time Augmentation if testing is True
         self.batch_size = batch_size
         self.dataset = dataset
-        self.train_split, self.val_split = splits
+        if isinstance(splits, Iterable):
+            self.train_split, self.val_split = splits
+
+        self.split_overview = splits if isinstance(splits, pd.DataFrame) else None
+        
         self.class_map = class_map
 
         self.priority_classes = priority_classes
@@ -64,7 +69,7 @@ class DataModule(LightningDataModule):
         # Load the dataset
         if stage != "predict":
             logging.debug("Setting up datasets for model training.")
-
+            if self.train_split
             if self.datapath.find(".tar") == -1:
                 full_dataset = ImageFolderDataset(
                     self.datapath,

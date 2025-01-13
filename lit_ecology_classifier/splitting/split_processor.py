@@ -9,6 +9,7 @@ Contains the logic to:
 
 import logging
 import os
+import pathlib 
 
 import pandas as pd
 
@@ -20,9 +21,7 @@ import lit_ecology_classifier.helpers.helpers as helpers
 from lit_ecology_classifier.data_overview.overview_creator import OverviewCreator
 from lit_ecology_classifier.splitting.filtering.filter_manager import FilterManager
 
-
 logger = logging.getLogger(__name__)
-
 
 class SplitProcessor:
     """
@@ -133,28 +132,29 @@ class SplitProcessor:
         """
         self.split_folder = split_folder
 
-        self.class_map = class_map if class_map is not None else {}
-        self.rest_classes = rest_classes if rest_classes is not None else []
-        self.priority_classes = priority_classes if priority_classes is not None else []
+        self.class_map = class_map or {}
+        self.rest_classes = rest_classes or []
+        self.priority_classes = priority_classes or []
+        self.filter_strategy = filter_strategy 
+        self.split_strategy =  split_strategy 
 
         # Check if needed data is provided as DataFrame or as path to a CSV file
         self.image_overview_df = self._init_image_overview_df(image_overview)
         self.split_overview_df = self._init_split_overview_df(split_overview)
 
-        self.filter_strategy = filter_args 
-        self.split_strategy = split_args 
         self.filter_args = None
         self.split_args = None
+        self.row_to_append = None
 
         self.split_df = self.search_splits(
             split_strategy=split_strategy,
             filter_strategy=filter_strategy,
             hash_value=split_hash,
-            filter_args=self.filter_args,
-            split_args=self.split_args,
+            filter_args=filter_args,
+            split_args=split_args
         )
 
-        self.row_to_append = None
+        
 
     def _init_image_overview_df(
         self, image_overview: pd.DataFrame = None | str | OverviewCreator
@@ -177,7 +177,7 @@ class SplitProcessor:
         """
 
         # check if the overview_df is a string path or a DataFrame
-        if isinstance(image_overview, str):
+        if isinstance(image_overview, (str, pathlib.Path)):
 
             # check if the file exists
             if not os.path.exists(image_overview):
@@ -221,7 +221,7 @@ class SplitProcessor:
             )
             return None
 
-        if isinstance(split_overview, str):
+        if isinstance(split_overview,  (str, pathlib.Path)):
             if not os.path.exists(split_overview):
                 logger.error("Split overview file not found: %s", split_overview)
                 raise FileNotFoundError(
@@ -244,12 +244,19 @@ class SplitProcessor:
         Raises:
             A ValueError if the given input is in snake_case or starts in lower case.
         """
+
+        logger.debug("Checking class name: %s", input_)
+
+        if input_ is None:
+            return None
+        
         # extract class name if the given string is an instance of BaseFilter or SplitStrategy
         if isinstance(input_, (BaseFilter, BaseSplitStrategy)):
             input_ = input_.__class__.__name__
 
+    
         # check if the given string is a string, else raise an error
-        if not isinstance(input_, str):
+        if not isinstance(input_,str):
             raise ValueError(
                 "The given string has to be a string or an instance of BaseFilter or SplitStrategy"
             )
@@ -263,6 +270,8 @@ class SplitProcessor:
         
         logger.debug("Class name: %s", input_)
         return input_
+    
+    
 
     def _prepare_filepath(self, hash_value: str) -> str:
         """Prepares the file path based on the provided hash.
@@ -317,7 +326,7 @@ class SplitProcessor:
         return self._reload_split(df=existing_split)
     
 
-    def _find_existing_split(self, filter_strategy, split_strategy) -> pd.DataFrame:
+    def _find_existing_split(self) -> pd.DataFrame:
         """Find an existing split based on filter and split strategy
         
         Args:
@@ -328,8 +337,8 @@ class SplitProcessor:
             A DataFrame containing rows that match the given filter and split strategy.
         """
         return self.split_overview_df[
-            (self.split_overview_df["filter_strategy"] == self._ensure_class_name(filter_strategy)) &
-            (self.split_overview_df["split_strategy"] == self._ensure_class_name(split_strategy))
+            (self.split_overview_df["filter_strategy"] == self._ensure_class_name(self.filter_strategy)) &
+            (self.split_overview_df["split_strategy"] == self._ensure_class_name(self.split_strategy))
         ]
 
     def _arguments_match(self, existing_split: pd.DataFrame) -> bool:
@@ -384,8 +393,6 @@ class SplitProcessor:
             logger.info("No class map provided, generating class map.")
             self.class_map =  helpers.extract_class_mapping_df(df = df,
                 )
-        
-        logger.info("Class map generated: %s", self.class_map )
 
         self.class_map = helpers.filter_class_mapping(
             self.class_map, self.priority_classes, self.rest_classes
@@ -426,24 +433,20 @@ class SplitProcessor:
         return pd.DataFrame(new_entry, index=[0])
         
 
-    def _new_split(self, split_strategy, filter_strategy) -> pd.DataFrame:
+    def _new_split(self) -> pd.DataFrame:
         """Create a new split based on the given split and filter strategy
-        
-        Args:
-            split_strategy: Split strategy to be used for the split.
-            filter_strategy: Filter strategy to be used for the split.
-        
+    
         Returns:
             A DataFrame containing the split data based on the given split and filter strategy.
         """
 
         logger.info(
-            "Creating a new split based on the given split and filter strategy.:%s", 
-                    type(self.image_overview_df)
+            "Creating a new split based on the given split and filter strategy."
             )
         
         # Filter the image overview
-        filter_manager = FilterManager(filter_strategy=filter_strategy, filter_args= self.filter_args)
+        filter_manager = FilterManager(
+            filter_strategy=self.filter_strategy, filter_args= self.filter_args)
         filtered_df = filter_manager.apply_filter(self.image_overview_df)
 
         # Generate the class map
@@ -452,7 +455,7 @@ class SplitProcessor:
         filtered_df = self._merge_class_map(filtered_df)
 
         split_manager = SplitManager(
-            split_strategy=split_strategy, split_args=self.split_args
+            split_strategy=self.split_strategy, split_args=self.split_args
         )
 
         split_df = split_manager.perfom_split(filtered_df)
@@ -501,13 +504,21 @@ class SplitProcessor:
             logger.debug("Updated split args: %s", self.split_args)
             logger.debug("Updated filter args: %s", self.filter_args)
 
+        if self.split_strategy != split_strategy:
+            self.split_strategy = split_strategy
+            logger.debug("Updated split strategy: %s", self.split_strategy)
+        
+        if self.filter_strategy != filter_strategy:
+            self.filter_strategy = filter_strategy
+            logger.debug("Updated filter strategy: %s", self.filter_strategy)
+
         # Check if the split overview exists
         if self.split_overview_df is None:
             logger.info("No split overview found, creating a new split.")
-            return self._new_split(split_strategy=split_strategy, filter_strategy=filter_strategy)
+            return self._new_split()
 
         # Filter existing splits based on strategies
-        existing_split = self._find_existing_split(filter_strategy, split_strategy)
+        existing_split = self._find_existing_split()
 
         if not existing_split.empty:
             # Validate arguments against existing splits
@@ -516,7 +527,40 @@ class SplitProcessor:
                 return self._reload_split(existing_split)
 
             logger.info("Arguments do not match, creating a new split.")
-            return self._new_split(split_strategy=split_strategy, filter_strategy=filter_strategy)
+            return self._new_split()
 
         logger.info("No existing split found, creating a new split.")
-        return self._new_split(split_strategy=split_strategy, filter_strategy=filter_strategy)
+        return self._new_split()
+    
+    def save_split(self, description: str = None):
+        """Save the split data to a CSV file and append the metadata to the split overview.
+
+        Args:
+            description: Optional, a description to be added to the split overview.
+        """
+        if self.split_df is None:
+            logger.error("No split data found, nothing to save.")
+            return
+
+        if self.split_folder is None:
+            logger.error("No split folder provided, cannot save the split data.")
+            return
+
+        # Save the split data
+        filepath = self._prepare_filepath(self.combined_split_hash)
+        self.split_df.to_csv(filepath, index=False)
+        logger.info("Split data saved to: %s", filepath)
+
+        # Append the metadata to the split overview
+        self.row_to_append = self._generate_row_to_append(description)
+        self.split_overview_df = self.split_overview_df.append(self.row_to_append, ignore_index=True)
+        self.split_overview_df.to_csv(self.split_overview, index=False)
+        logger.info("Split metadata appended to the split overview.")
+        logger.info("Split overview saved to: %s", self.split_overview)
+
+        return filepath
+    
+    def get_split_df(self) -> pd.DataFrame:
+        """Return the split DataFrame."""
+        return self.split_df
+

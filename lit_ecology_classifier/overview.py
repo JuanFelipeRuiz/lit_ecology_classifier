@@ -18,6 +18,7 @@ Steps to run the script:
 """
 import logging
 import pathlib
+import os
 import sys
 
 from time import time
@@ -49,19 +50,22 @@ if __name__ == "__main__":
 
     # if the output folder is not the current directory, 
     # ensure the folder exists and raise an error if it does
-    if args.output != ".":
-        pathlib.Path(args.output).mkdir(parents=True, exist_ok=False)
+    
+    pathlib.Path(args.dataset_name).mkdir(parents=True, exist_ok=True)
 
     # prepare filename 
-    filename = f"{args.name}_overview.csv"
-    output = pathlib.Path(args.output,filename)
 
-    # save overview to file
+    output = pathlib.Path(args.dataset_name, args.overview_filename)
+
+    # save overview to file and overwrite if it exist
+    if output.exists:
+        os.remove(output)
+
     df.to_csv(output, index=False)
 
     # summarise the overview by copying all uniqze images to the output folder
-    if args.summarise:
-        copier = ImageCopier(args.output, overview_creator)
+    if args.summarise_to:
+        copier = ImageCopier(args.summarise_to, overview_creator)
         copier.copy_images()
         
     logging.info(f"Overview saved to {output}, total time taken: {time()-time_begin} seconds")

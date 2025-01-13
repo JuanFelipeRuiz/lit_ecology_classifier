@@ -65,9 +65,6 @@ class FilterManager:
             of BaseFilter.
         """
 
-        if filter_strategy is None:
-            return BaseFilter()
-
         # returns the given filter strategy if it is already an initialized filter strategy
         if isinstance(filter_strategy, BaseFilter):
             logger.info(

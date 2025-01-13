@@ -23,6 +23,7 @@ def base_argparser():
     """
     parser = argparse.ArgumentParser(description="Base arguments for the different scripts.")
     parser.add_argument("--dataset_name", default="phyto", help="Name of the dataset to store non train specific artifacts") 
+    parser.add_argument("--overview_filename", default="overview.csv", help="Name of the overview file to load/save")
     return parser
 
 def argparser():
@@ -132,20 +133,20 @@ def overview_argparser():
 
     # override description of the base parser
     parser.description = "Create an overview of the dataset."
-
-    parser.add_argument("--overview_name", default="overview", help="Name of the overview")
     parser.add_argument("--image_version_path_dict", type=load_dict, help="Dictionary or path to the json file containing the image versions and their corresponding paths")
-    parser.add_argument("--summarise", action="store_true", help="Summarise all unique images into the outputfolder")
+    parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path.")
     return parser
 
 def split_argparser():
     """Argparser for the split process"""
-    parser = argparse.ArgumentParser(description="Split the dataset into training, validation and testing sets and save the split to a file.")
+    parser = base_argparser()
 
+    parser.description = "Create or reload a split with the given args"
     # Args for the split process
-    parser.add_argument("--split_hash", type=str, default= "", help="Hash of the split to reuse. If empty, no hash search is used")
-    parser.add_argument("--split_strategy", type=str, default= "", help="Split strategy to use. Needs to be saved in the lit_ecology_classifier/split_strategies folder")
-    parser.add_argument("--filter_strategy", type=str, default= "", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
+    parser.add_argument("--split_hash", type=str, default= None, help="Hash of the split to reuse. If empty, no hash search is used")
+    parser.add_argument("--split_strategy", type=str, default= "Stratified", help="Split strategy to use. Needs to be saved in the lit_ecology_classifier/split_strategies folder")
+    parser.add_argument("--filter_strategy", type=str, default= "PlanktonFilter", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
+    parser.add_argument("--description", type=str, default=None, help ="Description of split, if " )
     # Args for the split process, that can be loaded from a json file
     parser.add_argument("--split_args", type=load_dict, default= {}, help="Path to the file containing the arguments for the split strategy")
     parser.add_argument("--filter_args", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
@@ -153,7 +154,7 @@ def split_argparser():
     parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
 
     # include the base arguments
-    parser = base_argparser()
+ 
     return parser
     
 
