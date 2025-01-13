@@ -73,7 +73,7 @@ class OverviewCreator:
         # check if each path exists
         for path in zoolake_version_paths.values():
             if not os.path.exists(path):
-                raise FileNotFoundError(f"Path {path} does not exist")
+                raise FileNotFoundError(f"Path {path} does not exist. Current working directory: {os.getcwd()}")
 
         return zoolake_version_paths
 
