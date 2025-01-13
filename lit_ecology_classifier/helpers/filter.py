@@ -4,7 +4,7 @@ dataset versions and class mapping.
 """
 
 import logging
-from typing import Optional
+from typing import Union
 
 import pandas as pd
 
@@ -12,7 +12,7 @@ import pandas as pd
 logger = logging.getLogger(__name__)
 
 
-def prepare_args_to_filter(arg_input: Optional[str | list[str]]) -> list[str]:
+def prepare_args_to_filter(arg_input: Union[str, list[str], None]) -> list[str]:
     """Prepare a arg input to be used for filtering the image overview dataframe.
 
     Args:
