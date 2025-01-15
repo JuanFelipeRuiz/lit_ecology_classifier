@@ -17,7 +17,7 @@ from lightning.pytorch.loggers import CSVLogger, WandbLogger
 
 from .data_overview.overview_creator import OverviewCreator
 from .data.datamodule import DataModule
-from .helpers.argparser import argparser
+from .helpers.argparser import pipeline_argparser
 from .helpers.calc_class_weights import calculate_class_weights
 from .helpers.helpers import setup_callbacks
 from .models.model import LitClassifier
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     print("\nRunning", sys.argv[0], sys.argv[1:])
 
     # Parse Arguments for training
-    parser = argparser()
+    parser = pipeline_argparser()
     args = parser.parse_args()
 
     # Create Output Directory if it doesn't exist
@@ -45,44 +45,39 @@ if __name__ == "__main__":
 
     logging.info(args)
 
-    # prepare file and folder paths
-    image_overview_path = pathlib.Path(args.dataset_name)/args.overview_filename
+    image_overview_path = pathlib.Path(args.dataset)/args.overview_filename
 
-    split_folder_path = pathlib.Path(args.dataset_name)/"splits"
-    split_overview_path = pathlib.Path(args.dataset_name) / "splits"/f"{args.dataset_name}_split_overview.csv"
+    split_overview_path = pathlib.Path(args.dataset)/f"split_overview.csv"
 
-    pathlib.Path(args.dataset_name).mkdir(parents=True, exist_ok=True)
-    pathlib.Path(split_folder_path).mkdir(parents=True, exist_ok=True)
-
-    if not split_overview_path.exists():
-    
-        new_entry = {
-            "split_strategy": None,
-            "filter_strategy": None,
-            "combined_split_hash": None,
-            "description": None,
-            "class_map": None
-        }
-
-        pd.DataFrame(new_entry, index=[0]).to_csv(split_overview_path)
-        
+    pathlib.Path(args.dataset).mkdir(parents=True, exist_ok=True)
 
     split_processor = SplitProcessor(
-                                split_overview = split_overview_path,
-                                split_folder = split_folder_path,
-                                image_overview= image_overview_path,
-                                split_strategy= args.split_strategy,
-                                filter_strategy=  args.filter_strategy
+                                split_overview_path = split_overview_path,
+                                image_overview = image_overview_path,
+                                split_hash = args.split_hash,
+                                split_strategy = args.split_strategy,
+                                filter_strategy =  args.filter_strategy,
+                                split_args= args.split_args,
+                                filter_args= args.filter_args,
+                                class_map= args.class_map,
+                                priority_classes= args.priority_classes,
+                                rest_classes= args.rest_classes
                                 )
-
+    
+    split_processor.save_split(description= args.description)
     split_overview = split_processor.get_split_df()
+
+    # extract the class map from the split overview 
+    args.class_map = {class_ if class_map is not 0 else "rest" : class_map 
+                       for class_, class_map in zip(split_overview["class"], split_overview["class_map"])}
+
     
     gpus =torch.cuda.device_count() if not args.no_gpu else 0
     logging.info(f"Using {gpus} GPUs for training.")
     
 
 
-    datamodule = DataModule(**vars(args))
+    datamodule = DataModule(**vars(args), splits=split_overview)
     datamodule.setup("fit")
 
     # TODO: not implemented in main, but could be useful. Find out if the implementation is still needed and correct
@@ -127,7 +122,12 @@ if __name__ == "__main__":
         default_root_dir=args.train_outpath,
     )
     # Train the first and last layer of the model
-    trainer.fit(model, datamodule=datamodule)
+    try:
+        trainer.fit(model, datamodule=datamodule)
+    except Exception as e:
+        logging.error(f"Error during training: {e}")
+        print(e)
+        raise e
     # Load the best model from the first stage
     model = LitClassifier.load_from_checkpoint(str(trainer.checkpoint_callback.best_model_path), lr=args.lr * args.lr_factor, pretrained=False)
     model.load_datamodule(datamodule)
