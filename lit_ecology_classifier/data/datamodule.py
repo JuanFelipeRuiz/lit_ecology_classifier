@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Iterable, Union
+from typing import Iterable, Union, Optional, Literal
 
 import torch
 import pandas as pd
@@ -17,9 +17,10 @@ logger = logging.getLogger(__name__)
 
 class DataModule(LightningDataModule):
     """
-    A LightningDataModule for handling image datasets stored in a tar file.
-    This module is responsible for preparing and loading data in a way that is compatible
-    with PyTorch training routines using the PyTorch Lightning framework.
+    A LightningDataModule with PyTorch for handlin training routines compatible with the PyTorch Lightning framework.
+    The DataModule is responsible for loading and preparing the data for training, validation, and testing.
+    It can handle both image folders and tar files containing the images. A data overview can be provided to
+    specify the dataset splits.
 
     Attributes:
         tarpath (str): Path to the tar file containing the dataset.
@@ -39,7 +40,7 @@ class DataModule(LightningDataModule):
         class_map: dict = {},
         priority_classes: list = [],
         rest_classes: list = [],
-        splits: Union(Iterable, pd.DataFrame) = [0.7, 0.15],
+        splits: Union[Iterable, pd.DataFrame] = [0.7, 0.15],
         **kwargs
     ):
         super().__init__()
@@ -48,7 +49,7 @@ class DataModule(LightningDataModule):
         self.TTA = TTA  # Enable Test Time Augmentation if testing is True
         self.batch_size = batch_size
         self.dataset = dataset
-        if isinstance(splits, Iterable):
+        if not isinstance(splits, pd.DataFrame):
             self.train_split, self.val_split = splits
 
         self.split_overview = splits if isinstance(splits, pd.DataFrame) else None
@@ -61,64 +62,62 @@ class DataModule(LightningDataModule):
         self.use_multi = not kwargs.get("no_use_multi", False)
         # Verify that class map exists for testing mode
 
-    def setup(self, stage=None):
-        """
-        Prepares the datasets for training, validation, and testing by applying appropriate splits.
-        This method also handles the TTA mode adjustments.
-
+    def setup(self, stage: Optional[Literal["predict"]] = None):
+        """ Set up the correct dataset for the current stage of the model.
         Args:
-            stage (Optional[str]): Current stage of the model training/testing. Not used explicitly in the method.
+            stage:  A string indicating the current stage of the model
         """
-        # Load the dataset
+
         if stage != "predict":
-            logger.debug("Setting up datasets for model training.")
+
             if self.split_overview is not None:
-                # Load the dataset from the split overview
-                full_dataset = DataFrameDataset(
-                image_overview = self.split_overview,
-                data_dir = self.datapath,
-                train = True, 
-                TTA = self.TTA
-                )
+                logger.debug("Setting up a dataset based on asplit overview.")
+                self.train_dataset, self.val_dataset, self.test_dataset= self.setup_from_overview()
 
-            if self.datapath.find(".tar") == -1:
-                full_dataset = ImageFolderDataset(
-                    self.datapath,
-                    self.class_map,
-                    self.priority_classes,
-                    rest_classes=self.rest_classes,
-                    TTA=self.TTA,
-                    train=True,
-                )
             else:
-                full_dataset = TarImageDataset(
-                    self.datapath,
-                    self.class_map,
-                    self.priority_classes,
-                    rest_classes=self.rest_classes,
-                    TTA=self.TTA,
-                    train=True,
-                )
+                if self.datapath.find(".tar") == -1:
+                    logger.debug("Setting up a dataset based on an image folder.")
+                    full_dataset = ImageFolderDataset(
+                        self.datapath,
+                        self.class_map,
+                        self.priority_classes,
+                        rest_classes=self.rest_classes,
+                        TTA=self.TTA,
+                        train=True,
+                    )
+                else:
+                    logger.debug("Setting up a dataset based on a tar file.")
+                    full_dataset = TarImageDataset(
+                        self.datapath,
+                        self.class_map,
+                        self.priority_classes,
+                        rest_classes=self.rest_classes,
+                        TTA=self.TTA,
+                        train=True,
+                    )
 
-            print("Number of classes:", len(self.class_map))
+                # Since no split overview is provided, create a random split of the dataset
+                # This one will not be logged by the split processor
+                # Random 
 
-            # Calculate dataset splits
-            if self.split_overview is None:
-                
-                # Randomly split the dataset into train, validation, and test sets
-                self.train_dataset, self.val_dataset, self.test_dataset = self.create_new_split(
-                    train_split = self.train_split,
-                    val_split = self.val_split, 
-                    full_dataset = full_dataset
-                )
-            else:
-                self.train_dataset, self.val_dataset, self.test_dataset = self.extract_datasets_from_overview(self.split_overview)
+                self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
+                        full_dataset = full_dataset
+                    )
 
-            # Set train flag to False for validation and test datasets
-            self.val_dataset.train = False
-            self.test_dataset.train = False
+                # Set the train flag of the validation and test datasets to False
+                self.val_dataset.train = False
+                self.test_dataset.train = False
+
         else:
-            if self.datapath.find(".tar") == -1:
+            logger.debug("Setting up dataset for prediction.")
+            self.prediction_setup()
+           
+
+    def prediction_setup(self):
+        """Set up the dataset for prediction by loading the images from the provided directory.
+        Can handle tar files and image folders.
+        """
+        if self.datapath.find(".tar") == -1:
                 logger.debug(
                     "Using ImageFolderDataset for prediction, no tar file found."
                 )
@@ -131,9 +130,9 @@ class DataModule(LightningDataModule):
                     train=False,
                 )
 
-            else:
-                logger.debug("Using tar file for prediction.")
-                self.predict_dataset = TarImageDataset(
+        else:
+            logger.debug("Using tar file for prediction.")
+            self.predict_dataset = TarImageDataset(
                     self.datapath,
                     self.class_map,
                     self.priority_classes,
@@ -142,18 +141,15 @@ class DataModule(LightningDataModule):
                     train=False,
                 )
 
-    def create_new_split(self, 
-                         train_split: float,
-                         val_split: float,
+    def create_random_split(self, 
                          full_dataset: Dataset
                         )-> tuple:
-        """
-        Create a new split overview from the provided splits.
+        """Split up the dataset into training, validation, and testing sets based on the provided proportions.
 
         Args:
             splits: Proportions to split the dataset into training, validation, and testing.
         Returns:
-            The different splits of the dataset.
+            The different instances of the given Dataset for each split.
         """
         # determine the size of each split based on the provided proportions
         train_size = int(self.train_split * len(full_dataset))
@@ -164,14 +160,14 @@ class DataModule(LightningDataModule):
         logger.info("Validation size: %s", val_size)
         logger.info("Test size: %s", test_size)
 
-        # Randomly split the dataset into train, validation, and test sets
+        # Randomly split and initialize the datasets based on the determined sizes
         return random_split(
                 full_dataset,
                 [train_size, val_size, test_size],
                 generator=torch.Generator().manual_seed(42),
             )
     
-    def extract_datasets_from_overview(self, overview: pd.DataFrame)-> tuple:
+    def setup_from_overview(self)-> tuple:
         """
         Extract the datasets from the provided split overview
 
@@ -181,12 +177,39 @@ class DataModule(LightningDataModule):
         Returns:
             A tuple containing the different splits of the dataset.
         """
-        # extract the different splits from the overview
-        train_set = overview[overview["split"] == "train"]
-        val_set = overview[overview["split"] == "val"]
-        test_set = overview[overview["split"] == "test"]
+        train_df = self.split_overview[ self.split_overview["split"] == "train"].reset_index(drop=True)
+        val_df   = self.split_overview[ self.split_overview["split"] == "val"].reset_index(drop=True)
+        test_df  = self.split_overview[ self.split_overview["split"] == "test"].reset_index(drop=True)
 
-        return train_set, val_set, test_set
+        logger.info("Train size: %s", len(train_df))
+        logger.info("Validation size: %s", len(val_df))
+        logger.info("Test size: %s", len(test_df))
+
+        train_dataset = DataFrameDataset(
+        image_overview=train_df,
+        class_map=self.class_map,
+        data_dir=self.datapath,
+        train=True,
+        TTA=self.TTA
+        )
+
+        val_dataset = DataFrameDataset(
+            image_overview=val_df,
+            class_map=self.class_map,
+            data_dir=self.datapath,
+            train=False,
+            TTA=self.TTA
+        )
+
+        test_dataset = DataFrameDataset(
+            image_overview=test_df,
+            class_map=self.class_map,
+            data_dir=self.datapath,
+            train=False,
+            TTA=self.TTA
+        )
+
+        return train_dataset, val_dataset, test_dataset
 
     def train_dataloader(self):
         """
@@ -204,7 +227,7 @@ class DataModule(LightningDataModule):
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
-            shuffle=True if sampler is None else False,
+            shuffle=False,#True if sampler is None else False,
             sampler=sampler,
             num_workers=8,
             pin_memory=True,
@@ -212,10 +235,10 @@ class DataModule(LightningDataModule):
         )
 
     def val_dataloader(self):
-        """
-        Constructs the DataLoader for validation data.
+        """ Constructs a default validation dataloader.
+
         Returns:
-            DataLoader: DataLoader object for the validation dataset.
+            DataLoader: Default DataLoader object for the validation dataset.
         """
         sampler = (
             DistributedSampler(self.val_dataset)
@@ -224,17 +247,6 @@ class DataModule(LightningDataModule):
         )
 
         loader = DataLoader(
-            self.val_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            sampler=sampler,
-            num_workers=8,
-            pin_memory=True,
-            drop_last=False,
-        )
-        if self.TTA:
-            # Apply TTA collate function if TTA is enabled
-            loader = DataLoader(
                 self.val_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
@@ -242,48 +254,34 @@ class DataModule(LightningDataModule):
                 num_workers=8,
                 pin_memory=True,
                 drop_last=False,
-                collate_fn=TTA_collate_fn,
+                collate_fn=TTA_collate_fn if self.TTA else None # Apply TTA collate function if TTA is enabled
             )
         return loader
 
     def test_dataloader(self):
-        """
-        Constructs the DataLoader for testing data.
+        """Constructs a standard dataloader for testing.
         Returns:
             DataLoader: DataLoader object for the testing dataset.
         """
-
-        if not self.TTA:
-            loader = DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                sampler=None,
-                num_workers=8,
-                pin_memory=True,
-                drop_last=False,
-                collate_fn=lambda x: TTA_collate_fn(x, True),
-            )
-        else:
-            loader = DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=8,
-                pin_memory=True,
-                drop_last=False,
-            )
+        loader = DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            shuffle=False,
+            sampler=None,
+            num_workers=8,
+            pin_memory=True,
+            drop_last=False,
+            collate_fn=(lambda x: TTA_collate_fn(x, True) if not self.TTA else None)
+        )
         return loader
 
     def predict_dataloader(self):
-        """
-        Constructs the DataLoader for inference on data.
+        """Constructs a default dataloader for inference.
+
         Returns:
             DataLoader: DataLoader object for the inference dataset.
         """
-
-        if self.TTA:
-            loader = DataLoader(
+        loader = DataLoader(
                 self.predict_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
@@ -291,17 +289,9 @@ class DataModule(LightningDataModule):
                 num_workers=8,
                 pin_memory=False,
                 drop_last=False,
-                collate_fn=TTA_collate_fn,
+                collate_fn= TTA_collate_fn if self.TTA else None
             )
-        else:
-            loader = DataLoader(
-                self.predict_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=8,
-                pin_memory=False,
-                drop_last=False,
-            )
+    
         return loader
 
 

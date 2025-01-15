@@ -1,8 +1,27 @@
+"""
+Custom dataset to load images images based on the provided dataframe.
+Assumes that the dataframe has the following columns:
+- image: The image name ending with the extension (e.g. image.jpg)
+- label : The label of the image
+
+To use this dataset, the images need to be stored in the following structure:
+- data_dir
+    - label1
+        - image1.jpg
+        - image2.jpg
+    - label2
+        - image3.jpg
+        - image4.jpg
+"""
+
 import os
 
-from torchvision.transforms import Compose, RandomHorizontalFlip, RandomRotation, Resize, Normalize, ToTensor
+
 from PIL import Image
 import torch
+from torch.utils.data import Dataset
+from torchvision import transforms
+from torchvision.transforms.v2 import AugMix, Compose, Normalize, RandomHorizontalFlip, RandomRotation, Resize, ToDtype, ToImage
 from torch.utils.data import Dataset
 import pandas as pd
 
@@ -12,7 +31,8 @@ class DataFrameDataset(Dataset):
                  data_dir: str,
                  train: bool = True, 
                  TTA: bool = False,
-                 shuffle: bool = False):
+                 shuffle: bool = False,
+                 class_map: dict = None,):
         """ Initialisation of the DataframeDataSet
 
         Args:
@@ -22,40 +42,28 @@ class DataFrameDataset(Dataset):
             shuffle : Shuffle the data during loading
         """
         self.df = image_overview.copy()
+        self.data_dir = data_dir
         self.train = train
         self.TTA = TTA
         self.shuffle = shuffle
         self.transforms = {}
         self._define_transforms()
+        self.class_map = class_map 
+
 
         if self.shuffle:
             self.df = self.df.sample(frac=1).reset_index(drop=True)
 
     def _define_transforms(self):
-        """
-        Defines the transformations for train, val and test images.
-        """
-        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-        self.transforms = {
-            "train_transforms": Compose([
-                RandomHorizontalFlip(),
-                RandomRotation(30),
-                Resize((224, 224)),
-                ToTensor(),
-                Normalize(mean, std),
-            ]),
-            "val_transforms": Compose([
-                Resize((224, 224)),
-                ToTensor(),
-                Normalize(mean, std),
-            ]),
-        }
+        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # ImageNet mean and std #TODOchange it back to 30
+        self.train_transforms = Compose([ToImage(), RandomHorizontalFlip(), RandomRotation(180), AugMix(severity=6,mixture_width=5), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
+        self.val_transforms = Compose([ToImage(), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
         if self.TTA:
-            self.transforms["rotations"] = {
-                "0": Compose([RandomRotation(0)]),
-                "90": Compose([RandomRotation(90)]),
-                "180": Compose([RandomRotation(180)]),
-                "270": Compose([RandomRotation(270)]),
+            self.rotations = {
+                "0": Compose([RandomRotation(0, 0)]),
+                "90": Compose([RandomRotation((90, 90))]),
+                "180": Compose([RandomRotation((180, 180))]),
+                "270": Compose([RandomRotation((270, 270))]),
             }
 
     def __len__(self):
@@ -72,22 +80,17 @@ class DataFrameDataset(Dataset):
             the rotations.
         """
         row = self.df.iloc[idx]
-        label = row["label"]
-        image_path = os.path.join(label,row["image"])
+        label = row["class"]
+        class_map = row["class_map"]
+        image_path = os.path.join(self.data_dir ,label,row["image"])
 
         # load the image
         image = Image.open(image_path).convert("RGB")
 
         if self.TTA:
-            transformed_images = {
-                rotation: self.transforms["val_transforms"](self.transforms["rotations"][rotation](image))
-                for rotation in self.transforms["rotations"]
-            }
-            return {"images": transformed_images, "label": label}
-
-        if self.train:
-            image = self.transforms["train_transforms"](image)
+                image = {rot: self.val_transforms(self.rotations[rot](image)) for rot in self.rotations}
+        elif self.train:
+            image = self.train_transforms(image)
         else:
-            image = self.transforms["val_transforms"](image)
-
-        return {"image": image, "label": label}
+            image = self.val_transforms(image)
+        return image, class_map
