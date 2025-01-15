@@ -397,6 +397,13 @@ class SplitProcessor:
             if column in self.split_overview_df.columns:
                 if self.split_overview_df[column].iloc[0] != existing_split[column].iloc[0]:
                     return False
+                
+        # check if the priority classes and rest classes match
+        if (
+            existing_split["priority_classes"].iloc[0] != ",".join(self.priority_classes) or
+            existing_split["rest_classes"].iloc[0] != ",".join(self.rest_classes)
+        ):
+            return False
         return True
     
     def _merge_class_map(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -434,7 +441,9 @@ class SplitProcessor:
                 )
 
         self.class_map = helpers.filter_class_mapping(
-            self.class_map, self.priority_classes, self.rest_classes
+            self.class_map, 
+            priority_classes = self.priority_classes,
+            rest_classes = self.rest_classes
         )
 
         logger.info("Class map generated: %s", self.class_map)
@@ -467,7 +476,8 @@ class SplitProcessor:
             "filter_strategy": self.filter_strategy,
             "combined_split_hash": self.combined_split_hash,
             "description": description,
-            "class_map": self.class_map,
+            "priority_classes": ",".join(self.priority_classes),
+            "rest_classes": ",".join(self.rest_classes),
             **prefixed_split_args,
             **prefixed_filter_args,
         }
@@ -487,7 +497,9 @@ class SplitProcessor:
         
         # Filter the image overview
         filter_manager = FilterManager(
-            filter_strategy=self.filter_strategy, filter_args= self.filter_args)
+            filter_strategy=self.filter_strategy, filter_args= self.filter_args
+            )
+        
         filtered_df = filter_manager.apply_filter(self.image_overview_df)
 
         # Generate the class map
