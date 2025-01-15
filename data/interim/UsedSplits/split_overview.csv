@@ -1,0 +1,3 @@
+dataset_version,OOD,split_strategy,filter_strategy,combined_split_hash,description
+"1", ,"Unknown","PlanktonFilter","7ae8bedcd1f7b93380ada9d97df367f75e4ff22c0f9214c00e80c52845c5ea","Split used for "Deep Learning Classification of Lake Zooplankton"
+"2", OOD_2,"Unknown","PlanktonFilter","7ac1342e84ca156574ef657e342945eeee398dc01c056337f2a33409af36d61b","Split used for "Producing Plankton Classifiers that are robust to dataset shift"

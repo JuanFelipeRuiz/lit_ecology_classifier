@@ -59,7 +59,6 @@ class TarImageDataset(Dataset):
 
 
 
-
     def _filter_rest_classes(self):
         """
         Removes samples that are not in rest_classes from the dataset.

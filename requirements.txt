@@ -1,9 +1,10 @@
+ImageHash
 lightning==2.2.5
+matplotlib==3.9.2 
 pandas
 wandb
-matplotlib
 sphinx
 sphinx_rtd_theme
 sphinx-autodoc-typehints
-sklearn
-timm
+scikit-learn
+timm ==0.9.2  

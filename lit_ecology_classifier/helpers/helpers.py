@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn
-
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, ModelSummary, StochasticWeightAveraging
@@ -14,6 +13,10 @@ from torch import nn
 from torch.autograd import Variable
 import tarfile
 import os
+import importlib
+import re
+
+logger = logging.getLogger(__name__)
 
 class FocalLoss(nn.Module):
     def __init__(self, gamma=0, alpha=None, size_average=True):
@@ -36,20 +39,19 @@ class FocalLoss(nn.Module):
         logpt = F.log_softmax(input, dim=1)
         logpt = logpt.gather(1, target)
         logpt = logpt.view(-1)
-        pt = Variable(logpt.data.exp())
+        pt = logpt.exp()
 
         if self.alpha is not None:
             if self.alpha.type() != input.data.type():
-                self.alpha = self.alpha.type_as(input.data)
-            at = self.alpha.gather(0, target.data.view(-1))
-            logpt = logpt * Variable(at)
+                self.alpha = self.alpha.to(input.device)
+            at = self.alpha.gather(0, target.view(-1))
+            logpt = logpt * at
 
         loss = -1 * (1 - pt) ** self.gamma * logpt
         if self.size_average:
             return loss.mean()
         else:
             return loss.sum()
-
 
 def output_results(outpath, im_names, labels, scores,priority_classes=False,rest_classes=False,tar_file=False):
     """
@@ -99,14 +101,12 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
         tuple: (figure for absolute confusion matrix, figure for normalized confusion matrix)
     """
 
-
     class_indices = np.arange(len(class_names))
     confusion_matrix = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
     confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
     num_classes = confusion_matrix.shape[0]
     fig, ax = plt.subplots(figsize=(20, 20))
     fig2, ax2 = plt.subplots(figsize=(20, 20))
-
 
     if len(class_names) != num_classes:
         print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
@@ -121,6 +121,7 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     fig2.tight_layout()
     return fig, fig2
 
+
 def cvd_colormap():
     """
     A color map accessible for people with color vision deficiency (CVD).
@@ -132,13 +133,14 @@ def cvd_colormap():
 
     # Create a dictionary with color information
     cdict = {
-        'red': [(stops[i], red[i], red[i]) for i in range(len(stops))],
-        'green': [(stops[i], green[i], green[i]) for i in range(len(stops))],
-        'blue': [(stops[i], blue[i], blue[i]) for i in range(len(stops))]
+        "red": [(stops[i], red[i], red[i]) for i in range(len(stops))],
+        "green": [(stops[i], green[i], green[i]) for i in range(len(stops))],
+        "blue": [(stops[i], blue[i], blue[i]) for i in range(len(stops))],
     }
 
     # Create the colormap
-    return LinearSegmentedColormap('CustomMap', segmentdata=cdict, N=255)
+    return LinearSegmentedColormap("CustomMap", segmentdata=cdict, N=255)
+
 
 class CosineWarmupScheduler(torch.optim.lr_scheduler._LRScheduler):
     """
@@ -177,10 +179,10 @@ def define_priority_classes(priority_classes):
     class_map["rest"] = 0
     return class_map
 
+
 def define_rest_classes(priority_classes):
     class_map = {class_name: i for i, class_name in enumerate(priority_classes)}
     return class_map
-
 
 
 def plot_score_distributions(all_scores, all_preds, class_names, true_label):
@@ -233,6 +235,8 @@ def TTA_collate_fn(batch: dict, train=False):
         batch_images: All rotations stacked row-wise
         batch_labels: Labels of the images
     """
+    logging.debug("\n Collate function for TTA")
+    logging.debug("Dataype of input batch: %s", type(batch))
     batch_images = {rot: [] for rot in ["0", "90", "180", "270"]}
     batch_labels = []
     if train:
@@ -292,6 +296,7 @@ def plot_loss_acc(logger):
     fig.tight_layout()
     plt.savefig(f"{logger.save_dir}/{logger.name}/version_{logger.version}/loss_accuracy.png")
 
+
 def setup_callbacks(priority_classes, ckpt_name):
     """
     Sets up callbacks for the training process.
@@ -307,9 +312,13 @@ def setup_callbacks(priority_classes, ckpt_name):
     ckpt_name = ckpt_name + "-{epoch:02d}-{val_acc:.4f}" if len(priority_classes) == 0 else ckpt_name + "-{epoch:02d}-{val_acc:.4f}-{val_false_positives:.4f}"
     monitor = "val_acc" if len(priority_classes) == 0 else "val_precision"
     mode = "max"
+    ckpt_name = ckpt_name + "-{epoch:02d}-{val_acc:.4f}" if len(priority_classes) == 0 else ckpt_name + "-{epoch:02d}-{val_acc:.4f}-{val_false_positives:.4f}"
+    monitor = "val_acc" if len(priority_classes) == 0 else "val_precision"
+    mode = "max"
     callbacks.append(ModelCheckpoint(filename=ckpt_name, monitor=monitor, mode=mode, save_top_k=5))
     callbacks.append(ModelSummary())
     return callbacks
+
 
 def plot_reduced_classes(model, priority_classes):
     """
@@ -345,23 +354,105 @@ def plot_reduced_classes(model, priority_classes):
 def setup_classmap(datapath="", priority_classes=[], rest_classes=[]):
     if priority_classes != []:
 
-        logging.info(f"Priority classes not None. Loading priority classes from {priority_classes}")
+        logger.info(f"Priority classes not None. Loading priority classes from {priority_classes}")
 
-        logging.info(f"Priority classes set to: {priority_classes}")
+        logger.info(f"Priority classes set to: {priority_classes}")
         class_map = define_priority_classes(priority_classes)
 
     elif rest_classes != []:
 
-        logging.info(f"rest classes not None. Defining clas map from {rest_classes}")
+        logger.info(f"rest classes not None. Defining clas map from {rest_classes}")
         class_map = define_rest_classes(rest_classes)
 
     # Load class map from JSON or extract it from the tar file if not present
     else:
 
-        logging.info(f" Extracting class map from tar file.")
+        logger.info(f" Extracting class map from tar file.")
         class_map = _extract_class_map(datapath)
 
     return class_map
+
+
+
+def check_existans_of_class(class_map: dict, class_list : list) -> pd.DataFrame:
+    """ Check if the classes inside the class list are present in the class map.
+
+    Args:
+        class_map: Contains the class labels and their corresponding values.
+        class_list: List of classes to check if they are present in the class map.
+
+    Raises:
+        ValueError: If a class in the class list is not present in the class map.
+    """
+
+    for class_name in class_list:
+        if class_name not in class_map:
+            logger.error("Class %s not found in the class map.", class_name)
+            raise ValueError(f"Class {class_name} not found in the class map.")
+
+
+def filter_class_mapping(
+    class_map: dict, rest_classes: list[str] = [], priority_classes: list[str] = []
+) -> pd.DataFrame:
+    """Prepares the class map based on the provided rest and priority classes.
+
+    To focus the training on specific classes, the class map is updated to set classes
+    that are not in the priority classes to 0. The rest classes are to filter, wich classes
+    should be kept in the class map alongside the priority classes. Empty rest and priority
+    classes will result in no filtering.
+
+    Args:
+        class_map: Contains the class labels and their corresponding values.
+        priority_classes : List of classes that keep their original mapping value.
+                           If atleast one class is defined, all other classes are set to 0.
+                           If empty, no priority classes are set.
+
+        rest_classes: Classes to keep alonside the priority classes in the class map.
+                        If empty, no classes are removed.
+
+
+    Returns:
+        A dictionary containing the updated class labels isnide the rest classes and
+        priority classes.
+
+    Examples:
+        Given:
+
+        .. code-block:: python
+            priority_classes = ["class1"]
+            rest_classes = ["class2"]
+
+            class_map = {
+                "class1": 1,
+                "class2": 2,
+                "class3": 3
+            }
+
+        The resulting class map would be:
+
+            {
+                "class1": 1,
+                "class3": 0
+            }
+
+    """
+    logging.info(
+        "Classes to keep based on defined priority classes, if emtpy no prio are set:%s \n \
+            Classes to keep based on defined rest classes. If empty, no class are filtered out: %s",
+        rest_classes,
+        priority_classes,
+    )
+    check_existans_of_class(class_map, priority_classes)
+    check_existans_of_class(class_map, rest_classes)
+
+    return {
+
+        key: (value if key in priority_classes or priority_classes == [] else 0) 
+        for key, value in class_map.items()
+
+        # keep the class that are in the rest classes or the priority classes
+        if key in priority_classes or key in rest_classes or rest_classes == []  
+    }
 
 
 def _extract_class_map(tar_or_dir_path):
@@ -376,11 +467,11 @@ def _extract_class_map(tar_or_dir_path):
     dict
         A dictionary mapping class names to indices.
     """
-    logging.info("Extracting class map.")
+    logger.info("Extracting class map.")
     class_map = {}
 
     if tarfile.is_tarfile(tar_or_dir_path):
-        logging.info("Detected tar file.")
+        logger.info("Detected tar file.")
         with tarfile.open(tar_or_dir_path, "r") as tar:
             # Temporary set to track folders that contain images
             folders_with_images = set()
@@ -404,7 +495,7 @@ def _extract_class_map(tar_or_dir_path):
                     class_map[class_name].append(member.name)
 
     elif os.path.isdir(tar_or_dir_path):
-        logging.info("Detected directory.")
+        logger.info("Detected directory.")
         for root, _, files in os.walk(tar_or_dir_path):
             for file in files:
                 if file.lower().endswith(("jpg", "jpeg", "png")):
@@ -418,7 +509,127 @@ def _extract_class_map(tar_or_dir_path):
 
     # Create a sorted list of class names and map them to indices
     sorted_class_names = sorted(class_map.keys())
-    logging.info(f"Found {len(sorted_class_names)} classes.")
+    logger.info(f"Found {len(sorted_class_names)} classes.")
     class_map = {class_name: idx for idx, class_name in enumerate(sorted_class_names)}
-
+    logging.info("Class map: %s", class_map)
     return class_map
+
+
+def extract_class_mapping_df(df: pd.DataFrame, class_col: str = "class") -> dict:
+    """Creates a class mapping based on the unique values in the class column. 
+    
+    The mapping is created by assigning a unique integer value to each class label 
+    by their alphabetical order. Adding 1 to the index to avoid 0 as a class label
+    conflicting with the value for rest classes.
+    
+    Args:
+        df: Dataframe containing the class column.
+        class_col: The column containing the class labels.
+        
+    Returns:
+        A dictionary containing the class labels and their corresponding values.
+        
+    Examples:
+    
+        Given the following dataframe:
+        
+        | class   |
+        |---------|
+        | class1  |
+        | class2  |
+        | class3  |
+        
+        The resulting class mapping would be:
+
+        ..code-block:: python
+
+            {
+                "class1": 1,
+                "class2": 2,
+                "class3": 3
+            }
+    """
+    
+    logger.debug("Creating the class mapping based on the unique class labels.")
+
+    
+    class_labels = df[class_col].unique()
+    logger.debug("Unique class labels found: %s", class_labels)
+
+    return {label: idx + 1 for idx, label in enumerate(sorted(class_labels))}
+
+
+
+def class_name_to_modul( class_name: str) -> str:
+        """Converts a class name (Examplename) to modul name (example_name)
+
+        Class names should be written in CamelCase and modul names in snake_case.
+        This follows the PEP8 and Google naming conventions.
+
+        Args:
+            class_name: Class name as string in CamelCase.
+
+        Returns:
+            Converted modul name as string in snake_case.
+        """
+
+        return "_".join(
+            [
+                word.lower()  # lower case the word
+                for word in re.findall(  # iterate over each word in the class name
+                    # find all parts of the class name that start with a capital letter
+                    r"[A-Z][a-z0-9]*",
+                    class_name,
+                )
+            ]
+        )
+
+    
+
+def import_class(class_name: str, modul_path: str = ""):
+    """Imports the split strategy class from the given modul.
+
+    Currently only works with moduls inside of the lit_ecology_classifier package.
+    #TODO: Add the possibility to import moduls from other packages or from the
+    # the own project.
+
+    Args:
+        modul_name: The Name of the modul to be loaded as string
+        modul_path: Optional path to the modul
+
+    Returns:
+        The imported class of the modul.
+
+    Raises:
+        ModuleNotFoundError: If the modul could not be imported
+        AttributeError: If the class could not be found inside the modul
+    """
+
+    logger.debug("Importing the modul %s%s", modul_path, class_name)
+
+    # try to import the modul based on the given path and name dynamically
+    modul_name = class_name_to_modul(class_name)
+
+    # try to import the modul
+    try:
+        imported_modul = importlib.import_module(modul_path + modul_name)
+
+    except ModuleNotFoundError as e:
+        logger.error(
+            "Modul %s not found inside the path %s: %e", modul_name, modul_path, e
+        )
+
+    except Exception as e:
+        logger.error("The import of modul %s failed: %s", modul_name, e)
+        raise e
+
+    # try to get the class from the imported modul
+    try:
+        return getattr(imported_modul, class_name)
+
+    except AttributeError as e:
+        logger.error(
+            "Class %s not found inside the modul %s", class_name, modul_name
+        )
+        raise e
+

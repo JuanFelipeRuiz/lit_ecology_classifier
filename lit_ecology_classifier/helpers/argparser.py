@@ -1,5 +1,79 @@
+"""
+This file includes the argument parsers for the different scripts in the lit_ecology_classifier package.
+
+The following parsers are included:
+- base_argparser: Base arguments for the different scripts.
+- argparser: Arguments for configuring, training, and running the machine learning model for image classification (main.py).
+- inference_argparser: Arguments for using the classifier on unlabeled data (predict.py).
+- overview_argparser: Arguments for creating a data overview for the given dataset (overview.py).
+- split_argparser: Arguments for the split process (split.py).
+"""
+
 import argparse
+import json
+import logging
 import os
+from typing import Union
+
+logger = logging.getLogger(__name__)
+
+def base_args():
+    """Creates an arguemnt parser that is needed for all args.
+
+    Returns:
+        argparse.ArgumentParser: The argument parser with defined arguments.
+    """
+    parser = argparse.ArgumentParser(add_help = False)
+    parser.add_argument("--dataset", default="phyto", help="Name of the dataset to store non train specific artifacts") 
+    parser.add_argument("--overview_filename", default="overview.csv", help="Name of the overview file to load/save")
+    return parser
+
+def args_for_overview():
+    """Subgroup of arguments needed for the overview creation"""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--image_version_path_dict", type=load_dict, help="Dictionary or path to the json file containing the image versions and their corresponding paths")
+    parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
+    return parser
+
+
+def args_for_split():
+     # Args for the split process
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--split_hash", type=str, default= None, help="Hash of the split to reuse. If empty, no hash search is used")
+    parser.add_argument("--split_strategy", type=str, default= "Stratified", help="Split strategy to use. Needs to be saved in the lit_ecology_classifier/split_strategies folder")
+    parser.add_argument("--filter_strategy", type=str, default= "PlanktonFilter", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
+    parser.add_argument("--description", type=str, default=None, help ="Description of split, if " )
+    # Args for the split process, that can be loaded from a json file
+    parser.add_argument("--split_args", type=load_dict, default= {}, help="Path to the file containing the arguments for the split strategy")
+    parser.add_argument("--filter_args", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
+    parser.add_argument("--class_map", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
+    parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
+    parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
+    return parser
+
+def args_for_train():
+    parser = argparse.ArgumentParser(add_help = False)
+
+    # Paths and directories to use
+    parser.add_argument("--datapath",  default="/store/empa/em09/aquascope/phyto.tar", help="Path to the tar file containing the training data")
+    parser.add_argument("--train_outpath", default="./train_out", help="Output path for training artifacts")
+    parser.add_argument("--main_param_path", default="./params/", help="Main directory where the training parameters are stored")
+    parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
+    parser.add_argument("--no_use_multi", action="store_true", help="Use multiple GPUs for training")
+    
+    # Model configuration and training options
+    parser.add_argument("--balance_classes", action="store_true", help="Balance the classes for training")
+    parser.add_argument("--batch_size", type=int, default=180, help="Batch size for training")
+    parser.add_argument("--max_epochs", type=int, default=20, help="Number of epochs to train")
+    parser.add_argument("--lr", type=float, default=1e-2, help="Learning rate for training")
+    parser.add_argument("--lr_factor", type=float, default=0.01, help="Learning rate factor for training of full body")
+    parser.add_argument("--no_gpu", action="store_true", help="Use no GPU for training, default is False")
+    parser.add_argument("--loss", choices=["cross_entropy", "focal"], default="cross_entropy", help="Loss function to use")
+
+    # Augmentation and training/testing specifics
+    parser.add_argument("--testing", action="store_true", help="Set this to True if in testing mode, False for training")
+    parser.add_argument("--no_TTA", action="store_true", help="Enable Test Time Augmentation")
+    return parser
 
 def argparser():
     """
@@ -39,29 +113,10 @@ def argparser():
     Returns:
         argparse.ArgumentParser: The argument parser with defined arguments.
     """
-    parser = argparse.ArgumentParser(description="Configure, train and run the machine learning model for image classification.")
-
-    # Paths and directories
-    parser.add_argument("--datapath",  default="/store/empa/em09/aquascope/phyto.tar", help="Path to the tar file containing the training data")
-    parser.add_argument("--train_outpath", default="./train_out", help="Output path for training artifacts")
-    parser.add_argument("--main_param_path", default="./params/", help="Main directory where the training parameters are saved")
-    parser.add_argument("--dataset", default="phyto", help="Name of the dataset")
-    parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
-
-    # Model configuration and training options
-    parser.add_argument("--priority_classes", type=str, default="", help="Path to the JSON file specifying priority classes for training")
-    parser.add_argument("--rest_classes", type=str, default="", help="Path to the JSON file specifying rest classes for training")
-    parser.add_argument("--balance_classes", action="store_true", help="Balance the classes for training")
-    parser.add_argument("--batch_size", type=int, default=180, help="Batch size for training")
-    parser.add_argument("--max_epochs", type=int, default=20, help="Number of epochs to train")
-    parser.add_argument("--lr", type=float, default=1e-2, help="Learning rate for training")
-    parser.add_argument("--lr_factor", type=float, default=0.01, help="Learning rate factor for training of full body")
-    parser.add_argument("--no_gpu", action="store_true", help="Use no GPU for training, default is False")
-    parser.add_argument("--loss", choices=["cross_entropy", "focal"], default="cross_entropy", help="Loss function to use")
-
-    # Augmentation and training/testing specifics
-    parser.add_argument("--testing", action="store_true", help="Set this to True if in testing mode, False for training")
-    parser.add_argument("--no_TTA", action="store_true", help="Enable Test Time Augmentation")
+    parser = argparse.ArgumentParser(
+        parents=[args_for_train, base_args()],
+        description="Configure, train and run the machine learning model for image classification."
+    )
     return parser
 
 def inference_argparser():
@@ -100,9 +155,95 @@ def inference_argparser():
     parser.add_argument("--gpu_id", type=int, default=0, help="GPU ID to use for inference")
     parser.add_argument("--prog_bar", action="store_true", help="Enable progress bar")
     parser.add_argument("--limit_pred_batches", type=int, default=0, help="Limit the number of batches to predict")
+    parser.add_argument("--config", type=str, default="", help="Path to the JSON file containing the configuration")
     return parser
 
+def overview_argparser():
+    """ Argparser for creating a data overview for the given dataset."""
+    parser = argparse.ArgumentParser(
+            parents=[args_for_overview(), base_args()],
+            description="Create a data overview for the given dataset."
+    )
+    return parser
 
+def split_argparser():
+    """Argparser for the split process"""
+    parser = argparse.ArgumentParser(
+        parents=[args_for_split(), base_args()],
+        description="Split the data into train, validation, and test sets."
+    )
+    return parser
+
+def pipeline_argparser():
+    parser = argparse.ArgumentParser(
+        parents=[ args_for_split(), args_for_train(),  base_args()],
+        description="Configure, train and run the machine learning model for image classification with split creation."
+    )
+
+    return parser
+
+def argparser():
+    parser = argparse.ArgumentParser(
+        parents=[ args_for_train(),  base_args()],
+        description="Configure, train and run the machine learning model for image classification."
+    )
+    return parser
+
+def load_dict(input: Union[str, dict]) -> dict:
+    """Load the training arguments from a JSON file.
+
+    args:
+        input: Path or dict containing the args.
+
+    Returns:
+        a dict containing the training arguments.
+
+    Raises:
+        argparse.ArgumentTypeError: If the input is not a dict or a exisisting path to a .json file.
+    """
+
+    if isinstance(input, dict):
+        return input
+    
+    if input == "" or input is None or input == {}:
+        return None
+    
+    if input.endswith(".json"):
+        if not os.path.exists(input):
+            raise argparse.ArgumentTypeError(f"{input} file not found.")
+        
+        with open(input) as file:
+            return json.load(file)
+        
+    raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
+
+
+def load_class_definitions(input: Union[str, list[str]]) -> list:
+    """Load the the priority or rest classes from a JSON file.
+    """
+
+    if isinstance(input, list):
+        return input
+
+    if input.endswith(".json"):
+        if not os.path.exists(input):
+            raise argparse.ArgumentTypeError(f"{input} file not found.")
+        
+        with open(input) as file:
+            class_dict = json.load(file)
+        
+        # check if priority_classes key exists
+        if "priority_classes" in class_dict:
+            return class_dict["priority_classes"]
+            
+        
+        if "rest_classes" in class_dict:
+            return class_dict["rest_classes"]
+        
+        raise argparse.ArgumentTypeError(f"{input} does not contain a known  class definitions.")
+    
+    return None
+    
 # Example of using the argument parser
 if __name__ == "__main__":
     parser = argparser()

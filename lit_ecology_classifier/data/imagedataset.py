@@ -51,23 +51,45 @@ class ImageFolderDataset(Dataset):
         self._define_transforms()
         # Load image information from the folder structure
         self.image_infos = self._load_image_infos()
-        if rest_classes != []:
-            self._filter_rest_classes()
+        rest_classes = self._filter_rest_classes()
 
 
     def _filter_rest_classes(self):
         """
         Removes samples that are not in rest_classes from the dataset.
         """
+        if self.rest_classes == []:
+            logging.info(
+                "No filtering of restclasses, keeping all classes in dataset. Length of dataset: %s", 
+                len(self.image_infos)
+            )
+            return self.image_infos 
+        
         logging.info(f"Filtering dataset to keep only classes in {self.rest_classes}")
         filtered_image_infos = [info for info in self.image_infos if os.path.basename(os.path.dirname(info)) in self.rest_classes]
+        
         self.image_infos = filtered_image_infos
         logging.info(f"Filtered dataset to {len(self.image_infos)} samples.")
 
 
     def _define_transforms(self):
+        """ Defines the image transformations for training and validation/testing.
+
+        The training transformations include:
+            - RandomHorizontalFlip: Randomly flips the image horizontally.
+            - RandomRotation: Randomly rotates the image by a specified angle.
+            - AugMix: Applies AugMix data augmentation.
+            - Resize: Resizes the image to a specified size.
+            - ToDtype: Converts the image to a torch.Tensor of a floating-point data type.
+
+        
+        
+        
+        """
         mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # ImageNet mean and std
+        
         self.train_transforms = Compose([ToImage(), RandomHorizontalFlip(), RandomRotation(30), AugMix(), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
+        
         self.val_transforms = Compose([ToImage(), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
         if self.TTA:
             self.rotations = {
