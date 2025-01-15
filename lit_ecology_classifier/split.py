@@ -33,11 +33,11 @@ if __name__ == "__main__":
     logger.info(args)
 
     # prepare file and folder paths
-    image_overview_path = pathlib.Path(args.dataset_name)/args.overview_filename
+    image_overview_path = pathlib.Path(args.dataset)/args.overview_filename
 
-    split_overview_path = pathlib.Path(args.dataset_name)/f"split_overview.csv"
+    split_overview_path = pathlib.Path(args.dataset)/f"split_overview.csv"
 
-    pathlib.Path(args.dataset_name).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(args.dataset).mkdir(parents=True, exist_ok=True)
 
     split_processor = SplitProcessor(
                                 split_overview_path = split_overview_path,

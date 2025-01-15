@@ -52,11 +52,11 @@ if __name__ == "__main__":
     # if the output folder is not the current directory, 
     # ensure the folder exists and raise an error if it does
     
-    pathlib.Path(args.dataset_name).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(args.dataset).mkdir(parents=True, exist_ok=True)
 
     # prepare filename 
 
-    output = pathlib.Path(args.dataset_name, args.overview_filename)
+    output = pathlib.Path(args.dataset, args.overview_filename)
 
     # save overview to file and overwrite if it exist
     if os.path.exists(output):
