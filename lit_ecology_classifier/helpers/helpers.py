@@ -228,7 +228,7 @@ def plot_score_distributions(all_scores, all_preds, class_names, true_label):
     return fig
 
 
-def TTA_collate_fn(batch: dict):
+def TTA_collate_fn(batch: dict , train: bool = False):
     """
     Collate function for test time augmentation (TTA).
 

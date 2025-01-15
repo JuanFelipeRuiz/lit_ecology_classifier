@@ -62,9 +62,6 @@ if __name__ == '__main__':
     # save the combined hyperparameters to a file in the output directory
     with open(args.outpath + f"/{model_name}_{date}.json", "w") as f:
         json.dump(combined_hparams, f)
-    
-
-
    
     
     # Update the hyperparameters based on the given arguments
@@ -75,6 +72,8 @@ if __name__ == '__main__':
 
     # Print the updated hyperparameters
     logging.info("Parameters for the prediction:%s", pprint.pformat(model.hparams))
+
+    
     data_module = DataModule(**model.hparams)
     data_module.setup("predict")
 

@@ -42,10 +42,12 @@ class LitClassifier(LightningModule):
             torch.Tensor: Geometrics Average of probabilities from the TTA predictions.
             torch.Tensor: True labels if batch is list containg true labels as second entry else None.
         """
+        print(type(batch))  
 
-        tensor_list=[batch[0][str(i * 90)] for i in range(4)]
+        
+       
 
-        x = torch.cat(tensor_list, dim=0)
+        x = torch.cat([batch[str(i * 90)] for i in range(4)], dim=0)
 
         logits = self(x)
         logits = torch.stack(torch.chunk(logits, 4, dim=0))
