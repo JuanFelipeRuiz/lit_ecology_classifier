@@ -121,16 +121,14 @@ if __name__ == "__main__":
         enable_progress_bar=False,
         default_root_dir=args.train_outpath,
     )
+
     # Train the first and last layer of the model
-    try:
-        trainer.fit(model, datamodule=datamodule)
-    except Exception as e:
-        logging.error(f"Error during training: {e}")
-        print(e)
-        raise e
+    trainer.fit(model, datamodule=datamodule)
+
     # Load the best model from the first stage
     model = LitClassifier.load_from_checkpoint(str(trainer.checkpoint_callback.best_model_path), lr=args.lr * args.lr_factor, pretrained=False)
     model.load_datamodule(datamodule)
+    
     # sets up callbacks for stage 2
     callbacks = setup_callbacks(args.priority_classes, "best_model_acc_stage2")
 
