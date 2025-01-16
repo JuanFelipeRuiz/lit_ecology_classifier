@@ -73,7 +73,10 @@ class DataModule(LightningDataModule):
             if self.split_overview is not None:
                 logger.debug("Setting up a dataset based on asplit overview.")
                 self.train_dataset, self.val_dataset, self.test_dataset= self.setup_from_overview()
-
+                logger.info("Train size: %s", len(self.train_dataset))
+                logger.info("Validation size: %s", len(self.val_dataset))
+                logger.info("Test size: %s", len(self.test_dataset))
+                
             else:
                 if self.datapath.find(".tar") == -1:
                     logger.debug("Setting up a dataset based on an image folder.")
@@ -181,9 +184,9 @@ class DataModule(LightningDataModule):
         val_df   = self.split_overview[ self.split_overview["split"] == "val"].reset_index(drop=True)
         test_df  = self.split_overview[ self.split_overview["split"] == "test"].reset_index(drop=True)
 
-        logger.info("Train size: %s", len(train_df))
-        logger.info("Validation size: %s", len(val_df))
-        logger.info("Test size: %s", len(test_df))
+        logger.info("Train size of df: %s", len(train_df))
+        logger.info("Validation size of df: %s", len(val_df))
+        logger.info("Test size of df: %s", len(test_df))
 
         train_dataset = DataFrameDataset(
         image_overview=train_df,
@@ -194,7 +197,7 @@ class DataModule(LightningDataModule):
         )
 
         val_dataset = DataFrameDataset(
-            image_overview=val_df,
+            image_overview=val_df,  
             class_map=self.class_map,
             data_dir=self.datapath,
             train=False,
@@ -226,7 +229,7 @@ class DataModule(LightningDataModule):
             sampler=None,
             num_workers= 4,
             pin_memory=True,
-            drop_last=True,
+            drop_last=True
         )
 
     def val_dataloader(self):
@@ -236,17 +239,27 @@ class DataModule(LightningDataModule):
             DataLoader: Default DataLoader object for the validation dataset.
         """
 
-
         loader = DataLoader(
                 self.val_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 sampler=None,
-                num_workers=8,
+                num_workers= 4,
                 pin_memory=True,
                 drop_last=False,
-                collate_fn=lambda x:TTA_collate_fn(x,True)
             )
+        if self.TTA:
+                # Apply TTA collate function if TTA is enabled
+                loader = DataLoader(
+                    self.val_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=False,
+                    sampler=None,
+                    num_workers= 4,
+                    pin_memory=True,
+                    drop_last=False,
+                    collate_fn=lambda x:TTA_collate_fn(x,True),
+                )
         return loader
 
     def test_dataloader(self):
@@ -291,7 +304,7 @@ class DataModule(LightningDataModule):
                 num_workers=8,
                 pin_memory=False,
                 drop_last=False,
-                collate_fn=lambda x:TTA_collate_fn(x,False),
+                collate_fn=lambda x:TTA_collate_fn(x,False) if self.TTA else None
             )
     
         return loader
