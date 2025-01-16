@@ -4,6 +4,10 @@ Can only use split or filter strategies that are predifined inside of
 the lit_ecology_classifier package. To use custom strategies, follow the template   
 provided in the filter or split_strategy base class and add the strategy to the
 strategies directory. 
+
+Example cmd:
+
+python lit_ecology_classifier/split.py - --priority_classes 'config/priority.json' --rest_classes 'config/rest_classes.json' --dataet "ZooTestToDelete"
 """
 import typing
 import logging
