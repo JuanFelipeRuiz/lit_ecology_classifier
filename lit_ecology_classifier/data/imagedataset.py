@@ -51,20 +51,15 @@ class ImageFolderDataset(Dataset):
         self._define_transforms()
         # Load image information from the folder structure
         self.image_infos = self._load_image_infos()
-        rest_classes = self._filter_rest_classes()
+        if rest_classes != []:
+            self._filter_rest_classes()
 
 
     def _filter_rest_classes(self):
         """
         Removes samples that are not in rest_classes from the dataset.
         """
-        if self.rest_classes == []:
-            logging.info(
-                "No filtering of restclasses, keeping all classes in dataset. Length of dataset: %s", 
-                len(self.image_infos)
-            )
-            return self.image_infos 
-        
+    
         logging.info(f"Filtering dataset to keep only classes in {self.rest_classes}")
         filtered_image_infos = [info for info in self.image_infos if os.path.basename(os.path.dirname(info)) in self.rest_classes]
         
