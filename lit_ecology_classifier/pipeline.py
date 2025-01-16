@@ -15,13 +15,12 @@ from lightning.pytorch.callbacks import LearningRateMonitor
 import torch
 from lightning.pytorch.loggers import CSVLogger, WandbLogger
 
-from .data_overview.overview_creator import OverviewCreator
-from .data.datamodule import DataModule
-from .helpers.argparser import pipeline_argparser
-from .helpers.calc_class_weights import calculate_class_weights
-from .helpers.helpers import setup_callbacks
-from .models.model import LitClassifier
-from .splitting.split_processor import SplitProcessor
+from lit_ecology_classifier.data.datamodule import DataModule
+from lit_ecology_classifier.helpers.argparser import pipeline_argparser
+from lit_ecology_classifier.helpers.calc_class_weights import calculate_class_weights
+from lit_ecology_classifier.helpers.helpers import setup_callbacks
+from lit_ecology_classifier.models.model import LitClassifier
+from lit_ecology_classifier.splitting.split_processor import SplitProcessor
 
 # Start timing the script
 time_begin = time()
@@ -72,10 +71,10 @@ if __name__ == "__main__":
                        for class_, class_map in zip(split_overview["class"], split_overview["class_map"])}
 
     
-    gpus =torch.cuda.device_count() if not args.no_gpu else 0
+    gpus =torch.cuda.device_count() if not args.no_gpu else 1
     logging.info(f"Using {gpus} GPUs for training.")
     
-
+    gpus = 1
 
     datamodule = DataModule(**vars(args), splits=split_overview)
     datamodule.setup("fit")
