@@ -66,7 +66,7 @@ and a path to the dataset version folder, suitable for the operation system beei
 
 
 ```bash
- lit_ecology_classifier/overview.py --dataset Zoo  --image_version_path_dict "config/dataset_versions.json" 
+ python lit_ecology_classifier/overview.py --dataset Zoo  --image_version_path_dict "config/dataset_versions.json" 
 ```
 
 #### Args for overview
@@ -88,7 +88,7 @@ source get_model.sh
 Afterwards, the model can be trained either 
 
 ```bash
-python -m lit_ecology_classifier.main --max_epochs 20 --dataset phyto --priority config/priority.json
+python -m lit_ecology_classifier.main --max_epochs 2 --dataset phyto --priority config/priority.json --datapath data/ZooLake2
 ```
 
 ### Inference

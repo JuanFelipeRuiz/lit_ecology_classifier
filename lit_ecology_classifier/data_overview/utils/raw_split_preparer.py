@@ -57,7 +57,7 @@ class _RawSplitPathPreparer:
         """
         # generate path to the folder containing the txt files
         path_txt_file_folder = os.path.join(
-            datapath, "zoolake_train_test_val_separated"
+            datapath,"data", "zoolake_train_test_val_separated"
         )
 
         # create dict to store the paths to the diffrent split .txt files

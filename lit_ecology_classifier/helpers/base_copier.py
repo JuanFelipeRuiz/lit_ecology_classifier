@@ -7,7 +7,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
 import os
 import shutil
-from typing import List, Tuple, Union
+from typing import List, Tuple, Union, Optional
 
 import pandas as pd
 
@@ -51,7 +51,7 @@ class BaseImageCopier:
         ```
     """
 
-    def __init__(self, src_base_path: str = None, tgt_base_path: str = None):
+    def __init__(self, src_base_path: Optional[str] = None, tgt_base_path: Optional[str] = None):
         """ Initialize the BaseImageCopier with the base source and target paths.
 
         Args:
@@ -112,6 +112,10 @@ class BaseImageCopier:
         Returns
            A Dataframe containg the source paths.
         """
+
+        if self.src_base_path is None:
+            return df
+        
         df["src"] = df["src"].apply(lambda x: os.path.join(self.src_base_path, x))
         return df
 
@@ -188,7 +192,7 @@ class BaseImageCopier:
             logger.error("Falied to copy %s images.", failure_count)
             raise ValueError
 
-    def _parallel_image_copier(self, paths_df: pd.DataFrame, max_workers: int = None):
+    def _parallel_image_copier(self, paths_df: pd.DataFrame, max_workers: Optional[int] = None):
         """Copies the images with parallesization to make the copy faster.
 
         Args:
@@ -220,8 +224,8 @@ class BaseImageCopier:
     def execute_copieng_of_images(
         self,
         paths: Union[pd.DataFrame, List[Tuple[str, str]]],
-        parallel: bool = False,
-        max_workers: int = None,
+        parallel: Optional[bool] = False,
+        max_workers: Optional[int] = None,
     ):
         """
         Copy images based on a DataFrame or list of tuples containing source and target paths.

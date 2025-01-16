@@ -3,7 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sklearn
+from sklearn import metrics
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, ModelSummary, StochasticWeightAveraging
@@ -15,7 +15,7 @@ import tarfile
 import os
 import importlib
 import re
-
+from typeguard import typechecked
 logger = logging.getLogger(__name__)
 
 class FocalLoss(nn.Module):
@@ -102,8 +102,8 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     """
 
     class_indices = np.arange(len(class_names))
-    confusion_matrix = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
-    confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
+    confusion_matrix = metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
+    confusion_matrix_norm = metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
     num_classes = confusion_matrix.shape[0]
     fig, ax = plt.subplots(figsize=(20, 20))
     fig2, ax2 = plt.subplots(figsize=(20, 20))
@@ -111,8 +111,8 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     if len(class_names) != num_classes:
         print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
         class_names = class_names[:num_classes]
-    cm_display = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
-    cm_display_norm = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
+    cm_display_norm = metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
     cmap = cvd_colormap()
     cm_display.plot(cmap=cmap, ax=ax, xticks_rotation=90)
     cm_display_norm.plot(cmap=cmap, ax=ax2, xticks_rotation=90)
@@ -183,12 +183,6 @@ def define_rest_classes(priority_classes):
     class_map = {class_name: i for i, class_name in enumerate(priority_classes)}
     return class_map
 
-
-def define_rest_classes(priority_classes):
-    class_map = {class_name: i for i, class_name in enumerate(priority_classes)}
-    return class_map
-
-
 def plot_score_distributions(all_scores, all_preds, class_names, true_label):
     """
     Plot the distribution of prediction scores for each class in separate plots.
@@ -227,7 +221,7 @@ def plot_score_distributions(all_scores, all_preds, class_names, true_label):
     fig.tight_layout()
     return fig
 
-
+@typechecked
 def TTA_collate_fn(batch: dict , train: bool = False):
     """
     Collate function for test time augmentation (TTA).
@@ -241,32 +235,35 @@ def TTA_collate_fn(batch: dict , train: bool = False):
     """
     logging.debug("\n Collate function for TTA")
     logging.debug("Dataype of input batch: %s", type(batch))
-    batch_images = {rot: [] for rot in ["0", "90", "180", "270"]}
-    batch_labels = []
+    try:
+        batch_images = {rot: [] for rot in ["0", "90", "180", "270"]}
+        batch_labels = []
 
-    if train:
-        for rotated_images, label in batch:
-            for rot in batch_images:
-                batch_images[rot].append(rotated_images[rot])
-            batch_labels.append(label)
-        batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
-        batch_labels = torch.tensor(batch_labels)
-        return batch_images, batch_labels
+        if train:
+            for rotated_images, label in batch:
+                for rot in batch_images:
+                    batch_images[rot].append(rotated_images[rot])
+                batch_labels.append(label)
+            batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
+            batch_labels = torch.tensor(batch_labels)
+            return batch_images, batch_labels
 
-    else:
-        logging.debug("Batch length: %s", len(batch))
-        for rotated_images in batch:
-            logging.debug("Datatype rotated images: %s", type(rotated_images))
-            for rot in batch_images:
-                logging.debug("Datarype of rot %s: %s",rot, type(rot))
-                logging.debug("Datatype of rotated images: %s", type(rotated_images))
-                logging.debug("Rotated : %s", rotated_images)
+        else:
+            logging.debug("Batch length: %s", len(batch))
+            for rotated_images in batch:
+                logging.debug("Datatype rotated images: %s", type(rotated_images))
+                for rot in batch_images:
+                    logging.debug("Datarype of rot %s: %s",rot, type(rot))
+                    logging.debug("Datatype of rotated images: %s", type(rotated_images))
+                    logging.debug("Rotated : %s", rotated_images)
 
-                batch_images[rot].append(rotated_images[0][rot])
-        batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
-        logging.debug("Successfully stacked images")
-        return batch_images
-
+                    batch_images[rot].append(rotated_images[0][rot])
+            batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
+            logging.debug("Successfully stacked images")
+            return batch_images
+    except Exception as e:
+        logging.error("Error in TTA collate function: %s", e)
+        raise e
 
 
 
@@ -383,7 +380,7 @@ def setup_classmap(datapath="", priority_classes=[], rest_classes=[]):
 
 
 
-def check_existans_of_class(class_map: dict, class_list : list) -> pd.DataFrame:
+def check_existans_of_class(class_map: dict, class_list : list) -> None:
     """ Check if the classes inside the class list are present in the class map.
 
     Args:
@@ -402,7 +399,7 @@ def check_existans_of_class(class_map: dict, class_list : list) -> pd.DataFrame:
 
 def filter_class_mapping(
     class_map: dict, rest_classes: list[str] = [], priority_classes: list[str] = []
-) -> pd.DataFrame:
+) -> dict:
     """Prepares the class map based on the provided rest and priority classes.
 
     To focus the training on specific classes, the class map is updated to set classes

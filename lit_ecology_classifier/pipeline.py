@@ -68,7 +68,7 @@ if __name__ == "__main__":
     split_overview = split_processor.get_split_df()
 
     # extract the class map from the split overview 
-    args.class_map = {class_ if class_map is not 0 else "rest" : class_map 
+    args.class_map = {class_ if class_map != 0 else "rest" : class_map 
                        for class_, class_map in zip(split_overview["class"], split_overview["class_map"])}
 
     
