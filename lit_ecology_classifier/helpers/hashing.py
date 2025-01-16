@@ -7,7 +7,7 @@ import imagehash
 
 class HashGenerator:
     @staticmethod
-    def sha256_from_list(hash_list):
+    def sha256_from_list(hash_list) -> str:
         """Hash a list of hashes using SHA256.
 
         Sorts the hash list based on the hash values and concatenates the hashes to a single
@@ -28,7 +28,7 @@ class HashGenerator:
                                       col_to_hash = "hash256", 
                                       group_by_col = "split"
 
-                                      ) -> list[str]:
+                                      ) -> dict[str,str]:
         """Generate a hash for each value inside the split column.
 
         Args:

@@ -69,4 +69,5 @@ if __name__ == "__main__":
         copier = ImageCopier(args.summarise_to, overview_creator)
         copier.copy_images()
         
-    logging.info(f"Overview saved to {output}, total time taken: {time()-time_begin} seconds")
+    logging.info("Overview saved to %s.", output)
+    logging.info("Total time taken: %s seconds", time()-time_begin)

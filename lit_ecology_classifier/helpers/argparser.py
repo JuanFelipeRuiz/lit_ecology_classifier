@@ -31,7 +31,7 @@ def base_args():
 def args_for_overview():
     """Subgroup of arguments needed for the overview creation"""
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--image_version_path_dict", type=load_dict, help="Dictionary or path to the json file containing the image versions and their corresponding paths")
+    parser.add_argument("--image_version_path_dict", type=load_dict, default="config/priority.json", help="Dictionary or path to the json file containing the image versions and their corresponding paths")
     parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
     return parser
 
@@ -73,6 +73,10 @@ def args_for_train():
     # Augmentation and training/testing specifics
     parser.add_argument("--testing", action="store_true", help="Set this to True if in testing mode, False for training")
     parser.add_argument("--no_TTA", action="store_true", help="Enable Test Time Augmentation")
+
+    # some additional arguments to ensure the model the old version run
+    parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
+    parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
     return parser
 
 def argparser():
