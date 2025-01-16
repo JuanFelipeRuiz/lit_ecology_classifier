@@ -18,6 +18,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
+
 class FocalLoss(nn.Module):
     def __init__(self, gamma=0, alpha=None, size_average=True):
         super(FocalLoss, self).__init__()
@@ -39,19 +40,20 @@ class FocalLoss(nn.Module):
         logpt = F.log_softmax(input, dim=1)
         logpt = logpt.gather(1, target)
         logpt = logpt.view(-1)
-        pt = logpt.exp()
+        pt = Variable(logpt.data.exp())
 
         if self.alpha is not None:
             if self.alpha.type() != input.data.type():
-                self.alpha = self.alpha.to(input.device)
-            at = self.alpha.gather(0, target.view(-1))
-            logpt = logpt * at
+                self.alpha = self.alpha.type_as(input.data)
+            at = self.alpha.gather(0, target.data.view(-1))
+            logpt = logpt * Variable(at)
 
         loss = -1 * (1 - pt) ** self.gamma * logpt
         if self.size_average:
             return loss.mean()
         else:
             return loss.sum()
+
 
 def output_results(outpath, im_names, labels, scores,priority_classes=False,rest_classes=False,tar_file=False):
     """
@@ -101,12 +103,14 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
         tuple: (figure for absolute confusion matrix, figure for normalized confusion matrix)
     """
 
+
     class_indices = np.arange(len(class_names))
     confusion_matrix = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
     confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
     num_classes = confusion_matrix.shape[0]
     fig, ax = plt.subplots(figsize=(20, 20))
     fig2, ax2 = plt.subplots(figsize=(20, 20))
+
 
     if len(class_names) != num_classes:
         print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
@@ -119,7 +123,9 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
 
     fig.tight_layout()
     fig2.tight_layout()
+
     return fig, fig2
+
 
 
 def cvd_colormap():
@@ -133,14 +139,13 @@ def cvd_colormap():
 
     # Create a dictionary with color information
     cdict = {
-        "red": [(stops[i], red[i], red[i]) for i in range(len(stops))],
-        "green": [(stops[i], green[i], green[i]) for i in range(len(stops))],
-        "blue": [(stops[i], blue[i], blue[i]) for i in range(len(stops))],
+        'red': [(stops[i], red[i], red[i]) for i in range(len(stops))],
+        'green': [(stops[i], green[i], green[i]) for i in range(len(stops))],
+        'blue': [(stops[i], blue[i], blue[i]) for i in range(len(stops))]
     }
 
     # Create the colormap
-    return LinearSegmentedColormap("CustomMap", segmentdata=cdict, N=255)
-
+    return LinearSegmentedColormap('CustomMap', segmentdata=cdict, N=255)
 
 class CosineWarmupScheduler(torch.optim.lr_scheduler._LRScheduler):
     """
@@ -179,10 +184,10 @@ def define_priority_classes(priority_classes):
     class_map["rest"] = 0
     return class_map
 
-
 def define_rest_classes(priority_classes):
     class_map = {class_name: i for i, class_name in enumerate(priority_classes)}
     return class_map
+
 
 
 def plot_score_distributions(all_scores, all_preds, class_names, true_label):
@@ -235,8 +240,6 @@ def TTA_collate_fn(batch: dict, train=False):
         batch_images: All rotations stacked row-wise
         batch_labels: Labels of the images
     """
-    logging.debug("\n Collate function for TTA")
-    logging.debug("Dataype of input batch: %s", type(batch))
     batch_images = {rot: [] for rot in ["0", "90", "180", "270"]}
     batch_labels = []
     if train:
@@ -296,7 +299,6 @@ def plot_loss_acc(logger):
     fig.tight_layout()
     plt.savefig(f"{logger.save_dir}/{logger.name}/version_{logger.version}/loss_accuracy.png")
 
-
 def setup_callbacks(priority_classes, ckpt_name):
     """
     Sets up callbacks for the training process.
@@ -312,13 +314,9 @@ def setup_callbacks(priority_classes, ckpt_name):
     ckpt_name = ckpt_name + "-{epoch:02d}-{val_acc:.4f}" if len(priority_classes) == 0 else ckpt_name + "-{epoch:02d}-{val_acc:.4f}-{val_false_positives:.4f}"
     monitor = "val_acc" if len(priority_classes) == 0 else "val_precision"
     mode = "max"
-    ckpt_name = ckpt_name + "-{epoch:02d}-{val_acc:.4f}" if len(priority_classes) == 0 else ckpt_name + "-{epoch:02d}-{val_acc:.4f}-{val_false_positives:.4f}"
-    monitor = "val_acc" if len(priority_classes) == 0 else "val_precision"
-    mode = "max"
     callbacks.append(ModelCheckpoint(filename=ckpt_name, monitor=monitor, mode=mode, save_top_k=5))
     callbacks.append(ModelSummary())
     return callbacks
-
 
 def plot_reduced_classes(model, priority_classes):
     """
@@ -354,25 +352,318 @@ def plot_reduced_classes(model, priority_classes):
 def setup_classmap(datapath="", priority_classes=[], rest_classes=[]):
     if priority_classes != []:
 
-        logger.info(f"Priority classes not None. Loading priority classes from {priority_classes}")
+        logging.info(f"Priority classes not None. Loading priority classes from {priority_classes}")
 
-        logger.info(f"Priority classes set to: {priority_classes}")
+        logging.info(f"Priority classes set to: {priority_classes}")
         class_map = define_priority_classes(priority_classes)
 
     elif rest_classes != []:
 
-        logger.info(f"rest classes not None. Defining clas map from {rest_classes}")
+        logging.info(f"rest classes not None. Defining clas map from {rest_classes}")
         class_map = define_rest_classes(rest_classes)
 
     # Load class map from JSON or extract it from the tar file if not present
     else:
 
-        logger.info(f" Extracting class map from tar file.")
+        logging.info(f" Extracting class map from tar file.")
         class_map = _extract_class_map(datapath)
 
     return class_map
 
 
+def _extract_class_map(tar_or_dir_path):
+    """
+    Extracts the class map from the contents of the tar file or directory and saves it to a JSON file.
+
+    Arguments:
+    tar_or_dir_path: str
+        Path to the tar file or directory containing the images.
+
+    Returns:
+    dict
+        A dictionary mapping class names to indices.
+    """
+    logging.info("Extracting class map.")
+    class_map = {}
+
+    if tarfile.is_tarfile(tar_or_dir_path):
+        logging.info("Detected tar file.")
+        with tarfile.open(tar_or_dir_path, "r") as tar:
+            # Temporary set to track folders that contain images
+            folders_with_images = set()
+
+            # First pass: Identify folders containing images
+            for member in tar.getmembers():
+                if member.isdir():
+                    continue  # Skip directories
+                if member.isfile() and member.name.lower().endswith(("jpg", "jpeg", "png")):
+                    class_name = os.path.basename(os.path.dirname(member.name))
+                    folders_with_images.add(class_name)
+
+            # Second pass: Build the class map only for folders with images
+            for member in tar.getmembers():
+                if member.isdir():
+                    continue  # Skip directories
+                class_name = os.path.basename(os.path.dirname(member.name))
+                if class_name in folders_with_images:
+                    if class_name not in class_map:
+                        class_map[class_name] = []
+                    class_map[class_name].append(member.name)
+
+    elif os.path.isdir(tar_or_dir_path):
+        logging.info("Detected directory.")
+        for root, _, files in os.walk(tar_or_dir_path):
+            for file in files:
+                if file.lower().endswith(("jpg", "jpeg", "png")):
+                    class_name = os.path.basename(root)
+                    if class_name not in class_map:
+                        class_map[class_name] = []
+                    class_map[class_name].append(os.path.join(root, file))
+
+    else:
+        raise ValueError("Provided path is neither a valid tar file nor a directory.")
+
+    # Create a sorted list of class names and map them to indices
+    sorted_class_names = sorted(class_map.keys())
+    logging.info(f"Found {len(sorted_class_names)} classes.")
+    class_map = {class_name: idx for idx, class_name in enumerate(sorted_class_names)}
+
+    return class_map
+
+def compute_roc_auc(all_labels, all_scores, debug=False): #debug logs some figures in a debug folder
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_auc_score, roc_curve
+    from sklearn.preprocessing import label_binarize
+    import numpy as np
+    import os
+
+    # Ensure the output path exists
+
+    # Convert tensors to NumPy arrays
+    all_labels_np = all_labels.cpu().numpy()
+    all_scores_np = all_scores.cpu().numpy()
+    print("scores",all_scores_np.min(),all_scores_np.max())
+    # Get unique class labels
+    class_labels = np.unique(all_labels_np)
+
+    # Binarize the labels for multi-class ROC computation
+    all_labels_binarized = label_binarize(all_labels_np, classes=class_labels)
+
+    # Compute AUC for each class, plot score distributions, and plot ROC curves
+    auc_list = []
+    for i, class_label in enumerate(class_labels):
+        y_true = all_labels_binarized[:, i]
+        y_scores = all_scores_np[:, i]
+
+        # Check if both classes are present
+        if len(np.unique(y_true)) > 1:
+            # Compute AUC for the class
+            auc_score = roc_auc_score(y_true, y_scores)
+            auc_list.append(auc_score)
+
+            # Compute ROC curve
+            fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+            if debug:
+                os.makedirs('debug', exist_ok=True)
+                # Plot ROC curve
+                plt.figure()
+                plt.plot(
+                    fpr,
+                    tpr,
+                    color='blue',
+                    lw=2,
+                    label='ROC curve (AUC = %0.2f)' % auc_score
+                )
+                plt.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--')
+                plt.xlim([0.0, 1.0])
+                plt.ylim([0.0, 1.05])
+                plt.xlabel('False Positive Rate')
+                plt.ylabel('True Positive Rate')
+                plt.title('ROC Curve for Class {}'.format(class_label))
+                plt.legend(loc="lower right")
+                plt.grid(True)
+                plt.tight_layout()
+                plt.savefig(
+                    os.path.join(
+                        'debug', 'roc_curve_class_{}.png'.format(class_label)
+                    )
+                )
+                plt.close()
+        else:
+            # If only one class present in y_true, AUC and ROC are not defined
+            auc_score = float('nan')
+            auc_list.append(auc_score)
+            # Skip plotting ROC curve
+            pass
+
+        # Plot score distribution for the class
+        if debug:
+            plt.figure()
+            plt.hist(
+                y_scores[y_true == 1],
+                bins=50,
+                alpha=0.5,
+                label='Positive (Class {})'.format(class_label),
+                color='blue',
+            )
+            plt.hist(
+                y_scores[y_true == 0],
+                bins=50,
+                alpha=0.5,
+                label='Negative (Other Classes)',
+                color='orange',
+            )
+            plt.title('Score Distribution for Class {}, AUC: {:.2f}'.format(class_label, auc_score))
+            plt.xlabel('Predicted Score')
+            plt.ylabel('Frequency')
+            plt.legend(loc='best')
+            plt.yscale('log')
+            plt.grid(True)
+            plt.tight_layout()
+            plt.savefig(
+                os.path.join(
+                    'debug', 'score_distribution_class_{}.png'.format(class_label)
+                )
+            )
+            plt.close()
+
+    # Compute macro-average AUC (ignoring NaN values)
+    valid_auc_scores = [auc for auc in auc_list if not np.isnan(auc)]
+    if valid_auc_scores:
+        roc_auc_macro = np.mean(valid_auc_scores)
+    else:
+        roc_auc_macro = float('nan')
+
+    return roc_auc_macro
+
+
+def compute_macro_precision_recall(all_labels, predicted_labels):
+    from sklearn.metrics import precision_score, recall_score
+    import numpy as np
+
+    # Binarize the predicted scores by applying a 0.5 threshold
+    all_labels_np = all_labels.cpu().numpy()
+
+    # Get unique class labels
+    class_labels = np.unique(all_labels_np)
+    n_classes = len(class_labels)
+
+    precision_list = []
+    recall_list = []
+    f1_scores_list = []
+
+    for i, class_label in enumerate(class_labels):
+        # For each class, calculate precision and recall
+        y_true = (all_labels_np == i).astype(int)  # Class-specific true labels
+        y_pred = (predicted_labels == i).cpu().numpy().astype(int)
+
+        precision = precision_score(y_true, y_pred, zero_division=0)
+        recall = recall_score(y_true, y_pred, zero_division=0)
+
+        precision_list.append(precision)
+        recall_list.append(recall)
+        if precision + recall > 0:
+            f1_score_class = 2 * (precision * recall) / (precision + recall)
+        else:
+            f1_score_class = 0.0  # Handle cases where precision and recall are both 0
+
+        # Append F1 score for the current class to the list
+        f1_scores_list.append(f1_score_class)
+
+    # Compute macro average precision and recall (mean of precision and recall across all classes)
+    macro_precision = np.mean(precision_list)
+    macro_recall = np.mean(recall_list)
+    macro_f1 = np.mean(f1_scores_list)
+
+    return macro_precision, macro_recall, macro_f1
+
+
+
+def compute_roc_auc_binary(all_labels, all_scores, debug=False):
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_auc_score, roc_curve
+    import numpy as np
+    import os
+
+    # Ensure the output path exists
+
+    # Convert tensors to NumPy arrays
+    all_labels_np = all_labels.cpu().numpy()
+    all_scores_np = all_scores.cpu().numpy()
+
+    # Create binary labels: 0 for class 0 (negative), 1 for all other classes (positive)
+    binary_labels = np.where(all_labels_np == 0, 0, 1)
+
+    # Compute scores for the positive class (all classes except 0)
+    # Sum the scores of all positive classes to get a single score per sample
+    positive_scores = all_scores_np[:, 1:].sum(axis=1)
+
+    # Use the positive class scores as the prediction scores
+    y_true = binary_labels
+    y_scores = positive_scores
+
+    # Compute AUC for the binary classification
+    if len(np.unique(y_true)) > 1:
+        auc_score = roc_auc_score(y_true, y_scores)
+    else:
+        # If only one class present in y_true, AUC is not defined
+        auc_score = float('nan')
+    if debug:
+        # Compute ROC curve
+        fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+        os.makedirs('debug', exist_ok=True)
+
+        # Plot ROC curve
+        plt.figure()
+        plt.plot(
+            fpr,
+            tpr,
+            color='blue',
+            lw=2,
+            label='ROC curve (AUC = %0.2f)' % auc_score
+        )
+        plt.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curve for Binary Classification (Class 0 vs. Others)')
+        plt.legend(loc="lower right")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join('debug', 'roc_curve_binary.png')
+        )
+        plt.close()
+
+        # Plot score distribution for the binary classification
+        plt.figure()
+        plt.hist(
+            y_scores[y_true == 1],
+            bins=50,
+            alpha=0.5,
+            label='Positive (Classes 1 and above)',
+            color='blue',
+        )
+        plt.hist(
+            y_scores[y_true == 0],
+            bins=50,
+            alpha=0.5,
+            label='Negative (Class 0)',
+            color='orange',
+        )
+        plt.title('Score Distribution for Binary Classification\nAUC: {:.2f}'.format(auc_score))
+        plt.xlabel('Aggregated Positive Class Score')
+        plt.ylabel('Frequency')
+        plt.legend(loc='best')
+        plt.yscale('log')
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join('debug', 'score_distribution_binary.png')
+        )
+        plt.close()
+    return auc_score
 
 def check_existans_of_class(class_map: dict, class_list : list) -> pd.DataFrame:
     """ Check if the classes inside the class list are present in the class map.
