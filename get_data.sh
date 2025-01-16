@@ -30,7 +30,7 @@ download_and_extract() {
     local filename=$(basename "$url")
 
     # Download the file to the folder named after the link choice
-    curl -L "$url" -o "$dataset/$filename"
+    curl -L "$url" -o "$data/$dataset/$filename"
 
     # Check if the download was successful
     if [ $? -eq 0 ]; then
@@ -55,6 +55,6 @@ download_and_extract() {
     fi
 }
 
-if [[ "${BASH_SOURCE[0]}" != "${0}" && -n "$1" ]]; then
+if [ && -n "$1" ]; then
     download_and_extract "$1"
 fi
