@@ -37,7 +37,7 @@ To download the data use `get_data.sh`/`get_data.bat` with a supported argument.
 
 Linux/Mac:
 ```bash 
-bash source get_data.sh ZooLake1
+bash get_data.sh ZooLake1
 ```
 Windows:
 ```powershell
@@ -66,13 +66,14 @@ and a path to the dataset version folder, suitable for the operation system beei
 
 
 ```bash
- python overview.py --name Zoo  --image_version_path_dict "config/dataset_versions.json" --output "output" 
+ lit_ecology_classifier/overview.py --dataset Zoo  --image_version_path_dict "config/dataset_versions.json" 
 ```
+
 #### Args for overview
-- parser.add_argument("--dataset", default="phyto", help="Name of the dataset to store non train specific artifacts") 
-- parser.add_argument("--overview_filename", default="overview.csv", help="Name of the overview file to load/save")
-- parser.add_argument("--image_version_path_dict", type=load_dict, help="Dictionary or path to the json file containing the image versions and their corresponding paths")
-- parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
+- `--dataset`: Name of the folder to store non train specific artifacts like image overview. Default: pytho
+- `--overview_filename`: Name of the overview file to load/save. Default: overvirew.csv
+- `--image_version_path_dict`: Dictionary or path to the json file containing the image versions and their corresponding paths.
+- `--summarise_to`: If a path is given, all images of the given versions are summarised into one single folder at given path. Default: None
 ### Split
 
 
