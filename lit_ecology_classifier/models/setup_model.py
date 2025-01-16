@@ -24,18 +24,18 @@ def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints
     # first the ckpt is download with get_model.sh, then the model is initialised with random weights
     model = timm.models.beit_base_patch16_224(pretrained=False,num_classes=1000)
 
-
+    # Load the checkpoint manually
     checkpoint = load_file(checkpoint_path)
     model.load_state_dict(checkpoint)
     # Remove the head
     del checkpoint['head.weight']
     del checkpoint['head.bias']
 
-    # # Load the remaining state dict
-    # model.load_state_dict(checkpoint, strict=False)
+    # Load the remaining state dict
+    model.load_state_dict(checkpoint, strict=False)
 
     # Modify the model to match the number of classes in your dataset
-    # model.head = torch.nn.Linear(model.head.in_features, num_classes)
+    model.head = torch.nn.Linear(model.head.in_features, num_classes)
 
     set_trainable_params(model, finetune=pretrained)
 
@@ -70,6 +70,3 @@ def set_trainable_params(model, train_first=False, finetune=True):
             param.requires_grad = True
         if not finetune:
             param.requires_grad = True
-
-
-
