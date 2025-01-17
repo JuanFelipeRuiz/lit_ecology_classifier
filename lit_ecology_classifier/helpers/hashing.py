@@ -1,13 +1,15 @@
 import hashlib
 import logging
 
+from typeguard import typechecked
 import pandas as pd
 from PIL import Image
 import imagehash
 
 class HashGenerator:
     @staticmethod
-    def sha256_from_list(hash_list):
+    @typechecked
+    def sha256_from_list(hash_list) -> str:
         """Hash a list of hashes using SHA256.
 
         Sorts the hash list based on the hash values and concatenates the hashes to a single
@@ -24,11 +26,12 @@ class HashGenerator:
         return hashlib.sha256(concatenated.encode()).hexdigest()
 
     @staticmethod
+    @typechecked
     def generate_hash_dict_from_split(df : pd.DataFrame,
                                       col_to_hash = "hash256", 
                                       group_by_col = "split"
 
-                                      ) -> list[str]:
+                                      ) -> dict[str,str]:
         """Generate a hash for each value inside the split column.
 
         Args:
@@ -51,6 +54,7 @@ class HashGenerator:
         return hash_dict
     
     @staticmethod
+    @typechecked
     def hash_image(image_path: str, hash_algorithm: str = "256") -> str:
         """Calculate the hash from the binary data of the image using the given hash algorithm.
 

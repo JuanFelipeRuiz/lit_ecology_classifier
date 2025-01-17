@@ -3,7 +3,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import sklearn
+from sklearn import metrics
 import torch
 import torch.nn.functional as F
 from lightning.pytorch.callbacks import EarlyStopping, LearningRateMonitor, ModelCheckpoint, ModelSummary, StochasticWeightAveraging
@@ -15,7 +15,7 @@ import tarfile
 import os
 import importlib
 import re
-
+from typeguard import typechecked
 logger = logging.getLogger(__name__)
 
 
@@ -105,8 +105,8 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
 
 
     class_indices = np.arange(len(class_names))
-    confusion_matrix = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
-    confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
+    confusion_matrix = metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
+    confusion_matrix_norm = metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
     num_classes = confusion_matrix.shape[0]
     fig, ax = plt.subplots(figsize=(20, 20))
     fig2, ax2 = plt.subplots(figsize=(20, 20))
@@ -115,8 +115,8 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     if len(class_names) != num_classes:
         print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
         class_names = class_names[:num_classes]
-    cm_display = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
-    cm_display_norm = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
+    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
+    cm_display_norm = metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
     cmap = cvd_colormap()
     cm_display.plot(cmap=cmap, ax=ax, xticks_rotation=90)
     cm_display_norm.plot(cmap=cmap, ax=ax2, xticks_rotation=90)
@@ -228,8 +228,8 @@ def plot_score_distributions(all_scores, all_preds, class_names, true_label):
     fig.tight_layout()
     return fig
 
-
-def TTA_collate_fn(batch: dict, train=False):
+@typechecked
+def TTA_collate_fn(batch: dict , train: bool = False):
     """
     Collate function for test time augmentation (TTA).
 
@@ -665,7 +665,8 @@ def compute_roc_auc_binary(all_labels, all_scores, debug=False):
         plt.close()
     return auc_score
 
-def check_existans_of_class(class_map: dict, class_list : list) -> pd.DataFrame:
+
+def check_existans_of_class(class_map: dict, class_list : list) -> None:
     """ Check if the classes inside the class list are present in the class map.
 
     Args:
@@ -684,7 +685,7 @@ def check_existans_of_class(class_map: dict, class_list : list) -> pd.DataFrame:
 
 def filter_class_mapping(
     class_map: dict, rest_classes: list[str] = [], priority_classes: list[str] = []
-) -> pd.DataFrame:
+) -> dict:
     """Prepares the class map based on the provided rest and priority classes.
 
     To focus the training on specific classes, the class map is updated to set classes
