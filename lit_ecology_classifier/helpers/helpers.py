@@ -15,7 +15,6 @@ import tarfile
 import os
 import importlib
 import re
-from typeguard import typechecked
 logger = logging.getLogger(__name__)
 
 
@@ -228,7 +227,6 @@ def plot_score_distributions(all_scores, all_preds, class_names, true_label):
     fig.tight_layout()
     return fig
 
-@typechecked
 def TTA_collate_fn(batch: dict , train: bool = False):
     """
     Collate function for test time augmentation (TTA).

@@ -1,32 +1,29 @@
 import hashlib
 import logging
 
-from typeguard import typechecked
 import pandas as pd
 from PIL import Image
 import imagehash
 
 class HashGenerator:
     @staticmethod
-    @typechecked
-    def sha256_from_list(hash_list) -> str:
+    def sha256_from_list(hash_list : list) -> str:
         """Hash a list of hashes using SHA256.
 
-        Sorts the hash list based on the hash values and concatenates the hashes to a single
-        string The concatenated string is hashed using SHA256.
+        Sorts the given list based on the and hashes the values with the
+        SHA256 algortihm to asingle string.
 
         Args:
-            hash_list (list): List of hashes to concatenate and hash.
+            hash_list: A List of hashes to order and hash
 
         Returns:
-            str: SHA256 hash of the concatenated hash list.
+            A SHA256 hash of the sorted list
         """
         sorted_hashes = sorted(hash_list)
         concatenated = "".join(sorted_hashes)
         return hashlib.sha256(concatenated.encode()).hexdigest()
 
     @staticmethod
-    @typechecked
     def generate_hash_dict_from_split(df : pd.DataFrame,
                                       col_to_hash = "hash256", 
                                       group_by_col = "split"
@@ -35,11 +32,15 @@ class HashGenerator:
         """Generate a hash for each value inside the split column.
 
         Args:
-            df (Dataframe): Contains the columns hash and split.
-            col_to_hash (str): Column with values to hash.
+            df: A df containing the columns to hash and group by
+            col_to_hash: Column with values to hash.
+            group_by: Column name to group by 
 
         Returns:
-            dictionary containing the image hashes with the corresponding split as key. Example:
+           A dictionary containing the unique group by values as key and the calculated 
+           hash as 
+        
+        Example:
             {
                 "train": hash_of_train_data,
                 "val": hash_of_val_data,
@@ -54,12 +55,11 @@ class HashGenerator:
         return hash_dict
     
     @staticmethod
-    @typechecked
     def hash_image(image_path: str, hash_algorithm: str = "256") -> str:
         """Calculate the hash from the binary data of the image using the given hash algorithm.
 
         Args:
-            image_path (str): Path to the image file as string
+            image_path: A Path to the image file as string
 
         Returns:
             str: Hash value of the image as string

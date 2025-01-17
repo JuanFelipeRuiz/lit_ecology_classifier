@@ -1,9 +1,13 @@
-import hashlib
-
+"""test suite for the hash functionalities"""
 import pandas as pd
+import typeguard
+
+# use typegard import hook to check data types during  
+manager = typeguard.install_import_hook("lit_ecology_classifier.helpers.hashing")
+
+from lit_ecology_classifier.helpers.hashing import HashGenerator
 
 
-from lit_ecology_classifier.splitting.split import HashGenerator
 
 def test_sha256_from_list():
     data = ['a', 'b', 'c']
@@ -20,4 +24,5 @@ def test_generate_hash_dict_from_split():
     }
     assert HashGenerator.generate_hash_dict_from_split(split, col_to_hash= 'hash_value', group_by_col= "split") == expected_hash
 
-
+# uninstall 
+manager.uninstall()
