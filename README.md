@@ -41,14 +41,14 @@ bash get_data.sh ZooLake1
 ```
 Windows:
 ```powershell
-.\get_model.bat ZooLake1
+.\get_data.bat ZooLake1
 ````
 
 ## Usage
 
 The lit_ecology_classifer package provides following functionalites/moduls for the the process and classification of the images,
 
-- [`overview.py`](#Overview.py)
+- [`overview.py`](#Overviewpy)
 - [`split.py`](#Split)
 - [`main.py`](#training)
 - [`predict.py`](#inference)
@@ -61,7 +61,7 @@ Currently the overview generation is only possible with images from a Dual Scrip
 
 #### How to use
 
-To run the overview, it is necessary to create a dictionary containing the version and path to the different image datasets. The version data dictionary can be passed directly to the cmd argument or as a JSON file (e.g. [config/dataset_versions.json](config/dataset_versions.json).The json fileneeds to contain an abbreviation for the dataset version
+To run the overview, it is necessary to create a dictionary containing the version and path to the different image datasets. The version data dictionary can be passed directly to the cmd argument or as a JSON file (e.g. [config/dataset_versions.json](config/dataset_versions.json)).The json fileneeds to contain an abbreviation for the dataset version
 and a path to the dataset version folder, suitable for the operation system beeing used.
 
 
@@ -74,10 +74,27 @@ and a path to the dataset version folder, suitable for the operation system beei
 - `--overview_filename`: Name of the overview file to load/save. Default: overvirew.csv
 - `--image_version_path_dict`: Dictionary or path to the json file containing the image versions and their corresponding paths.
 - `--summarise_to`: If a path is given, all images of the given versions are summarised into one single folder at given path. Default: None
+
 ### Split
 
+```bash
+python lit_ecology_classifier/split.py  --priority_classes 'config/priority.json' --rest_classes 'config/rest_classes.json' --dataset "Zoo"
+```
+    
+- `--split_hash`, Hash of the split to reuse. If empty, no hash search is used
+- `--split_strategy`",  Split strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/split_strategies folder
+- `--filter_strategy`", Filter strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/filter_strategies folder
+- `--description`", help ="A optional description of split
+
+# Args for the split process, that can be loaded from a json file
+- `--split_args`, Path to the file containing the arguments for the split strategy")
+- --filter_args",  Args or path to file containing the arguments for the filter strategy")
+- --class_map", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
+- --priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
+- --rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
 
 ### Training
+
 
 To train the model, a model backbone of beitv2 can be downloaded using the get_model.sh script.
 
