@@ -66,6 +66,11 @@ if __name__ == "__main__":
 
     df.to_csv(output, index=False)
 
+    # create a gitignore for the new folder
+    with open(pathlib.Path(args.dataset,".gitignore"), "w") as gitignore_file:
+        gitignore_file.write("*")
+
+
     # summarise the overview by copying all uniqze images to the output folder
     if args.summarise_to:
         copier = ImageCopier(args.summarise_to, overview_creator)
