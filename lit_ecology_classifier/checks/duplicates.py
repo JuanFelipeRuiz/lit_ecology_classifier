@@ -11,7 +11,7 @@ import pandas as pd
 logging.basicConfig(level=logging.INFO)
 
 
-def check_duplicates(df: pd.DataFrame, by_data_set_version=False) -> pd.DataFrame:
+def check_duplicates(df: pd.DataFrame, by_data_set_version=True) -> pd.DataFrame:
     """Check for duplicates in the given dataset based on the hash values
 
     The duplicates are identified by comparing the hash values of the images. 
@@ -31,6 +31,7 @@ def check_duplicates(df: pd.DataFrame, by_data_set_version=False) -> pd.DataFram
     """
     
     required_columns = ["sha256", "image", "class"]
+
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(
@@ -45,6 +46,7 @@ def check_duplicates(df: pd.DataFrame, by_data_set_version=False) -> pd.DataFram
 
     # save the duplicates hash values in a list
     duplicates = df[df.duplicated(subset=columns_to_groupby, keep=False)]
+    
 
     if duplicates.empty:
         print("No duplicates found in the dataset")

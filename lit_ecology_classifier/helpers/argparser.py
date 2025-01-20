@@ -14,10 +14,9 @@ import logging
 import os
 from typing import Union
 
-from typeguard import typechecked
 
 logger = logging.getLogger(__name__)
-@typechecked
+
 def base_args():
     """Creates an arguemnt parser that is needed for all args.
 
@@ -28,7 +27,7 @@ def base_args():
     parser.add_argument("--dataset", default="phyto", help="Name of the dataset to store non train specific artifacts") 
     parser.add_argument("--overview_filename", default="overview.csv", help="Name of the overview file to load/save")
     return parser
-@typechecked
+
 def args_for_overview():
     """Subgroup of arguments needed for the overview creation"""
     parser = argparse.ArgumentParser(add_help=False)
@@ -36,7 +35,7 @@ def args_for_overview():
     parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
     return parser
 
-@typechecked
+
 def args_for_split():
      # Args for the split process
     parser = argparse.ArgumentParser(add_help=False)
@@ -51,7 +50,7 @@ def args_for_split():
     parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
     parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
     return parser
-@typechecked
+
 def args_for_train():
     parser = argparse.ArgumentParser(add_help = False)
 
@@ -80,7 +79,7 @@ def args_for_train():
     parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
     return parser
 
-@typechecked
+
 def train_argparser():
     """
     Creates an argument parser for configuring, training, and running the machine learning model for image classification.
@@ -125,7 +124,6 @@ def train_argparser():
     )
     return parser
 
-@typechecked
 def inference_argparser():
     """
     Creates an argument parser for using the classifier on unlabeled data.
@@ -164,7 +162,7 @@ def inference_argparser():
     parser.add_argument("--limit_pred_batches", type=int, default=0, help="Limit the number of batches to predict")
     parser.add_argument("--config", type=str, default="", help="Path to the JSON file containing the configuration")
     return parser
-@typechecked
+
 def overview_argparser():
     """ Argparser for creating a data overview for the given dataset."""
     parser = argparse.ArgumentParser(
@@ -172,7 +170,7 @@ def overview_argparser():
             description="Create a data overview for the given dataset."
     )
     return parser
-@typechecked
+
 def split_argparser():
     """Argparser for the split process"""
     parser = argparse.ArgumentParser(
@@ -180,7 +178,7 @@ def split_argparser():
         description="Split the data into train, validation, and test sets."
     )
     return parser
-@typechecked
+
 def pipeline_argparser():
     parser = argparse.ArgumentParser(
         parents=[ args_for_split(), args_for_train(),  base_args()],
@@ -189,7 +187,7 @@ def pipeline_argparser():
     )
 
     return parser
-@typechecked
+
 def argparser():
     parser = argparse.ArgumentParser(
         parents=[ args_for_train(),  base_args()],
@@ -197,7 +195,6 @@ def argparser():
     )
     return parser
 
-@typechecked
 def load_dict(input: Union[str, dict, None]) -> dict:
     """Load the training arguments from a JSON file.
 
@@ -226,7 +223,6 @@ def load_dict(input: Union[str, dict, None]) -> dict:
         
     raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
 
-@typechecked
 def load_class_definitions(input: Union[str, list[str]]) -> list[str] :
     """Load the the priority or rest classes from a JSON file.
     """
