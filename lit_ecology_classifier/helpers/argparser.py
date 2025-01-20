@@ -31,7 +31,7 @@ def base_args():
 def args_for_overview():
     """Subgroup of arguments needed for the overview creation"""
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--image_version_path_dict", type=load_dict, default="config/priority.json", help="Dictionary or path to the json file containing the image versions and their corresponding paths")
+    parser.add_argument("--dataset_version_path_dict", type=load_dict, default="config/priority.json", help="Dictionary or path to the json file containing the image versions and their corresponding paths")
     parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
     return parser
 

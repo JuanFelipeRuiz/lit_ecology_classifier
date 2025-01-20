@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
 
     # create the overview 
-    overview_creator = OverviewCreator(zoolake_version_paths= args.image_version_path_dict)
+    overview_creator = OverviewCreator(zoolake_version_paths= args.dataset_version_path_dict)
     df = overview_creator.get_overview_df()
 
     df = overview_creator.get_overview_with_splits_df()
