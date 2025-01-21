@@ -680,6 +680,21 @@ def check_existans_of_class(class_map: dict, class_list : list) -> None:
             logger.error("Class %s not found in the class map.", class_name)
             raise ValueError(f"Class {class_name} not found in the class map.")
 
+def class_transformers(classes_list : list) -> list:
+    """Transforms the class list to lowercase and replace whitespaces with underscores.
+
+    Args:
+        classes_list: List of classes to transform.
+
+    Returns:
+        A list containing the class names in lowercase.
+    """
+
+    if classes_list == []:
+        return []
+    
+    return [class_name.lower().replace(" ", "_") for class_name in classes_list]
+
 
 def filter_class_mapping(
     class_map: dict, rest_classes: list[str] = [], priority_classes: list[str] = []
@@ -732,16 +747,21 @@ def filter_class_mapping(
         rest_classes,
         priority_classes,
     )
+    # lower each element in the list
+    priority_classes = class_transformers(priority_classes)
+    rest_classes = class_transformers(rest_classes)
+
     check_existans_of_class(class_map, priority_classes)
     check_existans_of_class(class_map, rest_classes)
 
     return {
 
-        key: (value if key in priority_classes or priority_classes == [] else 0) 
+        (key if key in priority_classes or priority_classes == [] else "rest"): 
+        (value if key in priority_classes or priority_classes == [] else 0) 
         for key, value in class_map.items()
 
         # keep the class that are in the rest classes or the priority classes
-        if key in priority_classes or key in rest_classes or rest_classes == []  
+        if (key in priority_classes) or (key in rest_classes) or (rest_classes == [])  
     }
 
 

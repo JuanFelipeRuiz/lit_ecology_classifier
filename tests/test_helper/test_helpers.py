@@ -13,13 +13,14 @@ import lit_ecology_classifier.helpers.helpers as helpers
         ([], [] , {"class_1": 1, "class_2": 2, "class_3": 3}),
 
         # set class 1 as priority class and keep the rest classes
-        ([], ["class_1"], {"class_1": 1, "class_2": 0, "class_3": 0}),
+        ([], ["class_1"], {"class_1": 1, "rest": 0}),
         
-        # keep only class 1 and 2 with class values since no priority classes are defined
+        # keep only class 1 and 2 with class values since they are priority classes
+        # and remove class 3
         (["class_1", "class_2"], [] , {"class_1": 1, "class_2": 2}),
 
-        # sets class 3 as priority class and sets the class 2 to 0
-        (["class_2"], ["class_3"] , {"class_2": 0, "class_3": 3})
+        # keep class class 3 with original value and keep class 2 
+        (["class_2"], ["class_3"] , {"rest": 0, "class_3": 3})
     ]
 )
 
