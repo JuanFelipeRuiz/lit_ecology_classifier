@@ -31,7 +31,7 @@ def base_args():
 def args_for_overview():
     """Subgroup of arguments needed for the overview creation"""
     parser = argparse.ArgumentParser(add_help=False)
-    parser.add_argument("--dataset_version_path_dict", type=load_dict, default="config/priority.json", help="Dictionary or path to the json file containing the image versions and their corresponding paths")
+    parser.add_argument("--dataset_version_path_dict", type=load_dict, default="config/priority.json", help="Path to the json file containing the image versions and their corresponding paths")
     parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
     return parser
 
@@ -44,11 +44,11 @@ def args_for_split():
     parser.add_argument("--filter_strategy", type=str, default= "PlanktonFilter", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
     parser.add_argument("--description", type=str, default=None, help ="Description of split, if " )
     # Args for the split process, that can be loaded from a json file
-    parser.add_argument("--split_args", type=load_dict, default= {}, help="Path to the file containing the arguments for the split strategy")
-    parser.add_argument("--filter_args", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
-    parser.add_argument("--class_map", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
-    parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
-    parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
+    parser.add_argument("--split_args", type=load_dict, default= None, help="Path to the file containing the arguments for the split strategy")
+    parser.add_argument("--filter_args", type=load_dict, default= None, help="Path to the file containing the arguments for the filter strategy")
+    parser.add_argument("--class_map", type=load_dict, default= None, help="Path to the file containing the arguments for the filter strategy")
+    parser.add_argument("--priority_classes", type= load_class_definitions, default=None, help="List of priority classes or path to the JSON file containing the priority classes")
+    parser.add_argument("--rest_classes", type=load_class_definitions, default=None, help="List of rest classes or path to the JSON file containing the rest classes")
     return parser
 
 def args_for_train():
@@ -75,8 +75,8 @@ def args_for_train():
     parser.add_argument("--no_TTA", action="store_true", help="Enable Test Time Augmentation")
 
     # some additional arguments to ensure the model the old version run
-    parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
-    parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
+    parser.add_argument("--priority_classes", type= load_class_definitions, default=None, help="Path to JSON file containing the priority classes")
+    parser.add_argument("--rest_classes", type=load_class_definitions, default=None, help="Path to JSON file containing the rest classes")
     return parser
 
 
@@ -195,11 +195,11 @@ def argparser():
     )
     return parser
 
-def load_dict(input: Union[str, dict, None]) -> dict:
+def load_dict(input: Union[str, None]) -> dict:
     """Load the training arguments from a JSON file.
 
     args:
-        input: Path or dict containing the args.
+        input: Path to the args.
 
     Returns:
         a dict containing the training arguments.
@@ -208,10 +208,7 @@ def load_dict(input: Union[str, dict, None]) -> dict:
         argparse.ArgumentTypeError: If the input is not a dict or a exisisting path to a .json file.
     """
 
-    if isinstance(input, dict):
-        return input
-    
-    if input == "" or input is None or input == {} :
+    if input == "" or input is None:
         return {}
     
     if input.endswith(".json"):
@@ -223,16 +220,16 @@ def load_dict(input: Union[str, dict, None]) -> dict:
         
     raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
 
-def load_class_definitions(input: Union[str, list[str]]) -> list[str] :
+def load_class_definitions(input: Union[str, None]) -> list[str] :
     """Load the the priority or rest classes from a JSON file.
     """
 
-    if isinstance(input, list):
-        return input
+    if input == "" or input is None:
+        return []
 
     if input.endswith(".json"):
         if not os.path.exists(input):
-            raise argparse.ArgumentTypeError(f"{input} file not found.")
+            raise argparse.ArgumentTypeError(f"{input} file not found. Searching file from {os.getcwd()}")
         
         with open(input) as file:
             class_dict = json.load(file)
@@ -245,7 +242,8 @@ def load_class_definitions(input: Union[str, list[str]]) -> list[str] :
         if "rest_classes" in class_dict:
             return class_dict["rest_classes"]
         
-        raise argparse.ArgumentTypeError(f"{input} does not contain a known  class definitions.")
+        raise argparse.ArgumentTypeError(f"{input} does not contain a valid class definition. Please provide a JSON file containing 'priority_classes' or 'rest_classes' as key")
+
     
     raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or list containing the class definitions")
     

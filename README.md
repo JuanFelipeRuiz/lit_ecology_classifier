@@ -42,7 +42,7 @@ bash get_data.sh ZooLake1
 Windows:
 ```powershell
 .\get_data.bat ZooLake1
-````
+```
 
 ## Usage
 
@@ -59,101 +59,118 @@ The overview.py file allows the user to create a image overview of one or multip
 
 Currently the overview generation is only possible with images from a Dual Scripps Plankton Camera (DSPC), since the image processor generates features from the specific file name. 
 
+
+>If the datset version 1 is given, the label is extracted from the second parent folder, since the ZooLake Version1 label folder is two folders above.
+>\ 
+> 
+> **Example path of ZooLake 1:** ZooLake1/..../label/training_data/image.jpng
+> 
+>  
+
+
 #### Additional set up: 
 
+Necessarily: 
 - `dataset_version_path_dict`:
     A dictionary or .json file containing the version and path to the different image datasets. (e.g. [config/dataset_versions.json](config/dataset_versions.json))
     The .json file needs to contain an abbreviation for the dataset version and a path to the dataset version folder, suitable for the operation system beeing used.
 
-#### Args for overview.py
-
-Necesserly: 
-- `--dataset`: Name of the folder to store non train specific artifacts like image overview.
-- `--dataset_version_path_dict`: Dictionary or path to the json file containing the image versions and their corresponding paths.
-
-Optional : 
-- `--overview_filename`: Name of the overview file to load/save. Default: overvirew.csv
-- `--summarise_to`: If a path is given, all images of the given versions are summarised and copied into one single folder at given path. Needed to train a model based on multiple versions.
-
-
-#### Run
+#### Run overview.py
 ```bash
 python lit_ecology_classifier/overview.py --dataset Zoo  --dataset_version_path_dict "config/dataset_versions.json" 
 ```
 
+#### Args for overview.py
+
+necessarily arguments: 
+- `--dataset`: Name of the folder to store non train specific artifacts like image overview.
+- `--dataset_version_path_dict`: Path to the config json containing the image versions and their corresponding paths.
+
+Use case specific arguments:
+
+- `--summarise_to`: If a path is given, all images of the given versions are summarised and copied into one single folder at the given path. **Needed to train a model based on multiple versions**.
+
+
+Optional arguments: 
+- `--overview_filename`: Name of the overview file to load/save. Default: overview.csv
+
 ### Split.py
 
-`Split.py` is a modul that allows the user to reload and create new splits. The used arguments and description are stored in a split.overview file inside the dataset folder. The data of each split is stored in a  dataframes inside of `args.dataset/split` containing the image and split name.  
+`Split.py` is a modul that allows the user to reload and create new splits. The used arguments and description are stored in a split.overview file inside the dataset folder. The data of each split is stored in a  dataframes inside of the given `args.dataset/split` containing the split overview and a split folder containg the splits.  
 
-The usage of own filter or split stragies are not possbile with the split.py file. 
+The usage of own filter or split stragies are not possbile with the split.py file. To use own
+splits, create a own version of split.py 
+
 #### Additional set up:
 
 - `overview.csv`:
     Image overview inside the `arg.dataset` folder. Can be generated with [overview.py](#overviewpy).
 
 - `priority_classes.json`:
-    List of classes to priority. Sets all other classes to "rest" (e.g. [config/priority_classes.json](config/priority_classes.json). Can be given as list into the cmd or as path to the priority_classes.json containg the key `priority_classes` ant the list as value. 
+    List of classes to priorities. Sets all other classes/labels to "rest : 0 " (e.g. [config/priority_classes.json](config/priority_classes.json). The priority_classes.json needs to contain the key `priority_classes` and the priority list as value to work properly.
 
 - `rest_classes.json`:
-    List of classes to keep alongside the  (e.g. [config/rest_classes.json](config/rest_classes.json)). Can be given as list into the cmd or as path to the rest_classes.json containg the key `rest_classes` ant the list as value 
+    List of classes to keep alongside the priority classes (e.g. [config/rest_classes.json](config/rest_classes.json). All classes/labels not defined inside prio or rest classes are removed.The rest_classes.json need to contain the key `rest_classes` ant the list as value 
 
 
-#### 
+#### Run overview.py
 ```bash
 python lit_ecology_classifier/split.py  --priority_classes 'config/priority.json' --rest_classes 'config/rest_classes.json' --dataset "Zoo"
 ```
 #### Args for split.py
 
-Following argument is necesserly: 
+Following argument is necessarily: 
 
 
 - `--dataset`: Name of the folder to store non train specific artifacts like image overview. 
 
-Use case specific args:
+Use case specific arguments:
+
 - `--split_hash`:  Hash of the split to reload.
 - `--overview_filename`: Name of the overview file to load/save.
 - `--split_strategy`: Split strategy to use. Needs to be a strategy thats implmented in the lit_ecology_classifier/split_strategies folder.
 - `--filter_strategy`: Filter strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/filter_strategies folder.
 - `--description`: Description for of the split for the split overview.
-- `--split_args`:  Arguments in dictionry format or path to json containing the args to use for the split strategy.
-- `--filter_args`: Arguments in dictionry format or path to json containing the args to use for the  filter strategy.
+- `--split_args`: Path to json containing the args to use for the split strategy in a dictionry format.
+- `--filter_args`: Path to json containing the args to use for the  filter strategy in a dictionary format.
 - `--class_map`: Class map dictionary or path to json containing the class mapping
 - `--priority_classes`: List of defined priority classes or path to JSON file containing the priority classes in a {"priority_classes" : [class1,class2]} format.
 - `--rest_classes`: List of defined rest classes or path to the JSON file containing the rest classes.
 
 ### Training
 
+To only train a model, the train modul can be used. It is independet from the split and overview moduls. It uses a random split with the given split ratio with the given values.
 
-To train the model, a model backbone of beitv2 can be downloaded using the get_model.sh script.
+#### Additional Setup 
 
-```bash
-source get_model.sh
-```
+Necessarily set up:
 
-Afterwards, the model can be trained either 
+- `get_model` a model backbone of beitv2 can be downloaded using the get_model.sh script.
+
+    ```bash
+    source get_model.sh
+    ```
+
+use case specific set up: 
+- `priority_classes.json`:
+    List of classes to priorities. Sets all other classes/labels to "rest : 0 " (e.g. [config/priority_classes.json](config/priority_classes.json). The priority_classes.json needs to contain the key `priority_classes` and the priority list as value to work properly.
+
+- `rest_classes.json`:
+    List of classes to keep alongside the priority classes (e.g. [config/rest_classes.json](config/rest_classes.json). All classes/labels not defined inside prio or rest classes are removed.The rest_classes.json need to contain the key `rest_classes` ant the list as value 
+
+- `wandb`: The lit_eco_classifier supports the tracking of the training and experiments. To use follow the [wandb quickstart](https://docs.wandb.ai/quickstart/) until step 2 
+#### Run train:  
 
 ```bash
 python -m lit_ecology_classifier.main --max_epochs 2 --dataset phyto --priority config/priority.json --datapath data/ZooLake2
 ```
 
-### Inference
-
-To run inference on unlabelled data, use the following command:
-
-```bash
-python -m lit_ecology_classifier.predict --datapath ZooLake2/Predict --model_path phyto_priority_cyanos.ckpt --outpath ./predictions/
-```
-
-## Configuration
-
-The project uses an argument parser for configuration. Here are some of the key arguments:
-
 ### Training Arguments
 
-- `--datapath`: Path to the tar file containing the training data.
+- `--datapath`: Path to the tar file containing the training data. Can be a tar or image folder
 - `--train_outpath`: Output path for training artifacts.
+- `--dataset`: Path for non training artifacts and name for wand project.
 - `--main_param_path`: Main directory where the training parameters are saved.
-- `--dataset`: Name of the dataset.
 - `--use_wandb`: Use Weights and Biases for logging.
 - `--priority_classes`: Path to the JSON file with priority classes.
 - `--balance_classes`: Balance the classes for training.
@@ -163,6 +180,13 @@ The project uses an argument parser for configuration. Here are some of the key 
 - `--lr_factor`: Learning rate factor for training of full body.
 - `--no_gpu`: Use no GPU for training.
 
+### Inference
+
+To run inference on unlabelled data, use the following command:
+
+```bash
+python -m lit_ecology_classifier.predict --datapath ZooLake2/Predict --model_path phyto_priority_cyanos.ckpt --outpath ./predictions/
+```
 ### Inference Arguments
 
 - `--outpath`: Directory where predictions are saved.
@@ -170,6 +194,7 @@ The project uses an argument parser for configuration. Here are some of the key 
 - `--datapath`: Path to the tar file containing the data to classify.
 - `--no_gpu`: Use no GPU for inference.
 - `--no_TTA`: Disable test-time augmentation.
+
 
 ## Documentation
 
