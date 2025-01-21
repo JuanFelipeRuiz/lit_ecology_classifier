@@ -23,23 +23,23 @@ download_and_extract() {
     esac
 
     # Create the folder named after the dataset if it doesn't exist
-    mkdir -p "data/$dataset"
+    mkdir -p "./data/$dataset"
 
     # Extract the filename from the URL
     local filename="$dataset.zip"
 
     # Download the file to the folder named after the link choice
-    curl -L "$url" -o "data/$dataset/$filename"
+    curl -L "$url" -o "./data/$dataset/$filename"
 
     # Check if the download was successful
     if [ $? -eq 0 ]; then
-        echo "Download successful: $dataset/$filename, starting extraction..."
+        echo "Download successful: ./data/$dataset/$filename, starting extraction..."
 
         # Check if the file is a zip
         if [[ "$filename" == *.zip ]]; then
-            unzip -o -q "$dataset/$filename" -d "$dataset"
+            unzip -o -q "./data/$dataset/$filename" -d "$dataset"
             if [ $? -eq 0 ]; then
-                rm "data/$dataset/$filename"
+                rm "./data/$dataset/$filename"
                 echo "Extraction successful: Files extracted to ./data/$dataset/"
             else
                 echo "Extraction failed. Please check the zip file."

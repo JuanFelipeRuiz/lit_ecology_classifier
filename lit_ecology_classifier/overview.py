@@ -49,8 +49,6 @@ if __name__ == "__main__":
     overview_creator = OverviewCreator(zoolake_version_paths= args.dataset_version_path_dict)
     df = overview_creator.get_overview_df()
 
-    df = overview_creator.get_overview_with_splits_df()
-
     # if the output folder is not the current directory, 
     # ensure the folder exists and raise an error if it does
     
