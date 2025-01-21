@@ -687,7 +687,7 @@ def filter_class_mapping(
     """Prepares the class map based on the provided rest and priority classes.
 
     To focus the training on specific classes, the class map is updated to set classes
-    that are not in the priority classes to 0. The rest classes are to filter, wich classes
+    that are not in the priority classes to 0. The rest classes are to select, wich classes
     should be kept in the class map alongside the priority classes. Empty rest and priority
     classes will result in no filtering.
 

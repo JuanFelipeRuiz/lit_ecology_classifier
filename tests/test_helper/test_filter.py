@@ -14,8 +14,8 @@ import lit_ecology_classifier.helpers.filter as filterFunctionalities
     [
     
         (["1"], pd.DataFrame({'image': ['a', 'b']}))
-    #    (["2"], pd.DataFrame({'image': ['b', 'd']})),
-    #    (["1", "2"], pd.DataFrame({'image': ['a', 'b', 'c', 'd']})),
+        (["2"], pd.DataFrame({'image': ['b', 'd']})),
+        (["1", "2"], pd.DataFrame({'image': ['a', 'b', 'c', 'd']})),
     ],
 )
 def test_prepare_versions_to_filter(version_input, expected_output):
