@@ -70,7 +70,7 @@ def filter_versions(df: pd.DataFrame, version_list: list[str]) -> pd.DataFrame:
 
         | iamge      | class    |
         |------------|----------|
-        | img1.jpg   | True     |
+        | img1.jpg   | class1   |
     """
     logger.debug(
         "Filtering the dataframe based on the dataset versions: %s", version_list
@@ -91,7 +91,7 @@ def filter_versions(df: pd.DataFrame, version_list: list[str]) -> pd.DataFrame:
 
     df = df[version_filter]
 
-    return df.drop(df.filter(regex="version_").columns, axis=1)
+    return df.drop(df.filter(regex="version_").columns, axis=1).reset_index(drop=True)
 
 
 def filter_ood_images(df: pd.DataFrame, ood_list: list[str]) -> pd.DataFrame:

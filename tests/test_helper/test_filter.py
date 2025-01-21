@@ -13,9 +13,9 @@ import lit_ecology_classifier.helpers.filter as filterFunctionalities
     ("version_input", "expected_output"),
     [
     
-        (["1"], pd.DataFrame({'image': ['a', 'b']}))
-        (["2"], pd.DataFrame({'image': ['b', 'd']})),
-        (["1", "2"], pd.DataFrame({'image': ['a', 'b', 'c', 'd']})),
+        (["1"], pd.DataFrame({'image': ['a', 'b']})),
+        (["2"], pd.DataFrame({'image': ['a', 'c']})),
+        (["1", "2"], pd.DataFrame({'image': ['a', 'b', 'c']})),
     ],
 )
 def test_prepare_versions_to_filter(version_input, expected_output):
@@ -29,8 +29,8 @@ def test_prepare_versions_to_filter(version_input, expected_output):
                      }
                     )
     x =filterFunctionalities.filter_versions(input_df, version_input)
-    print(x)
-    pd.testing.assert_frame_equal(x, expected_output)
+    print(x.head())
+    pd.testing.assert_frame_equal(x, expected_output), x
 
 
 # test the prepare_versions_to_filter method ----------------------------------------------------
