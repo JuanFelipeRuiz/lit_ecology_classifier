@@ -55,43 +55,71 @@ The lit_ecology_classifer package provides following functionalites/moduls for t
 
 ### Overview.py
 
-The overview.py modul allows the user to create a image overview of one or multiple versions of the given data sets. It calcualtes the hash of the image, to check if they are equal images inside of the given data sets. 
+The overview.py file allows the user to create a image overview of one or multiple versions of the given data sets. It calcualtes the hash of the image, to check if they are equal images inside of the given data sets. 
 
 Currently the overview generation is only possible with images from a Dual Scripps Plankton Camera (DSPC), since the image processor generates features from the specific file name. 
 
-#### How to use
+#### Additional set up: 
 
-To run the overview, it is necessary to create a dictionary containing the version and path to the different image datasets. The version data dictionary can be passed directly to the cmd argument or as a JSON file (e.g. [config/dataset_versions.json](config/dataset_versions.json)).The json fileneeds to contain an abbreviation for the dataset version
-and a path to the dataset version folder, suitable for the operation system beeing used.
+- `dataset_version_path_dict`:
+    A dictionary or .json file containing the version and path to the different image datasets. (e.g. [config/dataset_versions.json](config/dataset_versions.json))
+    The .json file needs to contain an abbreviation for the dataset version and a path to the dataset version folder, suitable for the operation system beeing used.
+
+#### Args for overview.py
+
+Necesserly: 
+- `--dataset`: Name of the folder to store non train specific artifacts like image overview.
+- `--dataset_version_path_dict`: Dictionary or path to the json file containing the image versions and their corresponding paths.
+
+Optional : 
+- `--overview_filename`: Name of the overview file to load/save. Default: overvirew.csv
+- `--summarise_to`: If a path is given, all images of the given versions are summarised and copied into one single folder at given path. Needed to train a model based on multiple versions.
 
 
+#### Run
 ```bash
- python lit_ecology_classifier/overview.py --dataset Zoo  --image_version_path_dict "config/dataset_versions.json" 
+python lit_ecology_classifier/overview.py --dataset Zoo  --dataset_version_path_dict "config/dataset_versions.json" 
 ```
 
-#### Args for overview
-- `--dataset`: Name of the folder to store non train specific artifacts like image overview. Default: pytho
-- `--overview_filename`: Name of the overview file to load/save. Default: overvirew.csv
-- `--image_version_path_dict`: Dictionary or path to the json file containing the image versions and their corresponding paths.
-- `--summarise_to`: If a path is given, all images of the given versions are summarised into one single folder at given path. Default: None
+### Split.py
 
-### Split
+`Split.py` is a modul that allows the user to reload and create new splits. The used arguments and description are stored in a split.overview file inside the dataset folder. The data of each split is stored in a  dataframes inside of `args.dataset/split` containing the image and split name.  
 
+The usage of own filter or split stragies are not possbile with the split.py file. 
+#### Additional set up:
+
+- `overview.csv`:
+    Image overview inside the `arg.dataset` folder. Can be generated with [overview.py](#overviewpy).
+
+- `priority_classes.json`:
+    List of classes to priority. Sets all other classes to "rest" (e.g. [config/priority_classes.json](config/priority_classes.json). Can be given as list into the cmd or as path to the priority_classes.json containg the key `priority_classes` ant the list as value. 
+
+- `rest_classes.json`:
+    List of classes to keep alongside the  (e.g. [config/rest_classes.json](config/rest_classes.json)). Can be given as list into the cmd or as path to the rest_classes.json containg the key `rest_classes` ant the list as value 
+
+
+#### 
 ```bash
 python lit_ecology_classifier/split.py  --priority_classes 'config/priority.json' --rest_classes 'config/rest_classes.json' --dataset "Zoo"
 ```
-    
-- `--split_hash`, Hash of the split to reuse. If empty, no hash search is used
-- `--split_strategy`",  Split strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/split_strategies folder
-- `--filter_strategy`", Filter strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/filter_strategies folder
-- `--description`", help ="A optional description of split
+#### Args for split.py
 
-# Args for the split process, that can be loaded from a json file
-- `--split_args`, Path to the file containing the arguments for the split strategy")
-- --filter_args",  Args or path to file containing the arguments for the filter strategy")
-- --class_map", type=load_dict, default= {}, help="Args or path to file containing the arguments for the filter strategy")
-- --priority_classes", type= load_class_definitions, default=[], help="List of priority classes or path to the JSON file containing the priority classes")
-- --rest_classes", type=load_class_definitions, default=[], help="List of rest classes or path to the JSON file containing the rest classes")
+Following argument is necesserly: 
+
+
+- `--dataset`: Name of the folder to store non train specific artifacts like image overview. 
+
+Use case specific args:
+- `--split_hash`:  Hash of the split to reload.
+- `--overview_filename`: Name of the overview file to load/save.
+- `--split_strategy`: Split strategy to use. Needs to be a strategy thats implmented in the lit_ecology_classifier/split_strategies folder.
+- `--filter_strategy`: Filter strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/filter_strategies folder.
+- `--description`: Description for of the split for the split overview.
+- `--split_args`:  Arguments in dictionry format or path to json containing the args to use for the split strategy.
+- `--filter_args`: Arguments in dictionry format or path to json containing the args to use for the  filter strategy.
+- `--class_map`: Class map dictionary or path to json containing the class mapping
+- `--priority_classes`: List of defined priority classes or path to JSON file containing the priority classes in a {"priority_classes" : [class1,class2]} format.
+- `--rest_classes`: List of defined rest classes or path to the JSON file containing the rest classes.
 
 ### Training
 
