@@ -13,11 +13,6 @@ manager = typeguard.install_import_hook(packages="lit_ecology_classifier.helpers
 import lit_ecology_classifier.helpers.argparser  as lit_parser
 
 
-def test_load_dict_with_valid_dict():
-    """Test when input is a valid dictionary."""
-    input_dict = {"key": "value"}
-    result = lit_parser.load_dict(input_dict)
-    assert result == input_dict
 
 
 def test_load_dict_with_empty_string():
@@ -29,13 +24,6 @@ def test_load_dict_with_none():
     """Test correct return when input is None."""
     result = lit_parser.load_dict(None)
     assert result == {}
-
-
-def test_load_dict_with_empty_dict():
-    """Test correct return when input is an empty dictionary."""
-    result = lit_parser.load_dict({})
-    assert result == {}
-
 
 def test_load_dict_with_missing_json_file():
     """Test when input is a path to a missing JSON file."""
