@@ -13,12 +13,12 @@ Lit Ecology Classifier is a machine learning project designed for image classifi
 
 ## Set up
 
-### Enviroment
+### Environment
 
-To set up the Lit Ecology Classifier, make sure to have Python installed in your enviroment. Afterwards, install the package.
+To set up the Lit Ecology Classifier, make sure to have Python installed in your environment. Afterwards, install the package.
 
 ```bash
-pip install lit-ecology-classifier
+pip install git+https://github.com/JuanFelipeRuiz/lit_ecology_classifier    
 ```
 
 ### Data
@@ -33,11 +33,11 @@ To download the data use `get_data.sh`/`get_data.bat` with a supported argument.
 | ZooLake3      | ...  |
 | Pytholake1    | ...  |
 
- Make sure to execute the code within the working folder since the default dowload path is the current working directory.
+ Make sure to execute the code within the working folder since the default download path is the current working directory.
 
 Linux/Mac:
 ```bash 
-bash get_data.sh ZooLake1
+get_data.sh ZooLake1
 ```
 Windows:
 ```powershell
@@ -46,18 +46,18 @@ Windows:
 
 ## Usage
 
-The lit_ecology_classifer package provides following functionalites/moduls for the the process and classification of the images,
+The lit_ecology_classifer package provides following functionalities/moduls for the the process and classification of the images,
 
-- [`overview.py`](#Overviewpy)
-- [`split.py`](#Split)
-- [`main.py`](#training)
-- [`predict.py`](#inference)
+- [`overview`](#Overview)
+- [`split`](#Split)
+- [`main`](#training)
+- [`predict`](#inference)
 
-### Overview.py
+### Overview
 
-The overview.py file allows the user to create a image overview of one or multiple versions of the given data sets. It calcualtes the hash of the image, to check if they are equal images inside of the given data sets. 
+The overview  allows the user to create a image overview of one or multiple versions of the given data sets. It calculates the hash of the image, to check if they are equal images inside of the given data sets. 
 
-Currently the overview generation is only possible with images from a Dual Scripps Plankton Camera (DSPC), since the image processor generates features from the specific file name. 
+Currently the overview generation is only possible with images from a Dual Scrip Plankton Camera (DSPC), since the image processor generates features from the specific file name. 
 
 
 >If the datset version 1 is given, the label is extracted from the second parent folder, since the ZooLake Version1 label folder is two folders above.
@@ -75,12 +75,13 @@ Necessarily:
     A dictionary or .json file containing the version and path to the different image datasets. (e.g. [config/dataset_versions.json](config/dataset_versions.json))
     The .json file needs to contain an abbreviation for the dataset version and a path to the dataset version folder, suitable for the operation system beeing used.
 
-#### Run overview.py
+#### Run the overview module
+
 ```bash
-python lit_ecology_classifier/overview.py --dataset Zoo  --dataset_version_path_dict "config/dataset_versions.json" 
+python -m lit_ecology_classifier.overview --dataset Zoo  --dataset_version_path_dict "config/dataset_versions.json" 
 ```
 
-#### Args for overview.py
+#### Args for overview
 
 necessarily arguments: 
 - `--dataset`: Name of the folder to store non train specific artifacts like image overview.
@@ -94,12 +95,12 @@ Use case specific arguments:
 Optional arguments: 
 - `--overview_filename`: Name of the overview file to load/save. Default: overview.csv
 
-### Split.py
+### Split
 
-`Split.py` is a modul that allows the user to reload and create new splits. The used arguments and description are stored in a split.overview file inside the dataset folder. The data of each split is stored in a  dataframes inside of the given `args.dataset/split` containing the split overview and a split folder containg the splits.  
+`Split` is a modul that allows the user to reload and create new splits. The used arguments and description are stored in a split.overview file inside the dataset folder. The data of each split is stored in a  dataframes inside of the given `args.dataset/split` containing the split overview and a split folder containg the splits.  
 
-The usage of own filter or split stragies are not possbile with the split.py file. To use own
-splits, create a own version of split.py 
+The usage of own filter or split strategies are not possible with a direct use of the split module. To use own
+splits, create a own split module.
 
 #### Additional set up:
 
@@ -107,17 +108,17 @@ splits, create a own version of split.py
     Image overview inside the `arg.dataset` folder. Can be generated with [overview.py](#overviewpy).
 
 - `priority_classes.json`:
-    List of classes to priorities. Sets all other classes/labels to "rest : 0 " (e.g. [config/priority_classes.json](config/priority_classes.json). The priority_classes.json needs to contain the key `priority_classes` and the priority list as value to work properly.
+    List of classes to prioritize. Sets all other classes/labels to "rest : 0 " (e.g. [config/priority_classes.json](config/priority_classes.json). The priority_classes.json needs to contain the key `priority_classes` and the priority list as value to work properly.
 
 - `rest_classes.json`:
     List of classes to keep alongside the priority classes (e.g. [config/rest_classes.json](config/rest_classes.json). All classes/labels not defined inside prio or rest classes are removed.The rest_classes.json need to contain the key `rest_classes` ant the list as value 
 
 
-#### Run overview.py
+#### Run the split module
 ```bash
-python lit_ecology_classifier/split.py  --priority_classes 'config/priority.json' --rest_classes 'config/rest_classes.json' --dataset "Zoo"
+python -m lit_ecology_classifier.split  --priority_classes 'config/priority_classes.json' --rest_classes 'config/rest_classes.json' --dataset "Zoo"
 ```
-#### Args for split.py
+#### Args for the split module
 
 Following argument is necessarily: 
 
@@ -128,10 +129,10 @@ Use case specific arguments:
 
 - `--split_hash`:  Hash of the split to reload.
 - `--overview_filename`: Name of the overview file to load/save.
-- `--split_strategy`: Split strategy to use. Needs to be a strategy thats implmented in the lit_ecology_classifier/split_strategies folder.
-- `--filter_strategy`: Filter strategy to use. Needs to be one thats implmented in the lit_ecology_classifier/filter_strategies folder.
+- `--split_strategy`: Split strategy to use. Needs to be a strategy that is implemented in the lit_ecology_classifier/split_strategies folder.
+- `--filter_strategy`: Filter strategy to use. Needs to be one that is implemented in the lit_ecology_classifier/filter_strategies folder.
 - `--description`: Description for of the split for the split overview.
-- `--split_args`: Path to json containing the args to use for the split strategy in a dictionry format.
+- `--split_args`: Path to json containing the args to use for the split strategy in a dictionary format.
 - `--filter_args`: Path to json containing the args to use for the  filter strategy in a dictionary format.
 - `--class_map`: Class map dictionary or path to json containing the class mapping
 - `--priority_classes`: List of defined priority classes or path to JSON file containing the priority classes in a {"priority_classes" : [class1,class2]} format.
@@ -139,7 +140,7 @@ Use case specific arguments:
 
 ### Training
 
-To only train a model, the train modul can be used. It is independet from the split and overview moduls. It uses a random split with the given split ratio with the given values.
+To only train a model, the train modul can be used. It is independent of the split and overview moduls. It uses a random split with the given split ratio with the given values.
 
 #### Additional Setup 
 
@@ -153,7 +154,7 @@ Necessarily set up:
 
 use case specific set up: 
 - `priority_classes.json`:
-    List of classes to priorities. Sets all other classes/labels to "rest : 0 " (e.g. [config/priority_classes.json](config/priority_classes.json). The priority_classes.json needs to contain the key `priority_classes` and the priority list as value to work properly.
+    List of classes to prioritize. Sets all other classes/labels to "rest : 0 " (e.g. [config/priority_classes.json](config/priority_classes.json). The priority_classes.json needs to contain the key `priority_classes` and the priority list as value to work properly.
 
 - `rest_classes.json`:
     List of classes to keep alongside the priority classes (e.g. [config/rest_classes.json](config/rest_classes.json). All classes/labels not defined inside prio or rest classes are removed.The rest_classes.json need to contain the key `rest_classes` ant the list as value 

@@ -20,12 +20,15 @@ if "%dataset%"=="ZooLake1" (
 )
 
 :: Set the download folder
-set download_folder=%cd%\%dataset%
+set download_folder=%cd%\data\%dataset%
 
 :: Create the folder
 if not exist "%download_folder%" (
     mkdir "%download_folder%"
 )
+
+:: Create a .gitignore in the folder to exclude the temp file
+echo * > "%download_folder%\.gitignore"
 
 :: Download the file using curl
 set temp_file=%download_folder%\temp__filename.zip
