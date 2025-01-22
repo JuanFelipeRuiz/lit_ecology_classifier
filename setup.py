@@ -13,6 +13,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=[
+        'ImageHash',
         'torch',
         'torchvision',
         'torchaudio ',
@@ -31,7 +32,7 @@ setup(
             'lit_ecology_classifier=lit_ecology_classifier.main:main',
         ],
     },
-    author='Benno Kaech',
+    author='Juan Ruiz, Benno Kaech',
     author_email='your.email@example.com',
     url='https://github.com/JuanFelipeRuiz/lit_ecology_classifier',
     classifiers=[
