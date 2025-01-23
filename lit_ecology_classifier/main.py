@@ -38,8 +38,16 @@ if __name__ == "__main__":
     parser = argparser()
     
     args = parser.parse_args()
-    # Create Output Directory if it doesn't exist
+
+    logging.info(args)
+
+    # Create Output Directory if it doesn't exist and add a .gitignore
     pathlib.Path(args.train_outpath).mkdir(parents=True, exist_ok=True)
+
+    with open(pathlib.Path(args.train_outpath, ".gitignore"), "w") as gitignore_file:
+        gitignore_file.write("*")
+
+
     gpus =torch.cuda.device_count() if not args.no_gpu else 0
     logging.info(f"Using {gpus} GPUs for training.")
     
