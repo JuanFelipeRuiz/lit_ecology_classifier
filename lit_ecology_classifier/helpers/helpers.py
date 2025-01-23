@@ -780,29 +780,34 @@ def _extract_class_map(tar_or_dir_path):
     logger.info("Extracting class map.")
     class_map = {}
 
-    if tarfile.is_tarfile(tar_or_dir_path):
-        logger.info("Detected tar file.")
-        with tarfile.open(tar_or_dir_path, "r") as tar:
-            # Temporary set to track folders that contain images
-            folders_with_images = set()
+    if os.path.isfile(tar_or_dir_path):
 
-            # First pass: Identify folders containing images
-            for member in tar.getmembers():
-                if member.isdir():
-                    continue  # Skip directories
-                if member.isfile() and member.name.lower().endswith(("jpg", "jpeg", "png")):
+        if tarfile.is_tarfile(tar_or_dir_path):
+            logger.info("Detected tar file.")
+            with tarfile.open(tar_or_dir_path, "r") as tar:
+                # Temporary set to track folders that contain images
+                folders_with_images = set()
+
+                # First pass: Identify folders containing images
+                for member in tar.getmembers():
+                    if member.isdir():
+                        continue  # Skip directories
+                    if member.isfile() and member.name.lower().endswith(("jpg", "jpeg", "png")):
+                        class_name = os.path.basename(os.path.dirname(member.name))
+                        folders_with_images.add(class_name)
+
+                # Second pass: Build the class map only for folders with images
+                for member in tar.getmembers():
+                    if member.isdir():
+                        continue  # Skip directories
                     class_name = os.path.basename(os.path.dirname(member.name))
-                    folders_with_images.add(class_name)
+                    if class_name in folders_with_images:
+                        if class_name not in class_map:
+                            class_map[class_name] = []
+                        class_map[class_name].append(member.name)
 
-            # Second pass: Build the class map only for folders with images
-            for member in tar.getmembers():
-                if member.isdir():
-                    continue  # Skip directories
-                class_name = os.path.basename(os.path.dirname(member.name))
-                if class_name in folders_with_images:
-                    if class_name not in class_map:
-                        class_map[class_name] = []
-                    class_map[class_name].append(member.name)
+        else:
+            raise ValueError("Provided path is neither a valid tar file nor a directory.")
 
     elif os.path.isdir(tar_or_dir_path):
         logger.info("Detected directory.")
