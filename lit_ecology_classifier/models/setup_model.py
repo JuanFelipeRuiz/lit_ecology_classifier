@@ -65,16 +65,14 @@ def add_additional_layers(model, num_classes, add_layer, dropout_1, dropout_2, f
         num_classes (int): The number of classes in the dataset.
     """
 
-     
-    if add_layer == 'yes':
-        if architecture == 'deit':
-            in_features = model.get_classifier()[-1].in_features
-            pretrained_layers = list(model.children())[:-2]
-        else:
-            in_features = model.get_classifier().in_features
-            pretrained_layers = list(model.children())[:-1]
+    if architecture == 'deit':
+        in_features = model.get_classifier()[-1].in_features
+        pretrained_layers = list(model.children())[:-2]
+    else:
+        in_features = model.get_classifier().in_features
+        pretrained_layers = list(model.children())[:-1]
 
-        additional_layers = torch.nn.Sequential(
+    additional_layers = torch.nn.Sequential(
             torch.nn.Dropout(p=dropout_1),
             torch.nn.Linear(in_features=in_features, out_features= fc_node),
             torch.nn.ReLU(inplace=True),
