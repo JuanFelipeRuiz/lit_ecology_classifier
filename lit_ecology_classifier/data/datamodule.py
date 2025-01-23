@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Dataset, DistributedSampler, random_spl
 from ..data.imagedataset import ImageFolderDataset
 from ..data.tardataset import TarImageDataset
 from ..data.dataframe_dataset import DataFrameDataset
-from ..helpers.helpers import TTA_collate_fn
+from ..helpers.helpers import TTA_collate_fn, setup_classmap
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class DataModule(LightningDataModule):
         batch_size: int,
         dataset: str,
         TTA: bool = False,
-        class_map: dict = {},
+        class_map: dict = {} ,
         priority_classes: list = [],
         rest_classes: list = [],
         splits: Union[Iterable, pd.DataFrame] = [0.7, 0.15],
@@ -55,7 +55,12 @@ class DataModule(LightningDataModule):
         self.split_overview = splits if isinstance(splits, pd.DataFrame) else None
             
         
-        self.class_map = class_map
+        if class_map == {} or class_map is None:
+            self.class_map = setup_classmap(datapath=datapath, priority_classes=priority_classes, rest_classes=rest_classes)
+        else:
+            self.class_map = class_map
+
+
 
         self.priority_classes = priority_classes
         self.rest_classes = rest_classes
