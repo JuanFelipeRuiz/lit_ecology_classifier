@@ -43,35 +43,8 @@ if __name__ == "__main__":
     gpus =torch.cuda.device_count() if not args.no_gpu else 0
     logging.info(f"Using {gpus} GPUs for training.")
     
-    logging.info(args)
-    if isinstance(args.priority_classes, str):
-        if args.priority_classes!="":
-            with open(args.priority_classes) as file:
-                priority_class=json.load(file)["priority_classes"]
-                args.priority_classes=priority_class
-        else:
-            args.priority_classes=[]
-    
-    if isinstance(args.rest_classes, str):
-        if args.rest_classes!="":
-            with open(args.rest_classes) as file:
-                rest=json.load(file)["rest_classes"]
-                args.rest_classes=rest
-        else:
-            args.rest_classes=[]
 
-    # Initialize the Data Module
 
-    # check if class map is None or a empty dict
-    #if args.class_map is None or args.class_map == {}:
-    #    with open("config/class_map.json") as file:
-    #        class_map = json.load(file)
-
-    #else:
-    #    class_map = args.class_map
-
-    #logging.info("Class map: %s", format(class_map))
-        
     
     datamodule = DataModule(**vars(args))
     datamodule.setup("fit")
@@ -116,6 +89,7 @@ if __name__ == "__main__":
         enable_progress_bar=False,
         default_root_dir=args.train_outpath,
     )
+    
     # Train the first and last layer of the model
     trainer.fit(model, datamodule=datamodule)
     # Load the best model from the first stage
