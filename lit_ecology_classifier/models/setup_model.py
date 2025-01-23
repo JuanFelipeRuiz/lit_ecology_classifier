@@ -4,7 +4,10 @@ import timm
 import torch
 from safetensors.torch import load_file
 
-def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints/backbone.safetensors", **kwargs):
+
+
+
+def setup_model( pretrained=False, num_classes=None, checkpoint_path="checkpoints/backbone.safetensors",  add_layer = False , **kwargs):
     """
     Set up and return the specified model architecture.
 
@@ -27,6 +30,7 @@ def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints
     # Load the checkpoint manually
     checkpoint = load_file(checkpoint_path)
     model.load_state_dict(checkpoint)
+
     # Remove the head
     del checkpoint['head.weight']
     del checkpoint['head.bias']
@@ -37,6 +41,11 @@ def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints
     # Modify the model to match the number of classes in your dataset
     model.head = torch.nn.Linear(model.head.in_features, num_classes)
 
+    if add_layer == 'yes':
+        # add additional layers
+        model = add_additional_layers(model, num_classes, **kwargs)
+
+    # Set the trainable parameters
     set_trainable_params(model, finetune=pretrained)
 
     # Total parameters and trainable parameters
@@ -47,7 +56,36 @@ def setup_model( pretrained=False, num_classes=None,checkpoint_path="checkpoints
 
     return model
 
-def set_trainable_params(model, train_first=False, finetune=True):
+def add_additional_layers(model, num_classes, add_layer, dropout_1, dropout_2, fc_node, architecture, **kwargs):
+    """
+    Add additional layers to the model.
+
+    Args:
+        model (nn.Module): The model to configure.
+        num_classes (int): The number of classes in the dataset.
+    """
+
+     
+    if add_layer == 'yes':
+        if architecture == 'deit':
+            in_features = model.get_classifier()[-1].in_features
+            pretrained_layers = list(model.children())[:-2]
+        else:
+            in_features = model.get_classifier().in_features
+            pretrained_layers = list(model.children())[:-1]
+
+        additional_layers = torch.nn.Sequential(
+            torch.nn.Dropout(p=dropout_1),
+            torch.nn.Linear(in_features=in_features, out_features= fc_node),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.Dropout(p=dropout_2),
+            torch.nn.Linear(in_features=fc_node, out_features=num_classes),
+        )
+    return torch.nn.Sequential(*pretrained_layers, additional_layers)
+
+
+
+def set_trainable_params(model, add_layer, last_layer_finetune=True):
     """
     Set the trainable parameters of the model.
 
@@ -59,14 +97,20 @@ def set_trainable_params(model, train_first=False, finetune=True):
 
     n_layer = 0
 
-    for param in model.parameters():
-        n_layer += 1
-        param.requires_grad = False
+    if last_layer_finetune == 'yes':
+       
+        layer_to_unfreeze = 2 if add_layer == 'no' else 5
 
-    for i, param in enumerate(model.parameters()):
-        if i < 1:
-            param.requires_grad = True
-        if i + 1 > n_layer - 2:
-            param.requires_grad = True
-        if not finetune:
-            param.requires_grad = True
+        for param in model.parameters():
+            n_layer += 1
+            param.requires_grad = False
+
+        for i, param in enumerate(model.parameters()):
+            if i + 1 > n_layer - layer_to_unfreeze: 
+                param.requires_grad = True
+
+    else:
+        for param in model.parameters():
+                param.requires_grad = True
+
+    
