@@ -7,7 +7,9 @@ import torch
 from lightning import LightningModule
 from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score
 
-from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, plot_confusion_matrix, plot_loss_acc, plot_score_distributions, FocalLoss, setup_classmap, compute_roc_auc, compute_macro_precision_recall, compute_roc_auc_binary
+
+from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions
+from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, compute_roc_auc, compute_macro_precision_recall, compute_roc_auc_binary
 from ..models.setup_model import setup_model
 
 class LitClassifier(LightningModule):
@@ -20,14 +22,17 @@ class LitClassifier(LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        if 'class_map' not in self.hparams:
+        if 'class_map' not in self.hparams or self.hparams.class_map == {}:
             self.hparams.class_map = setup_classmap(datapath=self.hparams['datapath'], priority_classes=self.hparams['priority_classes'], rest_classes=self.hparams['rest_classes'])
             self.class_map = self.hparams.class_map
-            self.hparams.num_classes = len(self.class_map.keys())
+            
         else:
             self.class_map = self.hparams.class_map
+        self.hparams.num_classes = len(self.class_map.keys())
         self.inverted_class_map = dict(sorted({v: k for k, v in self.class_map.items()}.items()))
         self.model = setup_model(**self.hparams)
+
+        
         self.loss = torch.nn.CrossEntropyLoss() if not "loss" in list(self.hparams) or not self.hparams.loss=="focal" else FocalLoss(alpha=None ,gamma=1.75)
         logging.info("Model initialized with hyperparameters:\n {}".format(pprint.pformat(self.hparams)))
 
@@ -40,8 +45,6 @@ class LitClassifier(LightningModule):
             torch.Tensor: Geometrics Average of probabilities from the TTA predictions.
             torch.Tensor: True labels if batch is list containg true labels as second entry else None.
         """
-
-
         x = torch.cat([batch[str(i * 90)] for i in range(4)], dim=0)
         logits = self(x).softmax(dim=1)
         logits = torch.stack(torch.chunk(logits, 4, dim=0))
@@ -65,7 +68,6 @@ class LitClassifier(LightningModule):
             list: List of optimizers.
             list: List of schedulers.
         """
-
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.hparams.lr)
 
         scheduler = CosineWarmupScheduler(optimizer, warmup=3 * len(self.datamodule.train_dataloader()), max_iters=self.trainer.max_epochs * len(self.datamodule.train_dataloader()))
@@ -84,7 +86,6 @@ class LitClassifier(LightningModule):
         """
         self.datamodule = datamodule
         self.hparams.TTA = self.datamodule.TTA
-
 
     def training_step(self, batch, batch_idx):
         """
@@ -111,6 +112,7 @@ class LitClassifier(LightningModule):
     def validation_step(self, batch, batch_idx):
         """
         Perform a validation step.
+
         Args:
             batch (tuple): Input batch containing images and labels.
             batch_idx (int): Batch index.
@@ -146,15 +148,21 @@ class LitClassifier(LightningModule):
         """
         print(self.class_map)
         print(self.inverted_class_map)
+
         all_scores = torch.cat(self.val_step_probs)
         all_preds = torch.cat(self.val_step_predictions)
         all_labels = torch.cat(self.val_step_targets)
+
         fig_score = plot_score_distributions(all_scores, all_preds, self.inverted_class_map.values(), all_labels)
+
         balanced_acc = balanced_accuracy_score(all_labels.cpu().numpy(), all_preds.cpu().numpy())
+
         self.log("val_balanced_acc", balanced_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+
         precision = torch.sum((all_preds!= 0) & (all_labels!=0) ).item()/max(torch.sum((all_preds!= 0) & (all_labels!=0) ).item()+torch.sum((all_preds != 0) & (all_labels == 0)).item(),1)
         self.log("val_precision", precision, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         fig, fig2 = plot_confusion_matrix(all_labels, all_preds, self.inverted_class_map.values())
+       
         # Log the confusion matrix to wandb if use_wandb is true
         if self.hparams.use_wandb:
 
@@ -171,6 +179,7 @@ class LitClassifier(LightningModule):
 
     def compute_metrics(self, all_labels, all_preds):
         # Calculate balanced accuracy
+
         balanced_acc = balanced_accuracy_score(
             all_labels.cpu().numpy(), all_preds.cpu().numpy()
         )
@@ -181,8 +190,7 @@ class LitClassifier(LightningModule):
         return balanced_acc, false_positives.item()
 
 
-
-    def on_test_epoch_start(self) -> None:
+    def on_test_epoch_start(self):
         """
         Hook to be called at the start of the test epoch.
         Sets up empty lists to store the predicted class probabilities and filenames.
@@ -237,19 +245,14 @@ class LitClassifier(LightningModule):
         # Plot confusion matrices
         plot_confusion_matrix(
             all_labels, all_preds, class_names, self.hparams.use_wandb, self.hparams.outpath
-
-
         )
 
         # Compute ROC curves and AUC
         roc_auc = compute_roc_auc(all_labels, all_scores)
 
-
-
         roc_auc_binary = compute_roc_auc_binary(all_labels, all_scores)
+
         # Compute F1 scores per class
-
-
         precision, recall, f1 = compute_macro_precision_recall(all_labels, all_preds)
 
 
@@ -261,7 +264,6 @@ class LitClassifier(LightningModule):
         print("test_auc_macro:", roc_auc)
         print("test_precision:", precision)
         print("test_recall:", recall)
-
 
 
     def on_predict_start(self) -> None:
@@ -288,6 +290,7 @@ class LitClassifier(LightningModule):
             else:
                 batch = batch
                 probs = self(batch).softmax(dim=1).cpu()
+                
             self.probabilities.append(probs)
 
     def on_predict_epoch_end(self) -> None:
