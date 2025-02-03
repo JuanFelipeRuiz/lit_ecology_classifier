@@ -76,11 +76,10 @@ class DataModule(LightningDataModule):
         if stage != "predict":
 
             if self.split_overview is not None:
+
                 logger.debug("Setting up a dataset based on asplit overview.")
+
                 self.train_dataset, self.val_dataset, self.test_dataset= self.setup_from_overview()
-                logger.info("Train size: %s", len(self.train_dataset))
-                logger.info("Validation size: %s", len(self.val_dataset))
-                logger.info("Test size: %s", len(self.test_dataset))
                 
             else:
                 if self.datapath.find(".tar") == -1:
@@ -112,6 +111,9 @@ class DataModule(LightningDataModule):
                         full_dataset = full_dataset
                     )
 
+                logger.info("Train size: %s", len(self.train_dataset))
+                logger.info("Validation size: %s", len(self.val_dataset))
+                logger.info("Test size: %s", len(self.test_dataset))
                 # Set the train flag of the validation and test datasets to False
                 self.val_dataset.train = False
                 self.test_dataset.train = False
@@ -163,10 +165,6 @@ class DataModule(LightningDataModule):
         train_size = int(self.train_split * len(full_dataset))
         val_size = int(self.val_split * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
-
-        logger.info("Train size: %s", train_size)
-        logger.info("Validation size: %s", val_size)
-        logger.info("Test size: %s", test_size)
 
         # Randomly split and initialize the datasets based on the determined sizes
         return random_split(
