@@ -182,7 +182,7 @@ def setup_callbacks(priority_classes, ckpt_name):
     return callbacks
 
 
-def setup_classmap(class_map, datapath="", priority_classes=[], rest_classes=[]):
+def setup_classmap(class_map = None, datapath="", priority_classes=[], rest_classes=[]):
     if class_map != {} and class_map is not None:
         logging.info(f"Using the provided class map.")
         return class_map

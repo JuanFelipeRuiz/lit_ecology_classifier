@@ -28,15 +28,15 @@ def setup_model(
     **kwargs,
 ):
     return SetupModel(
-        dropout_1,
-        dropout_2,
-        fc_node,
+        architecture,
+        checkpoint_path,
+        num_classes,
         add_layer,
         last_layer_finetune,
-        pretrained=pretrained,
-        num_classes=num_classes,
-        checkpoint_path=checkpoint_path,
-        architecture=architecture,
+        dropout_1,
+        dropout_2,
+        fc_node ,
+        pretrained,
         **kwargs,
     ).setup_model()
 

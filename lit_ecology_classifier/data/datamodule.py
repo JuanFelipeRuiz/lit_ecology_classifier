@@ -60,6 +60,7 @@ class DataModule(LightningDataModule):
             self.split_overview = splits
         else:
             self.train_split, self.val_split = splits
+            self.split_overview = None
 
         self.class_map = setup_classmap(class_map, datapath=datapath, priority_classes=priority_classes, rest_classes=rest_classes)
         self.priority_classes = priority_classes
@@ -204,16 +205,17 @@ class DataModule(LightningDataModule):
             # This one will not be logged by the split processor
             # Random 
 
-            self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
+        self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
                         full_dataset = full_dataset
             )
 
-            logger.info("Train size: %s", len(self.train_dataset))
-            logger.info("Validation size: %s", len(self.val_dataset))
-            logger.info("Test size: %s", len(self.test_dataset))
-                # Set the train flag of the validation and test datasets to False
-            self.val_dataset.train = False
-            self.test_dataset.train = False
+        logger.info("Train size: %s", len(self.train_dataset))
+        logger.info("Validation size: %s", len(self.val_dataset))
+        logger.info("Test size: %s", len(self.test_dataset))
+            
+        # Set the train flag of the validation and test datasets to False
+        self.val_dataset.train = False
+        self.test_dataset.train = False
         
         
 

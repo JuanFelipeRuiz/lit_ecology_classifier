@@ -52,8 +52,10 @@ if __name__ == "__main__":
     logging.info(f"Using {gpus} GPUs for training.")
     
 
+    # Initialize Augementation pipeline
 
-    
+
+    # Initialize the Data Module to create DataLoaders
     datamodule = DataModule(**vars(args))
     datamodule.setup("fit")
 
@@ -85,13 +87,18 @@ if __name__ == "__main__":
     model = LitClassifier(**vars(args), finetune=True)  # TODO: check if this works on cscs, maybe add a file that downlaods model first
     model.load_datamodule(datamodule)
 
+
+    definded_callbacks = [pl.callbacks.ModelCheckpoint(filename="best_model_acc_stage1", monitor="val_acc", mode="max"), LearningRateMonitor(logging_interval='step')]
+
+    if "early_stopping" in args:
+        definded_callbacks.append(pl.callbacks.EarlyStopping(monitor="val_loss", patience=5, mode="min", delta=0.0))
     # Initialize the Trainer
     trainer = l.Trainer(
         logger=logger,
         max_epochs=args.max_epochs,
         log_every_n_steps=40,
-        callbacks=[pl.callbacks.ModelCheckpoint(filename="best_model_acc_stage1", monitor="val_acc", mode="max"),LearningRateMonitor(logging_interval='step')],
-        check_val_every_n_epoch=max(args.max_epochs // 8,1),
+        callbacks=[pl.callbacks.ModelCheckpoint(filename="best_model_acc_stage1", monitor="val_acc", mode="max"), LearningRateMonitor(logging_interval='step')],
+        check_val_every_n_epoch=max(args.max_epochs // 8,1), # Check validation every 1/8 of the max epochs or at least once
         devices=gpus,
         strategy= "ddp" if gpus > 1 else "auto" ,
         enable_progress_bar=False,
