@@ -62,12 +62,19 @@ if __name__ == '__main__':
 
     logging.debug("DataModule setup completed")
 
-    # Initialize the Trainer and Perform Predictions
+    logging.info("Starting setup of PyTorch Lightning Trainer")
+    
+    
+    availables_gpus = torch.cuda.device_count()
+    logging.info("Available GPUs: %s", availables_gpus)
+    
+    
+        # Initialize the Trainer and Perform Predictions
     logging.debug("Starting initialization of Trainer")
     trainer = pl.Trainer(
 
         # Set the number of GPUs to use for prediction if no_gpu is not set
-        devices= "auto", 
+        devices=  list(range(availables_gpus)), 
         strategy= "auto",
         enable_progress_bar=args.prog_bar,
         default_root_dir=args.outpath,
