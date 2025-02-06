@@ -48,7 +48,8 @@ if __name__ == "__main__":
         gitignore_file.write("*")
 
 
-    gpus =torch.cuda.device_count() if not args.no_gpu else 0
+    gpus =torch.cuda.device_count() if not args.no_gpu else 0 
+    gpus =1
     logging.info(f"Using {gpus} GPUs for training.")
     
 
@@ -84,6 +85,7 @@ if __name__ == "__main__":
         args.class_weights = calculate_class_weights(datamodule)
     else:
         args.class_weights = None
+    
     model = LitClassifier(**vars(args), finetune=True)  # TODO: check if this works on cscs, maybe add a file that downlaods model first
     model.load_datamodule(datamodule)
 
@@ -92,12 +94,13 @@ if __name__ == "__main__":
 
     if "early_stopping" in args:
         definded_callbacks.append(pl.callbacks.EarlyStopping(monitor="val_loss", patience=5, mode="min", delta=0.0))
-    # Initialize the Trainer
+
+    # Initialize the Trainer 
     trainer = l.Trainer(
         logger=logger,
         max_epochs=args.max_epochs,
         log_every_n_steps=40,
-        callbacks=[pl.callbacks.ModelCheckpoint(filename="best_model_acc_stage1", monitor="val_acc", mode="max"), LearningRateMonitor(logging_interval='step')],
+        callbacks=definded_callbacks,
         check_val_every_n_epoch=max(args.max_epochs // 8,1), # Check validation every 1/8 of the max epochs or at least once
         devices=gpus,
         strategy= "ddp" if gpus > 1 else "auto" ,
@@ -105,8 +108,9 @@ if __name__ == "__main__":
         default_root_dir=args.train_outpath,
     )
     
-    # Train the first and last layer of the model
+    # Train the firstlayer of the model
     trainer.fit(model, datamodule=datamodule)
+
     # Load the best model from the first stage
     model = LitClassifier.load_from_checkpoint(str(trainer.checkpoint_callback.best_model_path), lr=args.lr * args.lr_factor, pretrained=False)
     model.load_datamodule(datamodule)

@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 
 
 def setup_model(
-    dropout_1,
-    dropout_2,
-    fc_node,
-    add_layer,
-    last_layer_finetune,
+    dropout_1 = 0.4,
+    dropout_2 = 0.3,
+    fc_node = 512,
+    add_layer = False,
+    finetune = False,
     pretrained=False,
     num_classes=None,
     checkpoint_path="checkpoints/backbone.safetensors",
@@ -32,7 +32,7 @@ def setup_model(
         checkpoint_path,
         num_classes,
         add_layer,
-        last_layer_finetune,
+        finetune,
         dropout_1,
         dropout_2,
         fc_node ,
@@ -64,11 +64,11 @@ class SetupModel:
             checkpoint_path="checkpoints/backbone.safetensors",
             num_classes=None,
             add_layer = False,
-            last_layer_finetune = False,
+            finetune = False,
             dropout_1 = 0.4,
             dropout_2 = 0.3,
             fc_node = 512,
-            pretrained=False,
+            pretrained=True,
             trained_weights_path = None,
             **kwargs,
         ):
@@ -77,7 +77,7 @@ class SetupModel:
         self.dropout_2 = dropout_2
         self.fc_node = fc_node
         self.add_layer = add_layer
-        self.last_layer_finetune = last_layer_finetune
+        self.finetune = finetune
         
         self.num_classes = num_classes
         self.checkpoint_path = checkpoint_path
@@ -121,7 +121,8 @@ class SetupModel:
     def prepare_backbone_from_huggingface(self):
         """
         Prepare the model from a cached backbone or download from huggingface.
-        using the timm library.
+        using the timm library. The model is prepared with the pretrained weights and with the
+        correct number of classes in the final layer/ head of the model.
         """
 
         # dictionary mapping model names to huggingface model names
@@ -142,12 +143,11 @@ class SetupModel:
         }
 
         if self.architecture in model_mapping:
-            self.model = timm.create_model(model_mapping[self.architecture], pretrained=True, num_classes=self.num_classes)
+            self.model = timm.create_model(model_mapping[self.architecture], pretrained= self.pretrained, num_classes=self.num_classes)
         else:
-            logger.warning("%s not implemented and tested, please check the compatibility with the package. \
-                           Trying to prepare the model backbone with timm.", self.architecture)
+            logger.warning("%s not implemented and tested, please check the compatibility with the package.", self.architecture)
             try:
-                self.model = timm.create_model(self.architecture, pretrained=True, num_classes=self.num_classes)
+                self.model = timm.create_model(self.architecture, pretrained= self.pretrained, num_classes=self.num_classes)
             except:
                 raise NotImplementedError(f"Architecture {self.architecture} could not be prepared from huggingface.")
             
@@ -173,7 +173,8 @@ class SetupModel:
             checkpoint = load_file(self.checkpoint_path)
             model.load_state_dict(checkpoint)
 
-            # Remove the head
+            # Remove the head of the model
+            # to manually add the head with the correct number of classes
             del checkpoint["head.weight"]
             del checkpoint["head.bias"]
 
@@ -215,7 +216,11 @@ class SetupModel:
 
     def add_additional_layers(self):
         """
-        Add additional layers to the model for fine-tuning..
+        Add a additional layers to the model for fine-tuning.
+
+        Removes the classifier head of the model and adds one additional layer (with dropout) and a final 
+        layer with the number of classes.
+
         """
 
         if self.architecture == "deit":
@@ -240,8 +245,8 @@ class SetupModel:
         """
         n_layer = 0
 
-        # define if only the last layer should be finetuned
-        if self.last_layer_finetune:
+        # define if the model should be finetuned
+        if self.finetune:
 
             # define the number of layers to unfreeze. increase nubmer if additional layers are added
             layer_to_unfreeze = 2 if self.add_layer == False else 5

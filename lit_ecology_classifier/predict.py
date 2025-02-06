@@ -40,33 +40,14 @@ if __name__ == '__main__':
 
     # Initialize the Model
     model = LitClassifier.load_from_checkpoint(args.model_path)
-
+    
 
     # Initialize the Data Module
     hparams = model.hparams # copy the hyperparameters from the model
-
-
-    # combine model hyperparameters with the arguments from the command line to save the updated hyperparameters
-    combined_hparams = {
-        "model": model.hparams, 
-        "predict": vars(args)  
-    }
-
-    # Print the combined hyperparameters
-    logging.info("Combined Parameters:%s", pprint.pformat(combined_hparams))
-
-    date = time()
-    model_name = os.path.basename(combined_hparams["predict"]["model_path"].split(".")[0])
-
-
-    # save the combined hyperparameters to a file in the output directory
-    with open(args.outpath + f"/{model_name}_{date}.json", "w") as f:
-        json.dump(combined_hparams, f)
-   
     
     # Update the hyperparameters based on the given arguments
     model.hparams.batch_size = args.batch_size
-    model.hparams.TTA = not args.no_TTA # set the TTA flag based on the argument
+    model.hparams.TTA = not args.no_TTA # If no_TTA is true, set TTA to false
     model.hparams.outpath = args.outpath
     model.hparams.datapath = args.datapath
 
@@ -86,14 +67,14 @@ if __name__ == '__main__':
     trainer = pl.Trainer(
 
         # Set the number of GPUs to use for prediction if no_gpu is not set
-        devices= [args.gpu_id] if not args.no_gpu else None, 
-        
+        devices= "auto", 
         strategy= "auto",
         enable_progress_bar=args.prog_bar,
         default_root_dir=args.outpath,
         limit_predict_batches=args.limit_pred_batches if args.limit_pred_batches > 0 else None
         )
-    print("1")
+    
+  
     trainer.predict(model, datamodule=data_module)
 
     # Calculate and log the total time taken for prediction

@@ -123,8 +123,11 @@ class ImageFolderDataset(Dataset):
         else:
             image = self.val_transforms(image)
 
-        label = self.get_label_from_filename(image_path)
-        return image, label
+        if self.train:
+            label = self.get_label_from_filename(image_path)
+            return image, label
+        else:
+            return image
 
     def _load_image_infos(self):
         """
