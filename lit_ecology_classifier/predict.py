@@ -67,7 +67,7 @@ if __name__ == '__main__':
     
     availables_gpus = torch.cuda.device_count()
     logging.info("Available GPUs: %s", availables_gpus)
-    
+    print("Available GPUs: ", availables_gpus)
     
         # Initialize the Trainer and Perform Predictions
     logging.debug("Starting initialization of Trainer")
