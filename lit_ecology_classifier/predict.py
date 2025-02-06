@@ -82,7 +82,7 @@ if __name__ == '__main__':
     trainer = pl.Trainer(
 
         # Set the number of GPUs to use for prediction if no_gpu is not set
-        devices=  availables_gpus, 
+        devices=  -1, 
         strategy= "auto",
         enable_progress_bar=args.prog_bar,
         default_root_dir=args.outpath,
