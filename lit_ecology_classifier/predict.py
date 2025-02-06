@@ -27,21 +27,6 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # MAIN SCRIPT #
 ###############
 
-def log_gpu_usage_to_wandb():
-    availables_gpus = torch.cuda.device_count()
-    for gpu_id in range(availables_gpus):
-
-        gpu_name = torch.cuda.get_device_name(gpu_id)
-        gpu_memory_allocated = torch.cuda.memory_allocated(gpu_id) / 1024**2  
-        gpu_memory_cached = torch.cuda.memory_reserved(gpu_id) / 1024**2  
-        gpu_utilization = torch.cuda.get_device_properties(gpu_id).utilization
-
-        wandb.log({
-                f"GPU_{gpu_id}_Name": gpu_name,
-                f"GPU_{gpu_id}_Memory_Allocated": gpu_memory_allocated,
-                f"GPU_{gpu_id}_Memory_Cached": gpu_memory_cached,
-                f"GPU_{gpu_id}_Utilization": gpu_utilization
-            })
 
 if __name__ == '__main__':
     print('\nRunning', sys.argv[0], sys.argv[1:])
@@ -93,11 +78,6 @@ if __name__ == '__main__':
 
     # WandB initialisieren
     wandb.init(project="gpu_performance_tracking", name="predicting_with_multiple_gpus")
-
-
-
-    # Beispiel für das loggen während des Predictons
-    log_gpu_usage_to_wandb()  # Protokolliere GPU-Daten an WandB
 
     trainer = pl.Trainer(
 
