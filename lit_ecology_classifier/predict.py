@@ -12,6 +12,7 @@ import json
 
 import lightning as pl
 import torch
+import wandb
 
 from .data.datamodule import DataModule
 from .helpers.argparser import inference_argparser
@@ -25,6 +26,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 ###############
 # MAIN SCRIPT #
 ###############
+
 
 if __name__ == '__main__':
     print('\nRunning', sys.argv[0], sys.argv[1:])
@@ -67,14 +69,20 @@ if __name__ == '__main__':
     
     availables_gpus = torch.cuda.device_count()
     logging.info("Available GPUs: %s", availables_gpus)
-    
+    print("Available GPUs: ", availables_gpus)
     
         # Initialize the Trainer and Perform Predictions
     logging.debug("Starting initialization of Trainer")
+
+
+
+    # WandB initialisieren
+    wandb.init(project="gpu_performance_tracking", name="predicting_with_multiple_gpus")
+
     trainer = pl.Trainer(
 
         # Set the number of GPUs to use for prediction if no_gpu is not set
-        devices=  list(range(availables_gpus)), 
+        devices=  -1, 
         strategy= "auto",
         enable_progress_bar=args.prog_bar,
         default_root_dir=args.outpath,
