@@ -276,10 +276,10 @@ def define_transformation_pipeline(
 
     # Select transformations based on mode (train or validation)
     if train:
-        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize(target_size), T.ToTensor()]
+        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize(224), T.ToTensor()]
 
     else:
-        defined_transformations = resize_transformation + [T.Resize(target_size), T.ToTensor()]
+        defined_transformations = resize_transformation + [T.Resize(224), T.ToTensor()]
 
     # Apply normalization if required
     if normalize_images:
