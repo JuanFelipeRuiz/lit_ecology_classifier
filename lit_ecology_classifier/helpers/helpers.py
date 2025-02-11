@@ -54,7 +54,7 @@ class FocalLoss(nn.Module):
             return loss.sum()
 
 
-def output_results(outpath, im_names, labels, scores,priority_classes=False,rest_classes=False,tar_file=False, datapath = ""):
+def output_results(outpath, im_names, labels, scores,priority_classes=False,rest_classes=False, datapath = ""):
     """
     Output the prediction results to a file.
 
@@ -157,7 +157,6 @@ def TTA_collate_fn(batch: dict , train: bool = False):
     else:
         for rotated_images in batch:
             for rot in batch_images:
-                logger.debug("Rot %s, datatype: %s",rot, type(rot))
                 batch_images[rot].append(rotated_images[rot])
         batch_images = {rot: torch.stack(batch_images[rot]) for rot in batch_images}
         return batch_images
