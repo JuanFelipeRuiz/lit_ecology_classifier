@@ -309,19 +309,7 @@ class DataModule(LightningDataModule):
         Returns:
             DataLoader: Default DataLoader object for the validation dataset.
         """
-
         loader = DataLoader(
-                self.val_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                sampler=None,
-                num_workers= 4,
-                pin_memory=True,
-                drop_last=False,
-            )
-        if self.TTA:
-                # Apply TTA collate function if TTA is enabled
-                loader = DataLoader(
                     self.val_dataset,
                     batch_size=self.batch_size,
                     shuffle=False,
@@ -329,7 +317,7 @@ class DataModule(LightningDataModule):
                     num_workers= 4,
                     pin_memory=True,
                     drop_last=False,
-                    collate_fn=lambda x:TTA_collate_fn(x,True),
+                    collate_fn=(lambda x:TTA_collate_fn(x,True)) if self.TTA else None,
                 )
         return loader
 
@@ -338,26 +326,14 @@ class DataModule(LightningDataModule):
         Returns:
             DataLoader: DataLoader object for the testing dataset.
         """
-
-        if self.TTA:
-            loader = DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                sampler=None,
-                num_workers= 4,
-                pin_memory=True,
-                drop_last=False,
-                collate_fn=lambda x:TTA_collate_fn(x,True),
-            )
-        else:
-            loader = DataLoader(
+        loader = DataLoader(
                 self.test_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 num_workers= 4,
                 pin_memory=True,
                 drop_last=False,
+                collate_fn= (lambda x:TTA_collate_fn(x,True)) if self.TTA else None,
             )
         return loader
 
@@ -372,12 +348,12 @@ class DataModule(LightningDataModule):
                 batch_size=self.batch_size,
                 shuffle=False,
                 sampler=None,
-                num_workers=8,
+                num_workers= 4,
                 pin_memory=False,
                 drop_last=False,
-                collate_fn=lambda x:TTA_collate_fn(x,False) if self.TTA else None
+                collate_fn= (lambda x:TTA_collate_fn(x,False)) if self.TTA else None,
             )
-    
+
         return loader
 
 
