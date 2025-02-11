@@ -304,13 +304,13 @@ class LitClassifier(LightningModule):
         pred_label = np.array([self.inverted_class_map[idx] for idx in max_index.numpy()], dtype=object)
         pred_score = torch.cat(self.probabilities).max(1)[0].numpy()
         output_results(self.hparams.outpath, 
-                       filenames, 
-                       pred_label, 
-                       pred_score, 
-                       priority_classes=self.hparams.priority_classes!=[],
+                        filenames, 
+                        pred_label, 
+                        pred_score, 
+                        priority_classes=self.hparams.priority_classes!=[],
                         rest_classes=self.hparams.rest_classes!=[],
                         datapath= self.hparams.datapath,
-                     )
+                        )
         plt.hist(max_index.numpy(), bins=len(self.inverted_class_map))
         plt.savefig(f"{self.hparams.outpath}/predictions_histogram.png")
         return super().on_test_epoch_end()
