@@ -24,7 +24,7 @@ def setup_model(
     num_classes=None,
     checkpoint_path="checkpoints/backbone.safetensors",
     architecture = "beitv2",
-   
+    trained_weights_path = None,
     **kwargs,
 ):
     return SetupModel(
@@ -37,6 +37,7 @@ def setup_model(
         dropout_2,
         fc_node ,
         pretrained,
+        trained_weights_path,
         **kwargs,
     ).setup_model()
 
@@ -105,17 +106,21 @@ class SetupModel:
         self.set_trainable_params()
 
         if self.trained_weights_path:
-            self.load_model_weights
+            self.load_trained_weights()
 
+        logger.debug("Model setup completed.")
+        logger.debug("Total number of trainable parameters: %d", sum(p.numel() for p in self.model.parameters() if p.requires_grad))
+        logger.debug("Total number of parameters: %d", sum(p.numel() for p in self.model.parameters()))
         return self.model
     
 
-    def load_model_weights(self):
+    def load_trained_weights(self):
         """
         Load the state dict of the model into the prepared model.
         """
-        state_dict = torch.load(self.trained_weights_path, map_location="cpu")
-        self.model.load_state_dict(state_dict)
+        logger.debug("Loading the trained weights of the model from %s", self.trained_weights_path)
+        checkpoint = torch.load(self.trained_weights_path, map_location="cpu")
+        self.model.load_state_dict(checkpoint["model_state_dict"])
 
 
     def prepare_backbone_from_huggingface(self):
@@ -265,4 +270,4 @@ class SetupModel:
             # unfreeze all layers
             for param in self.model.parameters():
                 param.requires_grad = True
-        
+
