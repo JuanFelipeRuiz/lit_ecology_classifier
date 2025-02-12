@@ -1,19 +1,13 @@
-import io
-import json
+
 import logging
 import os
-import pprint
 import random
-from collections import defaultdict
 from typing import Any
 
 import torch
 from PIL import Image
 from torch.utils.data import Dataset
-from torchvision import transforms
-from torchvision.transforms.v2 import AugMix, Compose, Normalize, RandomHorizontalFlip, RandomRotation, Resize, ToDtype, ToImage
-
-from ..helpers.helpers import define_priority_classes, define_rest_classes
+from torchvision.transforms.v2 import Compose, RandomRotation
 
 
 class ImageFolderDataset(Dataset):
@@ -29,7 +23,16 @@ class ImageFolderDataset(Dataset):
         TTA (bool): Indicates if Test Time Augmentation should be applied during testing.
     """
 
-    def __init__(self, data_dir: str, class_map: dict, priority_classes: list, rest_classes: list, TTA: bool = False, train: bool = False):
+    def __init__(
+                self, data_dir: str, 
+                class_map: dict,
+                priority_classes: list,
+                rest_classes: list,
+                TTA: bool = False,
+                train: bool = False,
+                val_transforms: Any = None,
+                train_transforms: Any = None,
+            ):
         """
         Initializes the ImageFolderDataset with paths and modes.
 
@@ -48,6 +51,9 @@ class ImageFolderDataset(Dataset):
         self.priority_classes = priority_classes
         self.rest_classes = rest_classes
         # Transformation sequences for training and validation/testing
+        self.val_transforms = val_transforms
+        self.train_transforms = train_transforms
+
         self._define_transforms()
         # Load image information from the folder structure
         self.image_infos = self._load_image_infos()
@@ -76,16 +82,8 @@ class ImageFolderDataset(Dataset):
             - AugMix: Applies AugMix data augmentation.
             - Resize: Resizes the image to a specified size.
             - ToDtype: Converts the image to a torch.Tensor of a floating-point data type.
-
-        
-        
         
         """
-        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # ImageNet mean and std
-        
-        self.train_transforms = Compose([ToImage(), RandomHorizontalFlip(), RandomRotation(30), AugMix(), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
-        
-        self.val_transforms = Compose([ToImage(), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
         if self.TTA:
             self.rotations = {
                 "0": Compose([RandomRotation(0, 0)]),
@@ -93,6 +91,7 @@ class ImageFolderDataset(Dataset):
                 "180": Compose([RandomRotation((180, 180))]),
                 "270": Compose([RandomRotation((270, 270))]),
             }
+
 
     def __len__(self):
         """
@@ -124,8 +123,11 @@ class ImageFolderDataset(Dataset):
         else:
             image = self.val_transforms(image)
 
-        label = self.get_label_from_filename(image_path)
-        return image, label
+        if self.train:
+            label = self.get_label_from_filename(image_path)
+            return image, label
+        else:
+            return image
 
     def _load_image_infos(self):
         """

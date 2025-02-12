@@ -61,6 +61,21 @@ def args_for_train():
     parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
     parser.add_argument("--no_use_multi", action="store_true", help="Use multiple GPUs for training")
     
+
+    # Choose the model architecture
+    parser.add_argument('-architecture', choices=['beitv2'],
+                            default='beitv2', help='Choose the model architecture')
+    
+    # additional layers
+    parser.add_argument('-add_layer', type=bool, default=False, help='Add additional layers to the model')
+    parser.add_argument('-dropout_1', type=float, default=0.4, help='Dropout rate for the first layer')
+    parser.add_argument('-dropout_2', type=float, default=0.3, help='Dropout rate for the second layer')
+    parser.add_argument('-fc_node', type=int, default=512)
+
+    # Model configuration and training options
+    parser.add_argument('--last_layer_finetune', type= bool, default=False)
+
+
     # Model configuration and training options
     parser.add_argument("--balance_classes", action="store_true", help="Balance the classes for training")
     parser.add_argument("--batch_size", type=int, default=180, help="Batch size for training")
@@ -75,8 +90,8 @@ def args_for_train():
     parser.add_argument("--no_TTA", action="store_true", help="Enable Test Time Augmentation")
 
     # some additional arguments to ensure the model the old version run
-    parser.add_argument("--priority_classes", type= load_class_definitions, default=None, help="Path to JSON file containing the priority classes")
-    parser.add_argument("--rest_classes", type=load_class_definitions, default=None, help="Path to JSON file containing the rest classes")
+    parser.add_argument("--priority_classes", type= load_class_definitions, default=[], help="Path to JSON file containing the priority classes")
+    parser.add_argument("--rest_classes", type=load_class_definitions, default=[], help="Path to JSON file containing the rest classes")
     return parser
 
 
@@ -220,11 +235,11 @@ def load_dict(input: Union[str, None]) -> dict:
         
     raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
 
-def load_class_definitions(input: Union[str, None]) -> list[str] :
+def load_class_definitions(input: Union[str, None, list]) -> list :
     """Load the the priority or rest classes from a JSON file.
     """
 
-    if input == "" or input is None:
+    if input == "" or input is None or input == []:
         return []
 
     if input.endswith(".json"):

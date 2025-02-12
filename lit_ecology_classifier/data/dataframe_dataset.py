@@ -18,10 +18,8 @@ import os
 
 
 from PIL import Image
-import torch
 from torch.utils.data import Dataset
-from torchvision import transforms
-from torchvision.transforms.v2 import AugMix, Compose, Normalize, RandomHorizontalFlip, RandomRotation, Resize, ToDtype, ToImage
+from torchvision.transforms.v2 import  Compose, RandomRotation
 from torch.utils.data import Dataset
 import pandas as pd
 
@@ -32,7 +30,10 @@ class DataFrameDataset(Dataset):
                  train: bool = True, 
                  TTA: bool = False,
                  shuffle: bool = False,
-                 class_map: dict = None,):
+                 class_map: dict = None,
+                 train_transforms: Compose = None,
+                 val_transforms: Compose = None,
+                 ):
         """ Initialisation of the DataframeDataSet
 
         Args:
@@ -48,16 +49,14 @@ class DataFrameDataset(Dataset):
         self.shuffle = shuffle
         self.transforms = {}
         self._define_transforms()
+        self.train_transforms = train_transforms
+        self.val_transforms = val_transforms
         self.class_map = class_map 
-
 
         if self.shuffle:
             self.df = self.df.sample(frac=1).reset_index(drop=True)
 
     def _define_transforms(self):
-        mean, std = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]  # ImageNet mean and std #TODOchange it back to 30
-        self.train_transforms = Compose([ToImage(), RandomHorizontalFlip(), RandomRotation(180), AugMix(severity=6,mixture_width=5), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
-        self.val_transforms = Compose([ToImage(), Resize((224, 224)), ToDtype(torch.float32, scale=True), Normalize(mean, std)])
         if self.TTA:
             self.rotations = {
                 "0": Compose([RandomRotation(0, 0)]),

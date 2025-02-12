@@ -8,10 +8,11 @@ from lightning import LightningDataModule
 from lightning.pytorch.utilities.combined_loader import CombinedLoader
 from torch.utils.data import DataLoader, Dataset, DistributedSampler, random_split
 
+from ..data.image_transformation import define_transformation_pipeline
 from ..data.imagedataset import ImageFolderDataset
 from ..data.tardataset import TarImageDataset
 from ..data.dataframe_dataset import DataFrameDataset
-from ..helpers.helpers import TTA_collate_fn
+from ..helpers.helpers import TTA_collate_fn, setup_classmap
 
 logger = logging.getLogger(__name__)
 
@@ -37,30 +38,93 @@ class DataModule(LightningDataModule):
         batch_size: int,
         dataset: str,
         TTA: bool = False,
-        class_map: dict = {},
+        class_map: dict = {} ,
         priority_classes: list = [],
         rest_classes: list = [],
         splits: Union[Iterable, pd.DataFrame] = [0.7, 0.15],
+        augmentation_level: str = "low",
+        resize_with_proportions: bool = False,
+        target_size: Union[tuple[int, int], int] = (224, 224),
+        normalize_images: bool = False, 
         **kwargs
-    ):
+
+        ):
         super().__init__()
 
         self.datapath = datapath
         self.TTA = TTA  # Enable Test Time Augmentation if testing is True
         self.batch_size = batch_size
         self.dataset = dataset
-        if not isinstance(splits, pd.DataFrame):
-            self.train_split, self.val_split = splits
-
-        self.split_overview = splits if isinstance(splits, pd.DataFrame) else None
-            
         
-        self.class_map = class_map
+        if  isinstance(splits, pd.DataFrame):
+            self.split_overview = splits
+        else:
+            self.train_split, self.val_split = splits
+            self.split_overview = None
 
+        self.class_map = setup_classmap(class_map, datapath=datapath, priority_classes=priority_classes, rest_classes=rest_classes)
         self.priority_classes = priority_classes
         self.rest_classes = rest_classes
         self.use_multi = not kwargs.get("no_use_multi", False)
-        # Verify that class map exists for testing mode
+        self.augmentation_level = augmentation_level
+        self.resize_with_proportions = resize_with_proportions
+        self.target_size = target_size
+        self.normalize_images = normalize_images
+
+
+        self.mean = [0.485, 0.456, 0.406]
+        self.std = [0.229, 0.224, 0.225]
+
+    def prepare_augementations(self,
+                               train: bool = True,
+                                mean: list[float] = [0.485, 0.456, 0.406],
+                                std: list[float] = [0.229, 0.224, 0.225]
+                            ):
+        """Prepare the augmentations pipeline for the needed dataset loaders.
+
+        If the user wants to change the default normalization values, they can provide the mean and std values
+        by calling this function with the new values. Needs to set the train flag to True to prepare the training
+        and validation augmentations. Otherwise, only a test augmentation pipeline will be prepared.
+
+        Since test and validation augmentations just resize and transform the images to tensors, the same pipeline
+        can be used for both.
+
+        Args:
+            train: A flag to indicate if the training and validation augmentations should be prepared.
+            mean: The mean values for normalization. Default is the ImageNet mean values.
+            std: The standard deviation values for normalization. Default is the ImageNet std values
+
+        """
+
+        # update attributes based on the provided parameters
+        if self.mean != mean:
+            self.mean = mean
+        if self.std != std:
+            self.std = std
+
+        if train:
+
+            self.train_augementations = define_transformation_pipeline(
+                                                train=True,
+                                                augmentation_level=self.augmentation_level,
+                                                resize_with_proportions=self.resize_with_proportions,
+                                                target_size=self.target_size,
+                                                normalize_images=self.normalize_images,
+                                                mean=mean,
+                                                std=std,
+                                            )
+        
+        # Prepare the validation and test augmentations pipeline
+        self.val_augementations = define_transformation_pipeline(
+                                            train=False,
+                                            resize_with_proportions = self.resize_with_proportions,
+                                            target_size = self.target_size,
+                                            normalize_images=self.normalize_images,
+                                            mean=mean,
+                                            std=std,
+                                        )
+
+        
 
     def setup(self, stage: Optional[Literal["predict"]] = None):
         """ Set up the correct dataset for the current stage of the model.
@@ -70,49 +134,17 @@ class DataModule(LightningDataModule):
 
         if stage != "predict":
 
+            self.prepare_augementations(train=True)
+
             if self.split_overview is not None:
-                logger.debug("Setting up a dataset based on asplit overview.")
-                self.train_dataset, self.val_dataset, self.test_dataset= self.setup_from_overview()
-                logger.info("Train size: %s", len(self.train_dataset))
-                logger.info("Validation size: %s", len(self.val_dataset))
-                logger.info("Test size: %s", len(self.test_dataset))
+                self.setup_train_with_overview()
                 
             else:
-                if self.datapath.find(".tar") == -1:
-                    logger.debug("Setting up a dataset based on an image folder.")
-                    full_dataset = ImageFolderDataset(
-                        self.datapath,
-                        self.class_map,
-                        self.priority_classes,
-                        rest_classes=self.rest_classes,
-                        TTA=self.TTA,
-                        train=True,
-                    )
-                else:
-                    logger.debug("Setting up a dataset based on a tar file.")
-                    full_dataset = TarImageDataset(
-                        self.datapath,
-                        self.class_map,
-                        self.priority_classes,
-                        rest_classes=self.rest_classes,
-                        TTA=self.TTA,
-                        train=True,
-                    )
-
-                # Since no split overview is provided, create a random split of the dataset
-                # This one will not be logged by the split processor
-                # Random 
-
-                self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
-                        full_dataset = full_dataset
-                    )
-
-                # Set the train flag of the validation and test datasets to False
-                self.val_dataset.train = False
-                self.test_dataset.train = False
-
+                self.setup_train_with_image_search()
+                
         else:
             logger.debug("Setting up dataset for prediction.")
+            self.prepare_augementations(train=False)
             self.prediction_setup()
            
 
@@ -131,6 +163,7 @@ class DataModule(LightningDataModule):
                     rest_classes=self.rest_classes,
                     TTA=self.TTA,
                     train=False,
+                    val_transforms=self.val_augementations
                 )
 
         else:
@@ -143,6 +176,48 @@ class DataModule(LightningDataModule):
                     TTA=self.TTA,
                     train=False,
                 )
+            
+    def setup_train_with_image_search(self):
+        if self.datapath.find(".tar") == -1:
+                    logger.debug("Setting up a dataset based on an image folder.")
+                    full_dataset = ImageFolderDataset(
+                        self.datapath,
+                        self.class_map,
+                        self.priority_classes,
+                        rest_classes=self.rest_classes,
+                        TTA=self.TTA,
+                        train=True,
+                        val_transforms=self.val_augementations,
+                        train_transforms=self.train_augementations,
+                    )
+        else:
+            logger.debug("Setting up a dataset based on a tar file.")
+            full_dataset = TarImageDataset(
+                        self.datapath,
+                        self.class_map,
+                        self.priority_classes,
+                        rest_classes=self.rest_classes,
+                        TTA=self.TTA,
+                        train=True,
+                    )
+
+            # Since no split overview is provided, create a random split of the dataset
+            # This one will not be logged by the split processor
+            # Random 
+
+        self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
+                        full_dataset = full_dataset
+            )
+
+        logger.info("Train size: %s", len(self.train_dataset))
+        logger.info("Validation size: %s", len(self.val_dataset))
+        logger.info("Test size: %s", len(self.test_dataset))
+            
+        # Set the train flag of the validation and test datasets to False
+        self.val_dataset.train = False
+        self.test_dataset.train = False
+        
+        
 
     def create_random_split(self, 
                          full_dataset: Dataset
@@ -159,10 +234,6 @@ class DataModule(LightningDataModule):
         val_size = int(self.val_split * len(full_dataset))
         test_size = len(full_dataset) - train_size - val_size
 
-        logger.info("Train size: %s", train_size)
-        logger.info("Validation size: %s", val_size)
-        logger.info("Test size: %s", test_size)
-
         # Randomly split and initialize the datasets based on the determined sizes
         return random_split(
                 full_dataset,
@@ -170,7 +241,7 @@ class DataModule(LightningDataModule):
                 generator=torch.Generator().manual_seed(42),
             )
     
-    def setup_from_overview(self)-> tuple:
+    def setup_train_with_overview(self)-> tuple:
         """
         Extract the datasets from the provided split overview
 
@@ -188,31 +259,33 @@ class DataModule(LightningDataModule):
         logger.info("Validation size of df: %s", len(val_df))
         logger.info("Test size of df: %s", len(test_df))
 
-        train_dataset = DataFrameDataset(
+        self.train_dataset = DataFrameDataset(
         image_overview=train_df,
         class_map=self.class_map,
         data_dir=self.datapath,
         train=True,
-        TTA=self.TTA
+        TTA=self.TTA,
+        train_transforms=self.train_augementations
         )
 
-        val_dataset = DataFrameDataset(
+        self.val_dataset = DataFrameDataset(
             image_overview=val_df,  
             class_map=self.class_map,
             data_dir=self.datapath,
             train=False,
-            TTA=self.TTA
+            TTA=self.TTA,
+            val_transforms=self.val_augementations
         )
 
-        test_dataset = DataFrameDataset(
+        self.test_dataset = DataFrameDataset(
             image_overview=test_df,
             class_map=self.class_map,
             data_dir=self.datapath,
             train=False,
-            TTA=self.TTA
+            TTA=self.TTA,
+            val_transforms=self.val_augementations
         )
 
-        return train_dataset, val_dataset, test_dataset
 
     def train_dataloader(self):
         """
@@ -220,8 +293,6 @@ class DataModule(LightningDataModule):
         Returns:
             DataLoader: DataLoader object for the training dataset.
         """
-
-
         return DataLoader(
             self.train_dataset,
             batch_size=self.batch_size,
@@ -238,19 +309,7 @@ class DataModule(LightningDataModule):
         Returns:
             DataLoader: Default DataLoader object for the validation dataset.
         """
-
         loader = DataLoader(
-                self.val_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                sampler=None,
-                num_workers= 4,
-                pin_memory=True,
-                drop_last=False,
-            )
-        if self.TTA:
-                # Apply TTA collate function if TTA is enabled
-                loader = DataLoader(
                     self.val_dataset,
                     batch_size=self.batch_size,
                     shuffle=False,
@@ -258,7 +317,7 @@ class DataModule(LightningDataModule):
                     num_workers= 4,
                     pin_memory=True,
                     drop_last=False,
-                    collate_fn=lambda x:TTA_collate_fn(x,True),
+                    collate_fn=(lambda x:TTA_collate_fn(x,True)) if self.TTA else None,
                 )
         return loader
 
@@ -267,26 +326,14 @@ class DataModule(LightningDataModule):
         Returns:
             DataLoader: DataLoader object for the testing dataset.
         """
-
-        if self.TTA:
-            loader = DataLoader(
-                self.test_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                sampler=None,
-                num_workers= 4,
-                pin_memory=True,
-                drop_last=False,
-                collate_fn=lambda x:TTA_collate_fn(x,True),
-            )
-        else:
-            loader = DataLoader(
+        loader = DataLoader(
                 self.test_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 num_workers= 4,
                 pin_memory=True,
                 drop_last=False,
+                collate_fn= (lambda x:TTA_collate_fn(x,True)) if self.TTA else None,
             )
         return loader
 
@@ -301,12 +348,12 @@ class DataModule(LightningDataModule):
                 batch_size=self.batch_size,
                 shuffle=False,
                 sampler=None,
-                num_workers=8,
+                num_workers= 4,
                 pin_memory=False,
                 drop_last=False,
-                collate_fn=lambda x:TTA_collate_fn(x,False) if self.TTA else None
+                collate_fn= (lambda x:TTA_collate_fn(x,False)) if self.TTA else None,
             )
-    
+
         return loader
 
 
