@@ -4,9 +4,10 @@ Process the image to extract metadata and hash value.
 
 import logging
 import os
+from typing import Union, Optional
 from datetime import datetime as dt, timezone
 
-from ...helpers.hashing import HashGenerator
+from lit_ecology_classifier.helpers.hashing import HashGenerator
 
 logging.basicConfig(level=logging.INFO)
 
@@ -33,11 +34,11 @@ class ProcessImage:
 
     """
 
-    def __init__(self, hash_algorithm: str = "sha256"):
+    def __init__(self, hash_algorithm: Optional[str] = "sha256"):
         """Initialize the ImageProcessor with the given hash algorithm.
 
         Args:
-            hash_algorithm (str, optional): Hash algorithm to use for hashing images.
+            hash_algorithm: Hash algorithm to use for hashing images.
                                             Defaults to "sha256".
         """
         self.hash_algorithm = hash_algorithm
@@ -50,10 +51,10 @@ class ProcessImage:
         convert them to an integer timestamp, and return a UTC aware datetime object.
 
         Args:
-            image_path (str): Path to the image file as string to extract the timestamp from
+            image_path : Path to the image file as string to extract the timestamp from
 
         Returns:
-           dt: Timestamp extracted from the filename as a datetime object with UTC as timezone
+           A timestamp extracted from the filename as a datetime object with UTC as timezone
 
         Raises:
             ValueError: If the extracted value cannot be converted to a timestamp
@@ -82,46 +83,47 @@ class ProcessImage:
                 f"Error extracting and creating timestamp from {image_path}: {e}"
             ) from e
 
-    def _extract_plankton_class(self, image_path: str, version: str) -> str:
-        """Extract  plankton class from the image path based on version.
+    def _extract_plankton_class(self, image_path: str) -> str:
+        """Extract  plankton class from the image path.
 
-        The extraction method is based on the different dataset versions:
-        - For version 1, the plankton class is extracted from the grandparent directory,
-            since there is an additional 'training' folder .
-        - For other versions, the plankton class is extracted from the immediate parent directory.
+        Expects the iamge class to be in the parent directory of the image file, like 
+        in the most common computer vision datasets.
+
+        The first ZooLake dataset version, did not follow this convention. The images were
+        in a extra directory named "training_data" and the class was the second parent directory. 
+        So this function will additionaly check if the parent directory is "training_data" and 
+        return the grandparent directory as class if so.
 
         Args:
-            image_path (str): Path to the image file
-            version (str): Version of the ZooLake dataset as string
+            image_path : Path to the image file
 
         Returns:
             str: The plankton class name
         """
         try:
-            if version == "1":
+            parent_folder = os.path.basename(os.path.dirname(image_path))
 
-                # Get the second parent / grandparent directory for ZooLake version 1
+            if parent_folder == "training_data":
+                # Get the second parent / grandparent directory since the image 
                 return os.path.basename(os.path.dirname(os.path.dirname(image_path)))
 
-            # get the parent directory for each other ZooLake version
-            return os.path.basename(os.path.basename(os.path.dirname(image_path)))
-
+            return parent_folder
+        
         except Exception as e:
             logging.error("Error extracting plankton class from %s: %s", image_path, e)
             raise ValueError(
                 f"Error extracting plankton class from {image_path}: {e}"
             ) from e
 
-    def process_image(self, version, image_path) -> dict:
+    def process_image(self, version : str, image_path) -> dict:
         """Process a single image. Extract the metadata and calculate the hash value of the image.
 
         Args:
-            version_path_tuple (tuple) : tuple containing
-                image_path (str): Path to the image file
-                version (str): Version of the ZooLake dataset as string for metadata
+            image_path : Path to the image file
+            version (str): Version of the ZooLake dataset as string for metadata
 
         Returns:
-            dict: Dictionary containing the image metadata and hashes. Example:
+            A dictionary containing the image metadata and hashes. Example:
                 {
                     "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242...",
                     "sha256": "a957e3fb302aa924ea62f25b436893151640dc05f761...",
@@ -135,7 +137,7 @@ class ProcessImage:
         """
 
         image_date = self._extract_timestamp_from_filename(image_path)
-        plankton_class = self._extract_plankton_class(image_path, version)
+        plankton_class = self._extract_plankton_class(image_path)
         image_hash = HashGenerator.hash_image(image_path, self.hash_algorithm)
 
         image_metadata = {
@@ -147,3 +149,17 @@ class ProcessImage:
         }
 
         return image_metadata
+
+
+if __name__ == "__main__":
+    import pprint
+
+    # Provide the path to the image and the version of the dataset
+    image_path = "data/ZooLake1/zooplankton_0p5x/aphanizomenon/training_data/SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg"
+    version = "1"
+
+    processor = ProcessImage()
+    image_metadata = processor.process_image(version, image_path)
+
+    # pretty print the image metadata for the display
+    pprint.pp(image_metadata)
