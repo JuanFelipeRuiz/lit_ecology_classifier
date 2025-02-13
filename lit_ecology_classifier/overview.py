@@ -44,28 +44,23 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info(args)
 
-
     # create the overview 
     overview_creator = OverviewCreator(zoolake_version_paths= args.dataset_version_path_dict)
     df = overview_creator.get_overview_df()
 
-    # if the output folder is not the current directory, 
-    # ensure the folder exists and raise an error if it does
-    
-    pathlib.Path(args.dataset).mkdir(parents=True, exist_ok=True)
+    # create the output folder and ensure it exists
+    output_folder = pathlib.Path("data") / f"{args.dataset}_artifacts" 
+    output_folder.mkdir(parents=True, exist_ok=True)
 
-    # prepare filename 
-
-    output = pathlib.Path(args.dataset, args.overview_filename)
-
-    # save overview to file and overwrite if it exist
+    # create the output file path and remove it if it already exists
+    output = pathlib.Path(output_folder, args.overview_filename)
     if os.path.exists(output):
         os.remove(output)
 
     df.to_csv(output, index=False)
 
     # create a gitignore for the new folder
-    with open(pathlib.Path(args.dataset,".gitignore"), "w") as gitignore_file:
+    with open(pathlib.Path(output_folder,".gitignore"), "w") as gitignore_file:
         gitignore_file.write("*")
 
 
