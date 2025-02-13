@@ -148,7 +148,7 @@ class GetEcologyData:
         """
         if self.dataset_path.exists() and  self.dataset_path.suffix != '.zip':
             print(f"The target folder {self.dataset_path} already exists.")
-            response = input("Do you want to overwrite it? (y/n): ")
+            response = input("Do you want to overwrite it? If no, the data preparation will be exited. (y/n): ")
             if response.lower() != "y":
                 print("Exiting...")
                 sys.exit(0)
@@ -265,7 +265,7 @@ def argss():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Download and extract datasets.")
     parser.add_argument(
-        "dataset", type=str, help="The name of the dataset to download."
+        "--dataset", type=str, help="The name of the dataset to download."
     )
     return parser.parse_args()
 
