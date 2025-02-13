@@ -12,6 +12,7 @@ import argparse
 import json
 import logging
 import os
+from pathlib import Path
 from typing import Union
 
 
@@ -210,7 +211,7 @@ def argparser():
     )
     return parser
 
-def load_dict(input: Union[str, None]) -> dict:
+def load_dict(user_input: Union[str, None]) -> dict:
     """Load the training arguments from a JSON file.
 
     args:
@@ -223,30 +224,34 @@ def load_dict(input: Union[str, None]) -> dict:
         argparse.ArgumentTypeError: If the input is not a dict or a exisisting path to a .json file.
     """
 
-    if input == "" or input is None:
+    if user_input == "" or user_input is None:
         return {}
     
-    if input.endswith(".json"):
-        if not os.path.exists(input):
-            raise argparse.ArgumentTypeError(f"{input} file not found.")
+    user_input = Path(user_input).as_posix()
+    print(user_input)
+    if user_input.endswith(".json"):
+        if not os.path.exists(user_input):
+            raise argparse.ArgumentTypeError(f"{user_input} file not found.")
         
-        with open(input) as file:
+        with open(user_input) as file:
             return json.load(file)
         
-    raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or dict containing the args.")
+    raise argparse.ArgumentTypeError(f"{user_input} is not a path to a JSON file or dict containing the args.")
 
-def load_class_definitions(input: Union[str, None, list]) -> list :
+def load_class_definitions(user_input: Union[str, None, list]) -> list :
     """Load the the priority or rest classes from a JSON file.
     """
 
-    if input == "" or input is None or input == []:
+    if user_input == "" or input is None or user_input == []:
         return []
-
-    if input.endswith(".json"):
-        if not os.path.exists(input):
-            raise argparse.ArgumentTypeError(f"{input} file not found. Searching file from {os.getcwd()}")
+    
+    user_input = Path(user_input).as_posix() 
+    
+    if user_input.endswith(".json"):
+        if not os.path.exists(user_input):
+            raise argparse.ArgumentTypeError(f"{user_input} file not found. Searching file from {os.getcwd()}")
         
-        with open(input) as file:
+        with open(user_input) as file:
             class_dict = json.load(file)
         
         # check if priority_classes key exists
@@ -257,10 +262,10 @@ def load_class_definitions(input: Union[str, None, list]) -> list :
         if "rest_classes" in class_dict:
             return class_dict["rest_classes"]
         
-        raise argparse.ArgumentTypeError(f"{input} does not contain a valid class definition. Please provide a JSON file containing 'priority_classes' or 'rest_classes' as key")
+        raise argparse.ArgumentTypeError(f"{user_input} does not contain a valid class definition. Please provide a JSON file containing 'priority_classes' or 'rest_classes' as key")
 
     
-    raise argparse.ArgumentTypeError(f"{input} is not a path to a JSON file or list containing the class definitions")
+    raise argparse.ArgumentTypeError(f"{user_input} is not a path to a JSON file or list containing the class definitions")
     
 # Example of using the argument parser
 if __name__ == "__main__":
