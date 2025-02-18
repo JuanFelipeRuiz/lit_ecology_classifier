@@ -215,6 +215,7 @@ class OverviewCreator:
             )
 
         return df
+    
 
     def _add_one_hot_encoded_versions_and_group_by(
         self, df: pd.DataFrame
@@ -315,6 +316,17 @@ class OverviewCreator:
             )
 
         return self._overview_with_splits_df
+    
+    def save_overview_df(self, output_path: str):
+        """Save the overview DataFrame to a CSV file.
+
+        Args:
+            output_path: The path to the output CSV file.
+
+        """
+        overview_df = self.get_overview_df()
+        overview_df.to_csv(output_path, index=False)
+        logging.info(f"Saved overview to {output_path}")
 
 
 if __name__ == "__main__":

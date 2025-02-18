@@ -13,6 +13,10 @@ Lit Ecology Classifier is a machine learning project designed for image classifi
 
 ## Set up
 
+The Lit Ecology Classifier is designed to be easy to set up and use. The following instructions will guide you through the process of
+setting up the project and running a example with the provided datasets. 
+
+
 ### Environment
 
 To set up the Lit Ecology Classifier, make sure to have Python installed in your environment. Afterwards, install the package.
@@ -21,59 +25,102 @@ To set up the Lit Ecology Classifier, make sure to have Python installed in your
 pip install git+https://github.com/JuanFelipeRuiz/lit_ecology_classifier    
 ```
 
-### Data
+### Data 
 
-To download the data use `get_data.sh`/`get_data.bat` with a supported argument. Supported arguments are:
+For an hand on experience or reporoduction of research results, the Lit Ecology Classifier provides the built in module `prepare_eco_data` to download and
+prepare the datasets. The supported datasets are: 
 
-| Argument        | Description                       |
-| ------------    | --------|
-| MiniDataset   |  Subversion of ZooLake2 dataset for the Plant Science Symposium *Machine Learning in Plant and Environmental Sciences*. 
+
+| Dataset        | Description                       |
+| :-----------:    | :-------|
+| mini_dataset   |  Subversion of ZooLake2 dataset for the Plant Science Symposium *Machine Learning in Plant and Environmental Sciences*. 
 | ZooLake1      |  Initial plankton dataset with a tota of 17'900 labelled images. Further information can be found in the papers ["Data for: Underwater dual-magnification imaging for automated lake plankton monitoring"](https://opendata.eawag.ch/dataset/data-for-underwater-dual-magnification-imaging-for-automated-lake-plankton-monitoring) by Merz, E. et al. and ["Deep Learning Classification of Lake Zooplankton"]((https://opendata.eawag.ch/dataset/deep-learning-classification-of-zooplankton-from-lakes)) from Kyathanahally, S et al. (2021)     |
 | ZooLake2      | Second version of the planhkton data set wich include a total of 24'000 annotated images and the introduction of the *out-of-dataset (OOD)*. The OOD was utilised by C. Cheng et al. (2024) in their research into ["Producing plankton classifiers that are robust to dataset shift"](https://data.eawag.ch/dataset/data-for-producing-plankton-classifiers-that-are-robust-to-dataset-shift).|
-| ZooLake3      | ...  |
-| Pytholake1    | ...  |
+| OOD           | "Out of Dataset", images used to measure the dataset shift inside the reseacht of C.Cheng et al. (2024) in ["Producing plankton classifiers that are robust to dataset shift"](https://data.eawag.ch/dataset/data-for-producing-plankton-classifiers-that-are-robust-to-dataset-shift).| 
+| ZooLake3      | comming soon.... |
+| Pytholake1    | comming soon.... |
 
- Make sure to execute the code within the working folder since the default download path is the current working directory.
 
-Linux/Mac:
-```bash 
-get_data.sh ZooLake1
+#### Dowloand
+With the `prepare_eco_data` module, the user can download the datasets. The modul will download the dataset and extract it into the `data` folder. If no `data` folder exists, it will be created in the root of the project. 
+
+The modul will also create a `dataset_versions.json` file in the `config` folder with the path to the downloaded dataset for further use. If a dataset_versions.json already exists and may differm the user will be asked how to interact with it.
+
+To select the dataset to download, use the `--dataset` argument with the exact dataset name from the table above.
+
+``` bash & cmd
+python -m lit_ecology_classifier.prepare_eco_data --dataset mini_dataset
 ```
-Windows:
-```powershell
-.\get_data.bat ZooLake1
-```
 
-## Usage
+The user may be ask one of the following questions:
+ 
+ - **Exisiting dataset.zip found**
 
-The lit_ecology_classifer package provides following functionalities/moduls for the the process and classification of the images,
+    When a zip file with the same name as the dataset is already present in the `data folder`. Choose *`y`* to extract the zip file or *`n`* to keep the existing zip file and continue with the download. 
 
-- [`overview`](#Overview)
-- [`split`](#Split)
-- [`main`](#training)
-- [`predict`](#inference)
+    >***Winter School Participants***
+    > 
+    > The mini ood and dataset used for the workshop are currently available as ZIP file inside the data folder. Please ensure the ZIP file is present before running the prepare eco module and press *`y`* when asked per cmd.
+    >  
+ 
+ - ***Overwrite?*** 
 
-### Overview
+    Case that appears if a folder with the name of the dataset is already present in the `data folder`. Choose *`y`* to overwrite the folder or *`n`* to keep the existing folder and cancel the download. A download of the dataset is not possible if a folder with the same name is already present and should not be overwritten.
 
-The overview  allows the user to create a image overview of one or multiple versions of the given data sets. It calculates the hash of the image, to check if they are equal images inside of the given data sets. 
+ - ***Existing config file 'dataset_versions.json'found:***
 
-Currently the overview generation is only possible with images from a Dual Scrip Plankton Camera (DSPC), since the image processor generates features from the specific file name. 
-
-
->If the datset version 1 is given, the label is extracted from the second parent folder, since the ZooLake Version1 label folder is two folders above.
->\ 
-> 
-> **Example path of ZooLake 1:** ZooLake1/..../label/training_data/image.jpng
-> 
->  
+     To simplify the setup, the script may ask the user if the dataset should be added inside of `dataset_versions.json` or overwrite it. 
+      file if it is not already inside. ***Winter School Participants** should chose overwrite[1], for the workshop* 
 
 
-#### Additional set up: 
+#### Manual download
+
+The download can be made manually from the links in the description. Please follow following steps:
+
+1) Download the zip file from the provided link in the description. 
+2) Move the zip file to the `data` folder in the root of the project.
+3) Ensure the zip file is named as the dataset. Eg. the donwload of `ZooLake1` is as default `data` and should be renamed to `ZooLake1.zip`.
+4) Run the `prepare_eco_data` module with the `--dataset` argument to extract the zip file. Example:
+
+    ``` bash & cmd
+    python -m lit_ecology_classifier.prepare_eco_data --dataset ZooLake1
+    ```
+
+
+
+
+## Examples
+
+This section provides scripts examples for the different module to use. For more hands on examples, you may prefer to use the provided Jupyter notebooks in the `notebooks` folder. Example of the main modules and there corresponding notebooks are listed below:
+
+
+| Module        | Notebooks              |Description                    |
+| ------------    | --------|--------|
+| [`overview.py`](#Overviewpy)  |  | Create an image overview of the given data sets. |
+| [`split.py`](#Split)  |  | Create a new split of the given data set. |
+| [`main.py`](#training)  |  | Train a model on the given data set. |
+| [`predict.py`](#inference)  |  | Run inference on unlabelled data. |
+
+
+
+### Overview.py
+
+The overview.py file allows the user to create a image overview of one or multiple versions of the given data sets. It calcualtes the hash of the image, to check if they are idetical images inside of the given data sets. 
+
+Currently the overview generation is only possible with images from a Dual Scripps Plankton Camera (DSPC), since the image processor generates features from the specific generated file name. 
+
+
+#### Additional set up to run overview.py
 
 Necessarily: 
 - `dataset_version_path_dict`:
-    A dictionary or .json file containing the version and path to the different image datasets. (e.g. [config/dataset_versions.json](config/dataset_versions.json))
-    The .json file needs to contain an abbreviation for the dataset version and a path to the dataset version folder, suitable for the operation system beeing used.
+
+
+    A json file (e.g. [config/dataset_versions.json](config/dataset_versions.json)) containing the version and path to the different image datasets, automatically generated by the `get_data.py` script. The json file needs to contain an abbreviation for the dataset version and a working path to the dataset version folder. The abbreviation is used to reference the dataset version in the overview table and are used for further processing of the data. 
+
+    ```json
+    {"MiniZoolake": "data/MiniZoolake"}
+    ```
 
 #### Run the overview module
 
@@ -201,27 +248,3 @@ python -m lit_ecology_classifier.predict --datapath ZooLake2/Predict --model_pat
 
 Detailed documentation for this project is available at [Read the Docs](https://lit-ecology-classifier.readthedocs.io).
 
-### Example SLURM Job Submission Script
-
-Here is an example SLURM job submission script for training on multiple GPUs:
-
-```bash
-#!/bin/bash
-#SBATCH --account="em09"
-#SBATCH --constraint='gpu'
-#SBATCH --nodes=2
-#SBATCH --ntasks-per-core=1
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=12
-#SBATCH --partition=normal
-#SBATCH --constraint=gpu
-#SBATCH --hint=nomultithread
-#SBATCH --output=slurm/slurm_%j.out
-#SBATCH --error=slurm/slurm_%j.err
-export OMP_NUM_THREADS=12 #$SLURM_CPUS_PER_TASK
-cd ${SCRATCH}/lit_ecology_classifier
-module purge
-module load daint-gpu cray-python
-source lit_ecology/bin/activate
-python -m lit_ecology_classifier.main --max_epochs 2 --dataset phyto --priority config/priority.json
-```

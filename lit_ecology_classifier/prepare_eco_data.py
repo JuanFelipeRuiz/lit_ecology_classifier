@@ -80,8 +80,7 @@ class GetEcologyData:
             response.raise_for_status()
 
             with open(self.zip_file, "wb") as file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    file.write(chunk)
+                file.write(response.content)
             logging.info("Downloaded to %s", self.zip_file)
 
         except requests.RequestException as e:
@@ -126,7 +125,8 @@ class GetEcologyData:
 
                 else:
                     zip_ref.extractall(self.data_folder_path)
-                    # rename the parent folder to the dataset name
+                
+                if common_prefix != "" and common_prefix != self.dataset:
                     folder_to_rename = self.data_folder_path / common_prefix
                     folder_to_rename.rename(self.dataset_path)
 
@@ -199,6 +199,8 @@ class GetEcologyData:
 
                 data[self.dataset] = str(self.dataset_path)
 
+                data = {str(key): str(value) for key, value in data.items()}
+
                 with open(config_path, "w") as file:
                     json.dump(data, file)
 
@@ -257,7 +259,7 @@ class GetEcologyData:
         # if the zip file was downloaded, remove it 
         if not zip_found:
             self.zip_file.unlink()
-            logging.info("Dataset %s is ready at %s", self.dataset_path)
+            logging.info("Dataset %s is ready at %s", self.dataset,self.dataset_path)
 
         self.set_conifg_file()
 
@@ -287,4 +289,4 @@ if __name__ == "__main__":
 
     # end time of the script
     total_secs = time.time() - start_time
-    print("Time taken for downloading the data (in secs): %s", total_secs)
+    print("Time taken for downloading the data (in secs):", total_secs)
