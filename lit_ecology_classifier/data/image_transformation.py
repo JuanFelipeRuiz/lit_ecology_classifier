@@ -17,6 +17,7 @@ Functions:
 
 from typing import Union
 import warnings
+import logging
 
 from PIL import Image
 import torch
@@ -30,6 +31,7 @@ from torchvision.transforms.v2 import (
 )
 import torchvision.transforms as T
 
+logger = logging.getLogger(__name__)
 
 class ResizeWithProportions:
     """
@@ -276,10 +278,10 @@ def define_transformation_pipeline(
 
     # Select transformations based on mode (train or validation)
     if train:
-        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize(224), T.ToTensor()]
+        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize((224, 224)), T.ToTensor()]
 
     else:
-        defined_transformations = resize_transformation + [T.Resize(224), T.ToTensor()]
+        defined_transformations = resize_transformation + [T.Resize((224, 224)), T.ToTensor()]
 
     # Apply normalization if required
     if normalize_images:
