@@ -218,7 +218,6 @@ class SplitProcessor:
                     f"No image overview defined, please provide a image overiew or ensure \
                     the image overview is inside the artefacts folder with the default name 'overview.csv'")
 
-        logger.debug("Image overview column types: %s", image_overview.dtypes)
         return pd.read_csv(image_overview)
     
     def _init_split_artefacts_path(
@@ -256,7 +255,12 @@ class SplitProcessor:
         # check if the split_overview is given else use the default path
         if split_overview is None:
             self.split_overview_path = self.artefact_folder / "split_overview.csv"
-            self.split_overview = None
+
+            try: 
+                self.split_overview = pd.read_csv(self.split_overview_path)
+            except FileNotFoundError:
+                self.split_overview = None
+                
         elif isinstance(split_overview, pd.DataFrame):
             self.split_overview = split_overview
             self.split_overview_path = self.artefact_folder / "split_overview.csv"
@@ -345,6 +349,9 @@ class SplitProcessor:
             .iloc[0]
             .to_dict()
         )
+    def _reconstruct_class_map(self): 
+        self.class_map = {class_  : class_map 
+                         for class_, class_map in zip(self.split_df["class"], self.split_df["class_map"])}
 
     def _reload_split(self, df: pd.DataFrame) -> pd.DataFrame:
         """Reloads an existing split based on the row of the split overview DataFrame.
@@ -369,8 +376,9 @@ class SplitProcessor:
         self._reconstruct_arguments(df)
 
         self.reloaded = True
-
-        return pd.read_csv(filepath_or_buffer=filepath)
+        self.split_df = pd.read_csv(filepath_or_buffer=filepath)
+        self._reconstruct_class_map()
+        return  self.split_df
 
     def _find_with_existing_hash(self, hash_value: str) -> pd.DataFrame:
         """Finds a split based on the given hash value.
@@ -664,3 +672,7 @@ class SplitProcessor:
         """Return the split overview DataFrame."""
         self._generate_row_to_append()
         return self.new_split_entry
+    
+    def get_class_map(self):
+        """ Return the class map"""
+        return self.class_map
