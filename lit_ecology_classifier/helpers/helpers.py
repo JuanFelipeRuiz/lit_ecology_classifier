@@ -594,7 +594,7 @@ def filter_class_mapping(
     check_existans_of_class(class_map, priority_classes)
     check_existans_of_class(class_map, rest_classes)
 
-    return {
+    class_map = {
 
         (key if key in priority_classes or priority_classes == [] else "rest"): 
         (value if key in priority_classes or priority_classes == [] else 0) 
@@ -604,6 +604,11 @@ def filter_class_mapping(
         if (key in priority_classes) or (key in rest_classes) or (rest_classes == [])  
     }
 
+    if "rest" not in class_map:
+        # extract 1 from the class values to create a class with the value 0
+        class_map = {key: value - 1 for key, value in class_map.items()}
+        
+    return class_map
 
 def _extract_class_map(tar_or_dir_path):
     """
