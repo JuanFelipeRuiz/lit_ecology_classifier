@@ -219,25 +219,6 @@ class GetEcologyData:
                 print("Invalid input, assuming exit without changes.")
                 return
 
-    def check_for_parent_folder_in_zip(self):
-        """Check if there is a common parent folder in the zip file that could be replaced."""
-        # extract the parent folder name from the zip file to rename it later
-        with zipfile.ZipFile(self.zip_file, "r") as zip_ref:
-            
-            # check if there is a common prefix in the zip file that may be used as a extra folder
-            common_prefix = os.path.commonprefix(zip_ref.namelist())
-            print("common_prefix:", common_prefix)
-            print("common datatype:", type(common_prefix))
-            if common_prefix == "":
-                return self.dataset
-                
-
-            return Path(common_prefix).parts[0]
-
-        logging.info("Extracting the dataset: %s", dataset)
-
-
-
     def main(self):
         """Main function to download and extract the dataset."""
       
