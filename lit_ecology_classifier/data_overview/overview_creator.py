@@ -1,7 +1,10 @@
 import itertools
 import logging
 import os
+from pathlib import Path
 import warnings
+
+
 import pandas as pd
 
 from lit_ecology_classifier.checks.duplicates import check_duplicates
@@ -325,6 +328,7 @@ class OverviewCreator:
 
         """
         overview_df = self.get_overview_df()
+        Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         overview_df.to_csv(output_path, index=False)
         logging.info(f"Saved overview to {output_path}")
 
