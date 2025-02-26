@@ -41,11 +41,10 @@ prepare the datasets. The supported datasets are:
 | Pytholake1    | comming soon.... |
 
 
-#### Dowloand
-With the `prepare_eco_data` module, the user can download the datasets. The modul will download the dataset and extract it into the `data` folder. If no `data` folder exists, it will be created in the root of the project. 
+#### Prepare the data
+The `prepare_eco_data` module allows the user to prepare the datasets. The module will download the dataset and the zip file into the `data` folder. If no `data` folder exists, it will be created in the root of the project. 
 
-The modul will also create a `dataset_versions.json` file in the `config` folder with the path to the downloaded dataset for further use. If a dataset_versions.json already exists and may differm the user will be asked how to interact with it.
-
+The moduel will also create a `dataset_versions.json` file in the `config` folder with the path to the downloaded dataset for further use. If a dataset_versions.json already exists and may differ, the user will be asked how to interact with it.
 To select the dataset to download, use the `--dataset` argument with the exact dataset name from the table above.
 
 ``` bash & cmd
