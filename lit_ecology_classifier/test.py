@@ -14,7 +14,7 @@ import torch
 from .data.datamodule import DataModule
 from .helpers.argparser import inference_argparser
 from .models.model import LitClassifier
-from lit_ecology_classifier.helpers.helpers import plot_confusion_matrix, plot_reduced_classes
+from lit_ecology_classifier.helpers.modelling_plots import plot_confusion_matrix, plot_reduced_classes
 
 # Start timing the script
 time_begin = time()
@@ -53,7 +53,9 @@ if __name__ == '__main__':
     model.load_datamodule(data_module)
 
     # Initialize the Trainer and Perform Predictions
-    trainer = pl.Trainer(devices=torch.cuda.device_count() if not args.no_gpu else 0, strategy="ddp" if torch.cuda.device_count() > 1 else "auto",
+
+    cudas = torch.cuda.device_count()
+    trainer = pl.Trainer(devices= min(cudas,1) if not args.no_gpu else 0, strategy="ddp" if torch.cuda.device_count() > 1 else "auto",
         enable_progress_bar=True, default_root_dir=args.outpath)
     trainer.test(model, datamodule=data_module)
 
