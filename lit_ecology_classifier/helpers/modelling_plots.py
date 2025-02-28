@@ -1,10 +1,11 @@
 import os
+from pathlib import Path
 
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn import metrics
+import sklearn
 import torch
 
 
@@ -141,21 +142,25 @@ def cvd_colormap():
 
 def plot_confusion_matrix(all_labels, all_preds, class_names):
     """
-    Plot and return confusion matrices (absolute and normalized).
+    Plots a confusion matrix and a normalized confusion matrix for the given predictions.
 
     Args:
-        all_labels (torch.Tensor): True labels.
-        all_preds (torch.Tensor): Predicted labels.
+        all_labels: can be a numpy array or a torch tensor of class labels
+        all_preds: can be a numpy array or a torch tensor of predicted class labels
         class_names (list): List of class names.
 
     Returns:
-        tuple: (figure for absolute confusion matrix, figure for normalized confusion matrix)
+        A tuple containing the plots: (confusion matrix, normalized confusion matrix)
     """
-
+    # TODO: Check if this is necessary
+    if not isinstance(all_labels, np.ndarray):
+        all_labels = all_labels.cpu().numpy()
+    if not isinstance(all_preds, np.ndarray):
+        all_preds = all_preds.cpu().numpy()
 
     class_indices = np.arange(len(class_names))
-    confusion_matrix = metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), labels=class_indices)
-    confusion_matrix_norm = metrics.confusion_matrix(all_labels.cpu(), all_preds.cpu(), normalize="pred", labels=class_indices)
+    confusion_matrix = sklearn.metrics.confusion_matrix(all_labels, all_preds, labels=class_indices)
+    confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels, all_preds, normalize="pred", labels=class_indices)
     num_classes = confusion_matrix.shape[0]
     fig, ax = plt.subplots(figsize=(20, 20))
     fig2, ax2 = plt.subplots(figsize=(20, 20))
@@ -164,13 +169,210 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     if len(class_names) != num_classes:
         print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
         class_names = class_names[:num_classes]
-    cm_display = metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
-    cm_display_norm = metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
+    cm_display = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
+    cm_display_norm = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
     cmap = cvd_colormap()
     cm_display.plot(cmap=cmap, ax=ax, xticks_rotation=90)
     cm_display_norm.plot(cmap=cmap, ax=ax2, xticks_rotation=90)
 
     fig.tight_layout()
     fig2.tight_layout()
-
     return fig, fig2
+
+
+
+def compute_roc_auc_binary(all_labels, all_scores, debug=False):
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_auc_score, roc_curve
+    import numpy as np
+    import os
+
+    # Ensure the output path exists
+
+    # Convert tensors to NumPy arrays
+    all_labels_np = all_labels.cpu().numpy()
+    all_scores_np = all_scores.cpu().numpy()
+
+    # Create binary labels: 0 for class 0 (negative), 1 for all other classes (positive)
+    binary_labels = np.where(all_labels_np == 0, 0, 1)
+
+    # Compute scores for the positive class (all classes except 0)
+    # Sum the scores of all positive classes to get a single score per sample
+    positive_scores = all_scores_np[:, 1:].sum(axis=1)
+
+    # Use the positive class scores as the prediction scores
+    y_true = binary_labels
+    y_scores = positive_scores
+
+    # Compute AUC for the binary classification
+    if len(np.unique(y_true)) > 1:
+        auc_score = roc_auc_score(y_true, y_scores)
+    else:
+        # If only one class present in y_true, AUC is not defined
+        auc_score = float('nan')
+    if debug:
+        # Compute ROC curve
+        fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+        os.makedirs('debug', exist_ok=True)
+
+        # Plot ROC curve
+        plt.figure()
+        plt.plot(
+            fpr,
+            tpr,
+            color='blue',
+            lw=2,
+            label='ROC curve (AUC = %0.2f)' % auc_score
+        )
+        plt.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--')
+        plt.xlim([0.0, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.xlabel('False Positive Rate')
+        plt.ylabel('True Positive Rate')
+        plt.title('ROC Curve for Binary Classification (Class 0 vs. Others)')
+        plt.legend(loc="lower right")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join('debug', 'roc_curve_binary.png')
+        )
+        plt.close()
+
+        # Plot score distribution for the binary classification
+        plt.figure()
+        plt.hist(
+            y_scores[y_true == 1],
+            bins=50,
+            alpha=0.5,
+            label='Positive (Classes 1 and above)',
+            color='blue',
+        )
+        plt.hist(
+            y_scores[y_true == 0],
+            bins=50,
+            alpha=0.5,
+            label='Negative (Class 0)',
+            color='orange',
+        )
+        plt.title('Score Distribution for Binary Classification\nAUC: {:.2f}'.format(auc_score))
+        plt.xlabel('Aggregated Positive Class Score')
+        plt.ylabel('Frequency')
+        plt.legend(loc='best')
+        plt.yscale('log')
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig(
+            os.path.join('debug', 'score_distribution_binary.png')
+        )
+        plt.close()
+    return auc_score
+
+def compute_roc_auc(all_labels, all_scores, debug=False, path = ''): #debug logs some figures in a debug folder
+    import matplotlib.pyplot as plt
+    from sklearn.metrics import roc_auc_score, roc_curve
+    from sklearn.preprocessing import label_binarize
+    import numpy as np
+    import os
+    
+    # Convert tensors to NumPy arrays
+    if not isinstance(all_labels, np.ndarray):
+        all_labels_np = all_labels.cpu().numpy()
+
+    if not isinstance(all_scores, np.ndarray):
+        all_scores_np = all_scores.cpu().numpy()
+
+    # Get unique class labels
+    class_labels = np.unique(all_labels_np)
+
+    # Binarize the labels for multi-class ROC computation
+    all_labels_binarized = label_binarize(all_labels_np, classes=class_labels)
+
+    # Compute AUC for each class, plot score distributions, and plot ROC curves
+    auc_list = []
+    for i, class_label in enumerate(class_labels):
+        y_true = all_labels_binarized[:, i]
+        y_scores = all_scores_np[:, i]
+
+        # Check if both classes are present
+        if len(np.unique(y_true)) > 1:
+            # Compute AUC for the class
+            auc_score = roc_auc_score(y_true, y_scores)
+            auc_list.append(auc_score)
+
+            # Compute ROC curve
+            fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+            if debug:
+                os.makedirs('debug', exist_ok=True)
+                path = Path("debug")
+                _ = plot_roc_curve(fpr, tpr, auc_score, class_label, path)
+        else:
+            # If only one class present in y_true, AUC and ROC are not defined
+            auc_score = float('nan')
+            auc_list.append(auc_score)
+            # Skip plotting ROC curve
+            pass
+
+        # Plot score distribution for the class
+        if debug:
+            plot_score_distribution_single_class(y_true, y_scores, auc_score, class_label, path)
+
+    # Compute macro-average AUC (ignoring NaN values)
+    valid_auc_scores = [auc for auc in auc_list if not np.isnan(auc)]
+    if valid_auc_scores:
+        roc_auc_macro = np.mean(valid_auc_scores)
+    else:
+        roc_auc_macro = float('nan')
+
+    return roc_auc_macro
+
+def plot_roc_curve(fpr, tpr,auc_score, class_label, path = ''):
+    plt.figure()
+    plt.plot(  fpr,    tpr,
+                    color='blue',
+                    lw=2,
+                    label='ROC curve (AUC = %0.2f)' % auc_score
+            )
+    plt.plot([0, 1], [0, 1], color='navy', lw=1, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('ROC Curve for Class {}'.format(class_label))
+    plt.legend(loc="lower right")
+    plt.grid(True)
+    plt.tight_layout()
+
+    if path != '':
+        path = Path(path) / "roc_curve_class_{}.png".format(class_label)
+        plt.savefig(path)
+    return plt
+
+def plot_score_distribution_single_class(y_true, y_scores, auc_score, class_label,path = ''):
+
+    plt.figure()
+    plt.hist(
+                y_scores[y_true == 1],
+                bins=50,
+                alpha=0.5,
+                label='Positive (Class {})'.format(class_label),
+                color='blue',
+            )
+    plt.hist(
+                y_scores[y_true == 0],
+                bins=50,
+                alpha=0.5,
+                label='Negative (Other Classes)',
+                color='orange',
+            )
+    plt.title('Score Distribution for Class {}, AUC: {:.2f}'.format(class_label, auc_score))
+    plt.xlabel('Predicted Score')
+    plt.ylabel('Frequency')
+    plt.legend(loc='best')
+    plt.yscale('log')
+    plt.grid(True)
+    plt.tight_layout()
+
+    if path != '':
+        path = Path(path) / "score_distribution_class_{}.png".format(class_label)
+        plt.savefig(path)
+    return plt

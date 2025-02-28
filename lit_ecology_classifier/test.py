@@ -32,20 +32,30 @@ if __name__ == '__main__':
     # Parse Arguments for prediction
     parser = inference_argparser()
     args = parser.parse_args()
-
+    
     # Create Output Directory if it doesn't exist
     pathlib.Path(args.outpath).mkdir(parents=True, exist_ok=True)
+    
+    # split the path of the model to get the whole model path dict_name with apthlib
+    model_folders = list(pathlib.Path(args.model_path).parts)
 
-    # Initialize the Model
+    logging.info("Model Path: %s", model_folders[-1].split(".")[0])
+    model_folders[-1] = model_folders[-1].split(".")[0]
+
+    model_name = "_".join(model_folders) 
+    # Initialize the Model  
     model = LitClassifier.load_from_checkpoint(args.model_path)
 
     # Initialize the Data Module
     hparams = model.hparams # copy the hyperparameters from the model
+
     model.hparams.batch_size = args.batch_size
     model.hparams.TTA = not args.no_TTA # set the TTA flag based on the argument
     model.hparams.outpath = args.outpath
     model.hparams.datapath = args.datapath
     model.hparams.use_wandb = False
+    model.hparams.model_name = model_name
+    logging.info("Parameters for the prediction:%s", pprint.pformat(model.hparams))
     # model.hparams.priority_classes = "config/priority.json" #TODO remove this
     data_module = DataModule(**model.hparams)
     data_module.setup("predict")

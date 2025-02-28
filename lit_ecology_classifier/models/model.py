@@ -1,15 +1,16 @@
 import logging
 import pprint
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from lightning import LightningModule
-from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score
+from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, precision_score, recall_score, classification_report
 
 
-from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions
-from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, compute_roc_auc, compute_macro_precision_recall, compute_roc_auc_binary
+from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions , compute_roc_auc, compute_roc_auc_binary
+from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap
 from ..models.setup_model import setup_model
 
 class LitClassifier(LightningModule):
@@ -173,23 +174,41 @@ class LitClassifier(LightningModule):
             fig.savefig(f"{self.hparams.train_outpath}/confusion_matrix_epoch_{self.current_epoch}.png")
             fig2.savefig(f"{self.hparams.train_outpath}/confusion_matrix_normalized_epoch_{self.current_epoch}.png")
             fig_score.savefig(f"{self.hparams.train_outpath}/score_distributions_epoch_{self.current_epoch}.png")
+
         plt.close(fig)
         plt.close(fig2)
         plt.close(fig_score)
 
-    def compute_metrics(self, all_labels, all_preds):
+    def compute_metrics(self, all_labels, predicted_labels):
         # Calculate balanced accuracy
 
-        balanced_acc = balanced_accuracy_score(
-            all_labels.cpu().numpy(), all_preds.cpu().numpy()
-        )
+      
         # Calculate false positive rate
-        false_positives = torch.sum((all_labels == 0) & (all_preds != 0)) / torch.sum(
+        false_positives = torch.sum((all_labels == 0) & (predicted_labels != 0)) / torch.sum(
             all_labels == 0
         )
-        return balanced_acc, false_positives.item()
+
+        all_labels_np = all_labels.cpu().numpy()
+        predicted_labels_np = predicted_labels.cpu().numpy()
+
+        balanced_acc = balanced_accuracy_score(all_labels_np, predicted_labels_np)
+        macro_precision = precision_score(all_labels_np, predicted_labels_np, average='macro')
+        macro_recall = recall_score(all_labels_np, predicted_labels_np, average='macro')
+        macro_f1 = f1_score(all_labels_np, predicted_labels_np, average='macro')
+        accuracy_model = accuracy_score(all_labels_np, predicted_labels_np)         
+        return balanced_acc, false_positives.item() , macro_precision, macro_recall, macro_f1, accuracy_model, all_labels_np, predicted_labels_np
+    
+    def create_classification_report(self, all_labels, predicted_labels, accuracy,macro_f1):
+        if not isinstance(all_labels, np.ndarray):
+            all_labels = all_labels.cpu().numpy()
+        if not isinstance(predicted_labels, np.ndarray):
+            predicted_labels = predicted_labels.cpu().numpy()
 
 
+        clf_report = classification_report(all_labels, predicted_labels, labels=np.unique(all_labels), target_names=list(self.inverted_class_map.values()))
+        file_content = '\n Accuracy\n\n{}\n\nF1 Score\n\n{}\n\nClassification Report\n\n{}\n'.format(accuracy, macro_f1, clf_report)
+
+        return file_content
     def on_test_epoch_start(self):
         """
         Hook to be called at the start of the test epoch.
@@ -238,13 +257,13 @@ class LitClassifier(LightningModule):
             all_scores, all_preds, class_names, all_labels
         )
 
+
         # Compute metrics
-        balanced_acc, false_positives = self.compute_metrics(all_labels, all_preds)
-
-
+        balanced_acc, false_positives, precision, recall, f1, accuracy, all_labels_np, predicted_labels_np  = self.compute_metrics(all_labels, all_preds)
+        
         # Plot confusion matrices
-        plot_confusion_matrix(
-            all_labels, all_preds, class_names, self.hparams.use_wandb, self.hparams.outpath
+        fig1,fig2 = plot_confusion_matrix(
+            all_labels, all_preds, class_names
         )
 
         # Compute ROC curves and AUC
@@ -252,18 +271,37 @@ class LitClassifier(LightningModule):
 
         roc_auc_binary = compute_roc_auc_binary(all_labels, all_scores)
 
-        # Compute F1 scores per class
-        precision, recall, f1 = compute_macro_precision_recall(all_labels, all_preds)
-
+        cl_report = self.create_classification_report(all_labels, predicted_labels_np, accuracy, f1)
 
         print("test_roc_auc_binary:", roc_auc_binary)
         print("test_balanced_acc:", balanced_acc)
         print("test_false_positives:", false_positives)
-        print("test_acc:", accuracy_score(all_labels.cpu().numpy(), all_preds.cpu().numpy()))
+        print("test_acc:", accuracy)
         print("test_f1:", f1)
         print("test_auc_macro:", roc_auc)
         print("test_precision:", precision)
         print("test_recall:", recall)
+
+        if self.hparams.use_wandb:
+            self.logger.log_image(key=f"score_distributions", images=[fig_score], step=self.current_epoch)
+            self.logger.log_image(key="confusion_matrix", images=[fig1], step=self.current_epoch)
+            self.logger.log_image(key="confusion_matrix_norm", images=[fig2], step=self.current_epoch)
+            
+        
+        else:
+            base_outpath = Path(self.hparams.outpath)
+            path_score_distributions = base_outpath / "score_distributions.png"
+            path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
+            path_confusion_matrix_norm =  base_outpath / "confusion_matrix_normalized.png"
+            path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}.txt"
+
+            fig_score.savefig(path_score_distributions)
+            fig1.savefig(path_confusion_matrix)
+            fig2.savefig(path_confusion_matrix_norm)
+            
+            with open(path_classification_report, "w") as f:
+                f.write(cl_report)
+            
 
 
     def on_predict_start(self) -> None:
