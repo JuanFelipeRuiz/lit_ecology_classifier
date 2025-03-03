@@ -54,14 +54,19 @@ class FocalLoss(nn.Module):
             return loss.sum()
 
 
-def output_results(outpath, im_names, labels, scores,priority_classes=False,rest_classes=False, datapath = ""):
+def output_results(outpath, im_names, labels, scores,priority_classes=False,rest_classes=False, datapath = "", legacy=True):
     """
     Output the prediction results to a file.
 
     Args:
         outpath (str): Output directory path.
         im_names (list): List of image filenames.
-        labels (list): List of predicted labels.
+        labels (list): List of predicted labels (label with the highest score).
+        scores (list): List of predicted scores.(score with the highest probability)
+        priority_classes (bool): If True, the priority classes are used.
+        rest_classes (bool): If True, the rest classes are used.
+        datapath (str): Path to the data to create a distinct output file.
+        legacy (bool): If True, the output format is legacy.
     """
 
     labels = labels.tolist()
@@ -70,9 +75,40 @@ def output_results(outpath, im_names, labels, scores,priority_classes=False,rest
     file_path = f"{base_filename}.txt"
     if datapath.find(".tar") != -1:
         im_names = [img.name for img in im_names]
-    lines = [f"{img}------------------ {label}/{score}\n" for img, label,score in zip(im_names, labels,scores)]
+
+    if legacy:
+        lines = [f"{img}------------------ {label}/{score}\n" for img, label,score in zip(im_names, labels,scores)]
+
+    else:
+        lines = [f"{img}, {label}, {score}"  for img, label,score in zip(im_names, labels,scores)]
+    
     with open(file_path, "w+") as f:
-        f.writelines(lines)
+            f.writelines(lines)
+
+def test_output_results(outpath, im_names, true_labels, labels, score,  all_scores,  datapath=""):
+    """
+    Output the prediction results to a file.
+
+    Args:
+        outpath (str): Output directory path.
+        im_names (list): List of image filenames.
+        true_labels (list): List of true labels.
+        labels (list): List of predicted labels (label with the highest score).
+        score (list): List of predicted scores.
+        all_scores (list): List of all predicted scores.
+        datapath (str): Path to the data to create a distinct output file.
+    """
+
+    data_folder_name = os.path.basename(datapath).split(".")[0] 
+    base_filename = f"{outpath}/test_values"+("_"+data_folder_name)
+    file_path = f"{base_filename}.txt"
+    if datapath.find(".tar") != -1:
+        im_names = [img.name for img in im_names]
+
+    lines = [f"{img}, {true_label}, {label}, {score}, {all_score}"  for img, true_label, label, score, all_score in zip(im_names, true_labels, labels, score, all_scores)]
+    
+    with open(file_path, "w+") as f:
+            f.writelines(lines)
 
 
 def gmean(input_x, dim):

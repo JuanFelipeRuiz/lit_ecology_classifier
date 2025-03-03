@@ -6,12 +6,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from lightning import LightningModule
-from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, precision_score, recall_score, classification_report
+from sklearn.metrics import balanced_accuracy_score, f1_score
 
 
 from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions , compute_roc_auc, compute_roc_auc_binary, barplot_predictions
-from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap
+from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, test_output_results
 from ..models.setup_model import setup_model
+from lit_ecology_classifier.models.metrics import compute_metrics, create_classification_report
 
 class LitClassifier(LightningModule):
     def __init__(self, **hparams):
@@ -179,36 +180,6 @@ class LitClassifier(LightningModule):
         plt.close(fig2)
         plt.close(fig_score)
 
-    def compute_metrics(self, all_labels, predicted_labels):
-        # Calculate balanced accuracy
-
-      
-        # Calculate false positive rate
-        false_positives = torch.sum((all_labels == 0) & (predicted_labels != 0)) / torch.sum(
-            all_labels == 0
-        )
-
-        all_labels_np = all_labels.cpu().numpy()
-        predicted_labels_np = predicted_labels.cpu().numpy()
-
-        balanced_acc = balanced_accuracy_score(all_labels_np, predicted_labels_np)
-        macro_precision = precision_score(all_labels_np, predicted_labels_np, average='macro')
-        macro_recall = recall_score(all_labels_np, predicted_labels_np, average='macro')
-        macro_f1 = f1_score(all_labels_np, predicted_labels_np, average='macro')
-        accuracy_model = accuracy_score(all_labels_np, predicted_labels_np)         
-        return balanced_acc, false_positives.item() , macro_precision, macro_recall, macro_f1, accuracy_model, all_labels_np, predicted_labels_np
-    
-    def create_classification_report(self, all_labels, predicted_labels, accuracy,macro_f1):
-        if not isinstance(all_labels, np.ndarray):
-            all_labels = all_labels.cpu().numpy()
-        if not isinstance(predicted_labels, np.ndarray):
-            predicted_labels = predicted_labels.cpu().numpy()
-
-
-        clf_report = classification_report(all_labels, predicted_labels, labels=np.unique(all_labels), target_names=list(self.inverted_class_map.values()))
-        file_content = '\n Accuracy\n\n{}\n\nF1 Score\n\n{}\n\nClassification Report\n\n{}\n'.format(accuracy, macro_f1, clf_report)
-
-        return file_content
     def on_test_epoch_start(self):
         """
         Hook to be called at the start of the test epoch.
@@ -244,34 +215,34 @@ class LitClassifier(LightningModule):
         """
         Aggregate outputs and log metrics and plots at the end of the test epoch.
         """
-        import matplotlib.pyplot as plt
-
         # Aggregate outputs
-        all_scores = torch.cat(self.test_step_probs)  # Shape: (N_samples, N_classes)
-        all_preds = torch.cat(self.test_step_predictions)
-        all_labels = torch.cat(self.test_step_targets)
+        all_scores = torch.cat(self.test_step_probs)  # All predicted probabilities for each image in the test set
+        all_preds = torch.cat(self.test_step_predictions) # Label of the class with the highest probability 
+        all_y_labels = torch.cat(self.test_step_targets) # True label of the images
         class_names = list(self.inverted_class_map.values())
 
-        # Plot score distributions
         fig_score = plot_score_distributions(
-            all_scores, all_preds, class_names, all_labels
+            all_scores, all_preds, class_names, all_y_labels
         )
 
 
         # Compute metrics
-        balanced_acc, false_positives, precision, recall, f1, accuracy, all_labels_np, predicted_labels_np  = self.compute_metrics(all_labels, all_preds)
+        balanced_acc, false_positives, precision, recall, f1, accuracy, all_labels_np, predicted_labels_np  = compute_metrics(all_y_labels, all_preds)
         
         # Plot confusion matrices
         fig1,fig2 = plot_confusion_matrix(
-            all_labels, all_preds, class_names
+            all_y_labels, all_preds, class_names
         )
 
         # Compute ROC curves and AUC
-        roc_auc = compute_roc_auc(all_labels, all_scores)
+        roc_auc = compute_roc_auc(all_y_labels, all_scores)
 
-        roc_auc_binary = compute_roc_auc_binary(all_labels, all_scores)
+        roc_auc_binary = compute_roc_auc_binary(all_y_labels, all_scores)
 
-        cl_report = self.create_classification_report(all_labels, predicted_labels_np, accuracy, f1)
+        cl_report = create_classification_report(all_y_labels, predicted_labels_np, accuracy, f1, self.inverted_class_map)
+        
+        #test_output_results(self.hparams.outpath, filenames, predicted_labels_np, all_scores, all_labels_np,all_scores=all_scores  )
+    
 
         print("test_roc_auc_binary:", roc_auc_binary)
         print("test_balanced_acc:", balanced_acc)
@@ -346,7 +317,8 @@ class LitClassifier(LightningModule):
                         pred_score, 
                         priority_classes=self.hparams.priority_classes!=[],
                         rest_classes=self.hparams.rest_classes!=[],
-                        datapath= self.hparams.datapath,
+                        datapath = self.hparams.datapath,
+                        legacy = True
                         )
         
         
