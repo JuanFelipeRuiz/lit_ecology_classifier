@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import Iterable, Union, Optional, Literal
 
 import torch
@@ -34,7 +35,7 @@ class DataModule(LightningDataModule):
 
     def __init__(
         self,
-        datapath: str,
+        datapath: Union[str , Path],
         batch_size: int,
         dataset: str,
         TTA: bool = False,
@@ -51,7 +52,7 @@ class DataModule(LightningDataModule):
         ):
         super().__init__()
 
-        self.datapath = datapath
+        self.datapath = str(datapath) # ensure that the path is a string for compatibility with the pathlib.path module
         self.TTA = TTA  # Enable Test Time Augmentation if testing is True
         self.batch_size = batch_size
         self.dataset = dataset

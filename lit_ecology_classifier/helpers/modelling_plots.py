@@ -376,3 +376,45 @@ def plot_score_distribution_single_class(y_true, y_scores, auc_score, class_labe
         path = Path(path) / "score_distribution_class_{}.png".format(class_label)
         plt.savefig(path)
     return plt
+
+def barplot_predictions(pred_labels, inverted_class_map, path = ''):
+    """
+    Plot the distribution of prediction scores for each class in a histogram.
+    """
+    classes = [inverted_class_map[k] for k in sorted(inverted_class_map.keys())]
+
+    classes = [ class_name.replace("_", " ") for class_name in classes]
+    
+    # Count frequency of each class in pred_labels.
+    counts = {cls: 0 for cls in classes}
+    for label in pred_labels:
+        counts[label] += 1
+    
+
+    frequencies = [counts[cls] for cls in classes]
+    
+    # Plot the bar chart.
+    plt.figure(figsize=(10, 6))
+    plt.bar(classes, frequencies)
+    # add the count of each class on top of the bar
+    for i, freq in enumerate(frequencies):
+        if freq < 100:
+            # vertical alignment for small frequencies
+            plt.text(i, freq, freq, ha='center', va='bottom')
+
+        else:
+            # horizontal alignment for large frequencies
+            plt.text(i, freq, freq, ha='center', va='bottom', rotation=90, fontsize=8)
+
+    plt.xlabel("Classes")
+    plt.ylabel("Count")
+    plt.title("Predictions Histogram")
+    plt.xticks(rotation=90, fontsize = 8)
+    plt.tight_layout()
+    plt.show()
+    
+    if path:
+        path = Path(path) / "predictions_histogram.png"
+        plt.savefig(path)
+        plt.close()
+    

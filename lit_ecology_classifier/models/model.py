@@ -9,7 +9,7 @@ from lightning import LightningModule
 from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, precision_score, recall_score, classification_report
 
 
-from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions , compute_roc_auc, compute_roc_auc_binary
+from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions , compute_roc_auc, compute_roc_auc_binary, barplot_predictions
 from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap
 from ..models.setup_model import setup_model
 
@@ -338,7 +338,6 @@ class LitClassifier(LightningModule):
         """
         filenames = self.datamodule.predict_dataset.image_infos
         max_index = torch.cat(self.probabilities).argmax(axis=1)
-
         pred_label = np.array([self.inverted_class_map[idx] for idx in max_index.numpy()], dtype=object)
         pred_score = torch.cat(self.probabilities).max(1)[0].numpy()
         output_results(self.hparams.outpath, 
@@ -349,8 +348,9 @@ class LitClassifier(LightningModule):
                         rest_classes=self.hparams.rest_classes!=[],
                         datapath= self.hparams.datapath,
                         )
-        plt.hist(max_index.numpy(), bins=len(self.inverted_class_map))
-        plt.savefig(f"{self.hparams.outpath}/predictions_histogram.png")
+        
+        
+        barplot_predictions(pred_label, self.inverted_class_map, self.hparams.outpath)
         return super().on_test_epoch_end()
 
     def on_fit_end(self) -> None:

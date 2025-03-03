@@ -3,6 +3,7 @@ import logging
 import os
 from pathlib import Path
 import warnings
+from typing import Union
 
 
 import pandas as pd
@@ -320,7 +321,7 @@ class OverviewCreator:
 
         return self._overview_with_splits_df
     
-    def save_overview_df(self, output_path: str):
+    def save_overview_df(self, output_path: Union[str, Path]):
         """Save the overview DataFrame to a CSV file.
 
         Args:
