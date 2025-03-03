@@ -43,9 +43,6 @@ if __name__ == '__main__':
     # Initialize the Model
     model = LitClassifier.load_from_checkpoint(args.model_path)
     
-
-    # Initialize the Data Module
-    hparams = model.hparams # copy the hyperparameters from the model
     
     # Update the hyperparameters based on the given arguments
     model.hparams.batch_size = args.batch_size
