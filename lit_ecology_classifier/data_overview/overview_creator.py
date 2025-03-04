@@ -181,43 +181,30 @@ class OverviewCreator:
         return self._images_list
 
     def _ood_fixes(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Fixes the 'OOD' values in the 'data_set_version' column
+        """Fixes the 'OOD' columns"""
+    
+        ood_columns = [col for col in df.columns if "ood" in col.lower()]
 
-        The OOD are originaly part of the ZooLake version 2 but are provided in a different folder/zip
-        With the current implementation, the 'OOD' would be a own dataset version. To fix this, the 'OOD'
-        values are replaced with '2' in the 'data_set_version' column. A new column 'OOD_v2' is added
-        to indicate the original 'OOD' values.
+        if not ood_columns:
+            return df
+    
+        version_set = set(["_".join(col.split("_")[:-1]) for col in ood_columns])
+        for version in version_set:
+            # get all columns from the version
+            version_columns = [col for col in df.columns if version in col]
 
-        Args:
-            df (pd.DataFrame): A DataFrame containing the image metadata and data_Set_versions
-                                Example:
-                                | image | class | data_set_version |
-                                |-------|-------|------------------|
-                                | img2  | class2| 2                |
+            for col in version_columns:
+                # change the true value to the ood cell number
+                df[col] = df[col].apply(lambda x: int(col.split("_")[-1][-1]) if x == 1 else 0)
 
-        Returns:
-            pd.DataFrame: Df containing the image metadata and hashes with 'OOD' values fixed.
-                            Example:
-                            | image | class | data_set_version | OOD_v2 |
-                            |-------|-------|------------------|--------|
-                            | img1  | class1| 2                | True   |
-                            | img2  | class2| 2                | False  |
+            # get the maximum value of the columns, assunes the ood is correct and each image is only in one ood cell
+            df[version] = df[version_columns].apply(lambda x: max(x), axis=1)
 
-
-        """
-        if df["data_set_version"].str.contains("OOD").any():
-            warnings.warn(
-                "Found 'OOD' in 'data_set_version' column. Assuming Version 2"
-            )
-
-            # Add a column to indicate where 'OOD' was found
-            df["OOD_v2"] = df["data_set_version"].str.contains("OOD")
-
-            # Replace 'OOD' with '2' in 'data_set_version' values
-            df["data_set_version"] = df["data_set_version"].str.replace(
-                "OOD", "2", regex=False
-            )
-
+            df[version] = df[version].astype("category")
+        
+            df.drop(columns=version_columns, inplace=True)
+            
+        
         return df
     
 
@@ -284,8 +271,8 @@ class OverviewCreator:
         """Get the overview DataFrame grouped and the data set version as hot encoded columns."""
         if self._overview_df is None:
             df = self.get_raw_df()
-            df = self._ood_fixes(df)
-            self._overview_df = self._add_one_hot_encoded_versions_and_group_by(df)
+            df = self._add_one_hot_encoded_versions_and_group_by(df)
+            self._overview_df = self._ood_fixes(df)
         return self._overview_df
 
     def get_overview_with_splits_df(self):

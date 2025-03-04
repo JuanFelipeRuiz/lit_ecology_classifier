@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Union, Optional
 from datetime import datetime as dt, timezone
+import warnings
 
 from lit_ecology_classifier.helpers.hashing import HashGenerator
 
@@ -114,6 +115,13 @@ class ProcessImage:
             raise ValueError(
                 f"Error extracting plankton class from {image_path}: {e}"
             ) from e
+        
+    def version_from_path(self, version: str, image_path) -> str:
+        if "ood" in version.lower():
+            warnings.warn("OOD in version name. Changing to version to include ood cell")
+            # get first subfolder of the path
+            return f"{version}_{image_path.split(os.path.sep)[-3]}"
+        return version
 
     def process_image(self, version : str, image_path) -> dict:
         """Process a single image. Extract the metadata and calculate the hash value of the image.
@@ -144,7 +152,7 @@ class ProcessImage:
             "image": os.path.basename(image_path),
             str(self.hash_algorithm): image_hash,
             "class": plankton_class,
-            "data_set_version": version,
+            "data_set_version": self.version_from_path(version, image_path),
             "date": image_date,
         }
 
