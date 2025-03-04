@@ -118,7 +118,8 @@ class ProcessImage:
         
     def version_from_path(self, version: str, image_path) -> str:
         if "ood" in version.lower():
-            warnings.warn("OOD in version name. Changing to version to include ood cell")
+            warnings.warn("OOD found in a version string.Starting the extraction of the ood cell from the path. \
+                          if not wished, please make sure the version string does not contain 'ood'.")
             # get first subfolder of the path
             return f"{version}_{image_path.split(os.path.sep)[-3]}"
         return version

@@ -115,13 +115,14 @@ def filter_ood_images(df: pd.DataFrame, ood_list: list[str]) -> pd.DataFrame:
         return df
 
     logger.debug("Filtering the dataframe based on the OOD images: %s", ood_list)
-    ood_col_name = ["OOD_" + version_str for version_str in ood_list]
+    ood_col_name = [ ood_col for ood_col in ood_list]
 
     if not any(col in df.columns for col in ood_col_name):
         raise ValueError(f"OOD columns {ood_col_name} not found in the dataframe.")
 
-    ood_filter = df[ood_list].any(axis=1)
+    # filter each row that has a higher value than 0 in the ood columns
+    for ood_col in ood_col_name:
+        df = df[df[ood_col] == 0]
+    
 
-    df = df[~ood_filter]
-
-    return df.drop(df.filter(regex="OOD_").columns, axis=1)
+    return df
