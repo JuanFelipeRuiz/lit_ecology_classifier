@@ -273,6 +273,9 @@ class LitClassifier(LightningModule):
             
             with open(path_classification_report, "w") as f:
                 f.write(cl_report)
+            print(f"Classification artefacts saved to {base_outpath}")
+
+        return super().on_test_epoch_end()
             
 
 
