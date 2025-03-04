@@ -261,10 +261,11 @@ class LitClassifier(LightningModule):
         
         else:
             base_outpath = Path(self.hparams.outpath)
+            datafolder = Path(self.hparams.datapath).name
             path_score_distributions = base_outpath / "score_distributions.png"
             path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
             path_confusion_matrix_norm =  base_outpath / "confusion_matrix_normalized.png"
-            path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}.txt"
+            path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}_{datafolder}.txt"
 
             fig_score.savefig(path_score_distributions)
             fig1.savefig(path_confusion_matrix)
