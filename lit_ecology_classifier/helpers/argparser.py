@@ -62,7 +62,6 @@ def args_for_train():
     parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
     parser.add_argument("--no_use_multi", action="store_true", help="Use multiple GPUs for training")
     
-
     # Choose the model architecture
     parser.add_argument('-architecture', choices=['beitv2'],
                             default='beitv2', help='Choose the model architecture')
@@ -140,6 +139,22 @@ def train_argparser():
     )
     return parser
 
+def cells_inference_argparser():
+    """
+    Creates an argument parser for using the classifier on multiple test sets with the same model.
+    """
+    parser = argparse.ArgumentParser(description="Use Classifier on unlabeled data.")
+    parser.add_argument("--batch_size", type=int, default=180, help="Batch size for inference")
+    parser.add_argument("--outpath", default="./preds/", help="Directory where predictions will be saved")
+    parser.add_argument("--model_path", default="./checkpoints/model.ckpt", help="Path to the model checkpoint file")
+    parser.add_argument("--datapath",  default="/store/empa/em09/aquascope/phyto", help="Path to the folder containing the different test sets")
+    parser.add_argument("--no_gpu", action="store_true", help="Use no GPU for inference, default is False")
+    parser.add_argument("--no_TTA", action="store_true", help="Disable test-time augmentation")
+    parser.add_argument("--gpu_id", type=int, default=0, help="GPU ID to use for inference")
+    parser.add_argument("--limit_pred_batches", type=int, default=0, help="Limit the number of batches to predict")
+    parser.add_argument("--prog_bar", action="store_true", help="Enable progress bar")
+    return parser
+
 def inference_argparser():
     """
     Creates an argument parser for using the classifier on unlabeled data.
@@ -179,6 +194,11 @@ def inference_argparser():
     parser.add_argument("--config", type=str, default="", help="Path to the JSON file containing the configuration")
     return parser
 
+def ood_args():
+    parser = argparse.ArgumentParser(add_help = False)
+    parser.add_argument("--ood_dir", type=str, default="data/mini_OOD", help="Folder containing the OOD cells")
+    return parser
+
 def overview_argparser():
     """ Argparser for creating a data overview for the given dataset."""
     parser = argparse.ArgumentParser(
@@ -202,6 +222,14 @@ def pipeline_argparser():
         description="Configure, train and run the machine learning model for image classification with split creation."
     )
 
+    return parser
+
+def ood_argparser():
+    parser = argparse.ArgumentParser(
+        parents=[ood_args(), inference_argparser()],
+        conflict_handler="resolve",
+        description="Use Classifier on multiple OOD cells."
+    )
     return parser
 
 def argparser():

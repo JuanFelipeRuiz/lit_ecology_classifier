@@ -75,6 +75,8 @@ class DataModule(LightningDataModule):
 
         self.mean = [0.485, 0.456, 0.406]
         self.std = [0.229, 0.224, 0.225]
+        
+        self.ood_testing = True if "ood" in kwargs else False
 
     def prepare_augementations(self,
                                train: bool = True,
@@ -134,17 +136,17 @@ class DataModule(LightningDataModule):
         """
 
         if stage != "predict":
-
+            
             self.prepare_augementations(train=True)
 
             if self.split_overview is not None:
                 self.setup_train_with_overview()
-                
+
             else:
-                self.setup_train_with_image_search()
+                self.setup_train_with_image_search(stage)
                 
         else:
-            logger.debug("Setting up dataset for prediction.")
+            logger.info("Setting up the prediction dataset.")
             self.prepare_augementations(train=False)
             self.prediction_setup()
            
@@ -177,8 +179,9 @@ class DataModule(LightningDataModule):
                     TTA=self.TTA,
                     train=False,
                 )
-            
-    def setup_train_with_image_search(self):
+        
+
+    def setup_train_with_image_search(self, stage: str = "train"):
         if self.datapath.find(".tar") == -1:
                     logger.debug("Setting up a dataset based on an image folder.")
                     full_dataset = ImageFolderDataset(
@@ -202,21 +205,32 @@ class DataModule(LightningDataModule):
                         train=True,
                     )
 
+
+
+
+        if stage == "test" and self.ood_testing: 
+            self.train_dataset = []
+            self.val_dataset = []
+            self.test_dataset = full_dataset
+            self.test_dataset.train =  True
+        else:
+
             # Since no split overview is provided, create a random split of the dataset
             # This one will not be logged by the split processor
-            # Random 
+            self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
+                            full_dataset = full_dataset
+                )
+            self.val_dataset.train = True
+            self.test_dataset.train = True
 
-        self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
-                        full_dataset = full_dataset
-            )
+
 
         logger.info("Train size: %s", len(self.train_dataset))
         logger.info("Validation size: %s", len(self.val_dataset))
         logger.info("Test size: %s", len(self.test_dataset))
             
         # Set the train flag of the validation and test datasets to False
-        self.val_dataset.train = False
-        self.test_dataset.train = False
+        
         
         
 
