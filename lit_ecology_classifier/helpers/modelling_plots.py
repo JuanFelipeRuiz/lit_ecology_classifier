@@ -290,8 +290,15 @@ def compute_roc_auc(all_labels, all_scores, debug=False, path = ''): #debug logs
     # Compute AUC for each class, plot score distributions, and plot ROC curves
     auc_list = []
     for i, class_label in enumerate(class_labels):
-        y_true = all_labels_binarized[:, i]
-        y_scores = all_scores_np[:, i]
+        try:
+            
+            y_true = all_labels_binarized[:, i]
+            y_scores = all_scores_np[:, i]
+        except:
+            print("Error in class label", class_label)
+            print("all_labels_binarized", all_labels_binarized)
+            print("all_scores_np", all_scores_np)
+            continue
 
         # Check if both classes are present
         if len(np.unique(y_true)) > 1:
