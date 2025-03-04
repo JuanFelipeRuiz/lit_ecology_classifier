@@ -1,8 +1,20 @@
-from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, precision_score, recall_score, classification_report, confusion_matrix, mean_absolute_error, mean_squared_error, r2_score
+"""
+Metrics
+=======
+
+Calculate the metrics for the test stage of the model.
+"""
+
+from pathlib import Path
+import os
+
 import pandas as pd
 import numpy as np
 import torch
-from lightning import LightningModule
+from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, precision_score, recall_score, classification_report, confusion_matrix, mean_absolute_error, mean_squared_error, r2_score, roc_auc_score, roc_curve
+from sklearn.preprocessing import label_binarize
+
+from lit_ecology_classifier.helpers.modelling_plots import plot_roc_curve, plot_score_distribution_single_class
 
 
 def extra_metrics(GT_label, Pred_label, Pred_prob, ID_result):
@@ -10,11 +22,11 @@ def extra_metrics(GT_label, Pred_label, Pred_prob, ID_result):
     Calculate Bias, BC, MAE, MSE, RMSE, R2, NMAE, AE_rm_junk, NAE_rm_junk
     and return the dataframe of the population count. 
 
-    GT_label: Ground truth/ True label
-    Pred_label: Predicted label
-    Pred_prob: Predicted probability
-    ID_result: ID of the result
-    
+    Args:
+        GT_label: Ground truth/ True label
+        Pred_label: Predicted label
+        Pred_prob: Predicted probability
+        ID_result: ID of the result
     """
 
     list_class = list(set(np.unique(GT_label)).union(set(np.unique(Pred_label))))
@@ -99,7 +111,7 @@ def extra_metrics(GT_label, Pred_label, Pred_prob, ID_result):
 
 def compute_metrics(all_labels, predicted_labels):
     """
-    Compute the most important metrics for the test set.
+    Compute the basic metrics for the model.
     """
     false_positives = torch.sum((all_labels == 0) & (predicted_labels != 0)) / torch.sum(
             all_labels == 0
@@ -117,11 +129,10 @@ def compute_metrics(all_labels, predicted_labels):
     
 def create_classification_report(all_labels, predicted_labels, accuracy,macro_f1, inverted_class_map):
     """
-    Calculate the classification report and return the content of
-    the file.
+    Create a sklearn classification report for the model.
 
     Args:
-        all_labels: Ground truth/ True label
+        all_labels: True y labels
         predicted_labels: Predicted label
         accuracy: Accuracy of the model
         macro_f1: Macro F1 score of the model
@@ -140,3 +151,65 @@ def create_classification_report(all_labels, predicted_labels, accuracy,macro_f1
     file_content = '\n Accuracy\n\n{}\n\nF1 Score\n\n{}\n\nClassification Report\n\n{}\n'.format(accuracy, macro_f1, clf_report)
 
     return file_content
+
+
+
+def compute_roc_auc(all_labels, all_scores, debug=False, path = ''): #debug logs some figures in a debug folder
+    
+    # Convert tensors to NumPy arrays
+    if not isinstance(all_labels, np.ndarray):
+        all_labels_np = all_labels.cpu().numpy()
+
+    if not isinstance(all_scores, np.ndarray):
+        all_scores_np = all_scores.cpu().numpy()
+
+    # Get unique class labels
+    class_labels = np.unique(all_labels_np)
+
+    # Binarize the labels for multi-class ROC computation
+    all_labels_binarized = label_binarize(all_labels_np, classes=class_labels)
+
+    # Compute AUC for each class, plot score distributions, and plot ROC curves
+    auc_list = []
+    for i, class_label in enumerate(class_labels):
+        try:
+            
+            y_true = all_labels_binarized[:, i]
+            y_scores = all_scores_np[:, i]
+        except:
+            print("Error in class label", class_label)
+            print("all_labels_binarized", all_labels_binarized)
+            print("all_scores_np", all_scores_np)
+            continue
+
+        # Check if both classes are present
+        if len(np.unique(y_true)) > 1:
+            # Compute AUC for the class
+            auc_score = roc_auc_score(y_true, y_scores)
+            auc_list.append(auc_score)
+
+            # Compute ROC curve
+            fpr, tpr, thresholds = roc_curve(y_true, y_scores)
+            if debug:
+                os.makedirs('debug', exist_ok=True)
+                path = Path("debug")
+                _ = plot_roc_curve(fpr, tpr, auc_score, class_label, path)
+        else:
+            # If only one class present in y_true, AUC and ROC are not defined
+            auc_score = float('nan')
+            auc_list.append(auc_score)
+            # Skip plotting ROC curve
+            pass
+
+        # Plot score distribution for the class
+        if debug:
+            plot_score_distribution_single_class(y_true, y_scores, auc_score, class_label, path)
+
+    # Compute macro-average AUC (ignoring NaN values)
+    valid_auc_scores = [auc for auc in auc_list if not np.isnan(auc)]
+    if valid_auc_scores:
+        roc_auc_macro = np.mean(valid_auc_scores)
+    else:
+        roc_auc_macro = float('nan')
+
+    return roc_auc_macro

@@ -9,10 +9,10 @@ from lightning import LightningModule
 from sklearn.metrics import balanced_accuracy_score, f1_score
 
 
-from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions , compute_roc_auc, compute_roc_auc_binary, barplot_predictions
+from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions, compute_roc_auc_binary, barplot_predictions
 from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, test_output_results
 from ..models.setup_model import setup_model
-from lit_ecology_classifier.models.metrics import compute_metrics, create_classification_report
+from lit_ecology_classifier.models.metrics import compute_metrics, create_classification_report, compute_roc_auc
 
 class LitClassifier(LightningModule):
     def __init__(self, **hparams):
