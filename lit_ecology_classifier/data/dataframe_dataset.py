@@ -15,7 +15,8 @@ To use this dataset, the images need to be stored in the following structure:
 """
 
 import os
-
+from pathlib import Path
+from typing import Union
 
 from PIL import Image
 from torch.utils.data import Dataset
@@ -26,7 +27,7 @@ import pandas as pd
 class DataFrameDataset(Dataset):
     def __init__(self, 
                  image_overview: pd.DataFrame,
-                 data_dir: str,
+                 data_dir: Union[str, Path],
                  train: bool = True, 
                  TTA: bool = False,
                  shuffle: bool = False,

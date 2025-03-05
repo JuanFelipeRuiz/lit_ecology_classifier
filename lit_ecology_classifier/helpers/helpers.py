@@ -73,7 +73,7 @@ def output_results(outpath, im_names, labels, scores,priority_classes=False,rest
     data_folder_name = os.path.basename(datapath).split(".")[0] 
     base_filename = f"{outpath}/predictions_lit_ecology_classifier"+("_priority" if priority_classes else "")+("_rest" if rest_classes else "")+("_"+data_folder_name)
     file_path = f"{base_filename}.txt"
-    if datapath.find(".tar") != -1:
+    if str(datapath).find(".tar") != -1:
         im_names = [img.name for img in im_names]
 
     if legacy:
@@ -85,7 +85,7 @@ def output_results(outpath, im_names, labels, scores,priority_classes=False,rest
     with open(file_path, "w+") as f:
             f.writelines(lines)
 
-def test_output_results(outpath, im_names, true_labels, labels, score,  all_scores,  datapath=""):
+def test_output_results( im_names, true_labels, labels, single_score,  all_scores):
     """
     Output the prediction results to a file.
 
@@ -94,21 +94,12 @@ def test_output_results(outpath, im_names, true_labels, labels, score,  all_scor
         im_names (list): List of image filenames.
         true_labels (list): List of true labels.
         labels (list): List of predicted labels (label with the highest score).
-        score (list): List of predicted scores.
+        single_score (list): List of predicted scores.
         all_scores (list): List of all predicted scores.
-        datapath (str): Path to the data to create a distinct output file.
     """
-
-    data_folder_name = os.path.basename(datapath).split(".")[0] 
-    base_filename = f"{outpath}/test_values"+("_"+data_folder_name)
-    file_path = f"{base_filename}.txt"
-    if datapath.find(".tar") != -1:
-        im_names = [img.name for img in im_names]
-
-    lines = [f"{img}, {true_label}, {label}, {score}, {all_score}"  for img, true_label, label, score, all_score in zip(im_names, true_labels, labels, score, all_scores)]
-    
-    with open(file_path, "w+") as f:
-            f.writelines(lines)
+    lines = [f"{img}, {true_label}, {label}, {single_score}, {all_score}"  for img, true_label, label, single_score, all_score in zip(im_names, true_labels, labels, single_score, all_scores)]
+    print(lines[0])
+    return lines
 
 
 def gmean(input_x, dim):
