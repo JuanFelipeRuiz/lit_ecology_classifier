@@ -5,6 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+import pandas as pd
 from lightning import LightningModule
 from sklearn.metrics import balanced_accuracy_score, f1_score
 
@@ -188,6 +189,7 @@ class LitClassifier(LightningModule):
         self.test_step_predictions = []
         self.test_step_targets = []
         self.test_step_probs = []
+        self.test_step_highest_probs = []
         self.model.eval()
         return super().on_test_epoch_start()
 
@@ -207,31 +209,39 @@ class LitClassifier(LightningModule):
                 x,y = batch
                 logits = self(x)
                 probs=logits.softmax(dim=1)
-            self.test_step_targets.append(y.cpu())
-            self.test_step_predictions.append(probs.argmax(1).cpu())
-            self.test_step_probs.append(probs.cpu())
+
+            self.test_step_targets.append(y.cpu()) # Append the true label
+            self.test_step_predictions.append(probs.argmax(1).cpu()) # Append the predicted label
+            self.test_step_probs.append(probs.cpu()) # Append the predicted probabilities
+            self.test_step_highest_probs.append(probs.max(1).values.cpu()) # Append the highest probability
 
     def on_test_epoch_end(self):
         """
         Aggregate outputs and log metrics and plots at the end of the test epoch.
         """
         # Aggregate outputs
+        filenames = self.datamodule.test_dataset.image_infos
         all_scores = torch.cat(self.test_step_probs)  # All predicted probabilities for each image in the test set
-        all_preds = torch.cat(self.test_step_predictions) # Label of the class with the highest probability 
+        all_pred_label = torch.cat(self.test_step_predictions) # Label of the class with the highest probability 
         all_y_labels = torch.cat(self.test_step_targets) # True label of the images
+        all_highest_scores = torch.cat(self.test_step_highest_probs) # Highest probability for each image
+
         class_names = list(self.inverted_class_map.values())
 
         fig_score = plot_score_distributions(
-            all_scores, all_preds, class_names, all_y_labels
+            all_scores, all_pred_label, class_names, all_y_labels
         )
 
 
         # Compute metrics
-        balanced_acc, false_positives, precision, recall, f1, accuracy, all_labels_np, predicted_labels_np  = compute_metrics(all_y_labels, all_preds)
+        balanced_acc, false_positives, precision, recall, f1, accuracy, all_y_labels_np, all_predicted_labels_np  = compute_metrics(all_y_labels, all_pred_label)
+
+        
+       
         
         # Plot confusion matrices
         fig1,fig2 = plot_confusion_matrix(
-            all_y_labels, all_preds, class_names
+            all_y_labels, all_predicted_labels_np, class_names
         )
 
         # Compute ROC curves and AUC
@@ -239,9 +249,15 @@ class LitClassifier(LightningModule):
 
         roc_auc_binary = compute_roc_auc_binary(all_y_labels, all_scores)
 
-        cl_report = create_classification_report(all_y_labels, predicted_labels_np, accuracy, f1, self.inverted_class_map)
+        cl_report = create_classification_report(all_y_labels, all_predicted_labels_np, accuracy, f1, self.inverted_class_map)
+
+        inverted_predicted_labels_np = np.array([self.inverted_class_map[label] for label in all_predicted_labels_np])
+        inverted_y_labels_np = np.array([self.inverted_class_map[label] for label in all_y_labels_np])
+
+        column_names = ["img","true_label","predicted_label","score_of_predicted_label", "all_scores"]
+        classifications = zip(filenames, inverted_y_labels_np, inverted_predicted_labels_np, all_highest_scores.numpy() , all_scores.numpy())
         
-        #test_output_results(self.hparams.outpath, filenames, predicted_labels_np, all_scores, all_labels_np,all_scores=all_scores  )
+        #classifications = test_output_results(im_names=filenames, true_labels=all_y_labels, predicted_labels=inverted_labels_np, scores=all_scores)
     
 
         print("test_roc_auc_binary:", roc_auc_binary)
@@ -260,12 +276,16 @@ class LitClassifier(LightningModule):
             
         
         else:
-            base_outpath = Path(self.hparams.outpath)
+            
             datafolder = Path(self.hparams.datapath).name
+            base_outpath = Path(self.hparams.outpath) / f"{self.hparams.model_name}_{datafolder}"
+            Path.mkdir(base_outpath, exist_ok=True)
+
             path_score_distributions = base_outpath / "score_distributions.png"
             path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
             path_confusion_matrix_norm =  base_outpath / "confusion_matrix_normalized.png"
             path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}_{datafolder}.txt"
+            path_classifications = base_outpath / f"classifications_{self.hparams.model_name}_{datafolder}.csv"
 
             fig_score.savefig(path_score_distributions)
             fig1.savefig(path_confusion_matrix)
@@ -273,6 +293,12 @@ class LitClassifier(LightningModule):
             
             with open(path_classification_report, "w") as f:
                 f.write(cl_report)
+
+
+            df = pd.DataFrame(classifications, columns=column_names)
+            print(path_classifications)
+            df.to_csv(path_classifications, index=False)
+
             print(f"Classification artefacts saved to {base_outpath}")
 
         return super().on_test_epoch_end()
@@ -327,7 +353,7 @@ class LitClassifier(LightningModule):
         
         
         barplot_predictions(pred_label, self.inverted_class_map, self.hparams.outpath)
-        return super().on_test_epoch_end()
+        return super().on_predict_epoch_end()
 
     def on_fit_end(self) -> None:
         """

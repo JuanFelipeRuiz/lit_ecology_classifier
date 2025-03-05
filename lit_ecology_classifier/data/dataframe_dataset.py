@@ -51,7 +51,8 @@ class DataFrameDataset(Dataset):
         self._define_transforms()
         self.train_transforms = train_transforms
         self.val_transforms = val_transforms
-        self.class_map = class_map 
+        self.class_map = class_map
+        self.image_infos = self._load_image_infos()
 
         if self.shuffle:
             self.df = self.df.sample(frac=1).reset_index(drop=True)
@@ -67,6 +68,11 @@ class DataFrameDataset(Dataset):
 
     def __len__(self):
         return len(self.df)
+    
+    def _load_image_infos(self):
+        """ Load the image information from the dataframe column"""
+        image_list = self.df["image"].tolist()
+        return image_list
 
     def __getitem__(self, idx : int):
         """ Retrieves an image and its corresponding label based on the provided index.

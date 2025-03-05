@@ -76,7 +76,7 @@ class DataModule(LightningDataModule):
         self.mean = [0.485, 0.456, 0.406]
         self.std = [0.229, 0.224, 0.225]
         
-        self.ood_testing = True if "ood" in kwargs else False
+        self.only_test = True if "only_test" in kwargs else False
 
     def prepare_augementations(self,
                                train: bool = True,
@@ -202,17 +202,19 @@ class DataModule(LightningDataModule):
                         self.priority_classes,
                         rest_classes=self.rest_classes,
                         TTA=self.TTA,
+                        
                         train=True,
                     )
 
 
 
 
-        if stage == "test" and self.ood_testing: 
+        if stage == "test" and self.only_test:
+            logger.info("Setting up the test dataset only.")
             self.train_dataset = []
             self.val_dataset = []
             self.test_dataset = full_dataset
-            self.test_dataset.train =  True
+            self.test_dataset.train =  True # setting flag to True to load the y values
         else:
 
             # Since no split overview is provided, create a random split of the dataset
@@ -228,6 +230,9 @@ class DataModule(LightningDataModule):
         logger.info("Train size: %s", len(self.train_dataset))
         logger.info("Validation size: %s", len(self.val_dataset))
         logger.info("Test size: %s", len(self.test_dataset))
+        print("Train size: ", len(self.train_dataset))
+        print("Validation size: ", len(self.val_dataset))
+        print("Test size: ", len(self.test_dataset))
             
         # Set the train flag of the validation and test datasets to False
         
@@ -273,6 +278,10 @@ class DataModule(LightningDataModule):
         logger.info("Train size of df: %s", len(train_df))
         logger.info("Validation size of df: %s", len(val_df))
         logger.info("Test size of df: %s", len(test_df))
+
+        print("Train size of df: ", len(train_df))
+        print("Validation size of df: ", len(val_df))
+        print("Test size of df: ", len(test_df))
 
         self.train_dataset = DataFrameDataset(
         image_overview=train_df,
