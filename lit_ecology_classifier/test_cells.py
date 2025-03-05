@@ -21,6 +21,18 @@ from lit_ecology_classifier.models.model import LitClassifier
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class Testing():
+    """
+    Test the given models with the given test datasets.
+
+    Args:
+        model_paths: list of paths to the model checkpoints
+        output_path: path to the output directory
+        test_cells: Optional, choose either test cells or ood dir. List of paths to the test cells. 
+        ood_dir: Optional, path to the directory containing the test cells.
+        batch_size: batch size for the testing
+        TTA: whether to use test-time augmentation
+    
+    """
     def __init__(
             self,
             model_paths ,
@@ -68,7 +80,9 @@ class Testing():
         return outpath
 
     def setup_model(self, model_path):
-        """Setup the model for prediction."""
+        """
+        Setup the model to be tested.
+        """
         model = LitClassifier.load_from_checkpoint(model_path)
         model_name = model_path.split(os.sep)[-1].split(".")[0]
         model.hparams.batch_size = self.batch_size
@@ -80,69 +94,26 @@ class Testing():
         self.model = model
 
     def test_cell(self, test_cell):
-        logging.info("Predicting for cell: %s", test_cell)
+        """
+        Test a single cell
+        """
         self.model.hparams.datapath = test_cell
         data_module = DataModule(**self.model.hparams)
         self.model.load_datamodule(data_module)
         self.pl_trainer.test(self.model, datamodule=data_module)
         self.cls_reports.append(self.model.cls_report)
 
-    def loop_over_cells(self):
+    def test(self):
+        """ Test each model on each cell"""
         #TODO: Provide a way to parallelize the prediction process if possible
+        #TODO: Check if this function is even necessary, may be better to do it with slurm array jobs
+
+        # loop over each model
         for model_path in self.model_paths:
             self.setup_model(model_path=model_path)
+            # predict on each cell
             for cell in self.cells:
                 self.test_cell(cell)
-
-def get_cells(ood_dir):
-    """
-    Get the list of cells to predict on. Each subdirectory in the directory
-    is considered as a separate cell.
-    """
-    ood_dir = pathlib.Path(ood_dir)
-    return [str(x) for x in ood_dir.iterdir() if x.is_dir()]
-               
-def main(args, cells):
-
-    # split the path of the model to get the whole model path dict_name with apthlib
-    model_folders = list(pathlib.Path(args.model_path).parts)
-
-    logging.info("Model Path: %s", model_folders[-1].split(".")[0])
-    model_folders[-1] = model_folders[-1].split(".")[0]
-
-    model_name = "_".join(model_folders)
-    # Initialize the Model
-
-    # Create Output Directory if it doesn't exist
-    pathlib.Path(args.outpath).mkdir(parents=True, exist_ok=True)
-    timestamp = str(time_begin).split(".")[0]
-    args.outpath = pathlib.Path(args.outpath) / f"{model_folders[-1]}_{timestamp}"
-    args.outpath.mkdir(parents=True, exist_ok=True) 
-
-    model = LitClassifier.load_from_checkpoint(args.model_path)
-
-    model.hparams.batch_size = args.batch_size
-    model.hparams.TTA = not args.no_TTA  # set the TTA flag based on the argument
-    model.hparams.outpath = args.outpath
-    model.hparams.use_wandb = False
-    model.hparams.model_name = model_name
-    model.hparams.ood = True
-    logging.info("Parameters for the prediction:%s", pprint.pformat(model.hparams))
-    
-    cudas = torch.cuda.device_count()
-
-
-    for ood_cell in cells:
-        logging.info("Predicting for cell: %s", ood_cell)
-        model.hparams.datapath = ood_cell
-        data_module = DataModule(**model.hparams)
-        model.load_datamodule(data_module)
-        trainer = pl.Trainer(
-        devices=min(cudas, 1) if not args.no_gpu else 0,
-        strategy="ddp" if torch.cuda.device_count() > 1 else "auto",
-        enable_progress_bar=True, default_root_dir=args.outpath
-        )
-        trainer.test(model, datamodule=data_module)
 
 
 if __name__ == '__main__':
@@ -164,5 +135,5 @@ if __name__ == '__main__':
         )
     
     test.trainer(trainer)
-    test.loop_over_cells()
+    test.test()
     print(test.cls_reports)
