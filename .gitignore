@@ -1,0 +1,19 @@
+
+# ignore all tar files
+*.tar
+
+# ignore all zoo folders
+Zoo*/**/*.jpeg
+*.ckpt
+**.png
+
+models/*
+
+**/__pycache__/
+*/.ipynb_checkpoints/
+*/.DS_Store
+*/.idea/
+.vscode/* 
+model.safetensors
+checkpoints*/*
+lit_ecology_classifier.egg-info/*
