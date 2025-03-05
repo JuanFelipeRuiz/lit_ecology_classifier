@@ -1,6 +1,9 @@
 import os
 from pathlib import Path
 
+from scipy.stats import sem
+import random
+from distinctipy import distinctipy
 from matplotlib.colors import LinearSegmentedColormap
 import matplotlib.pyplot as plt
 import numpy as np
@@ -161,6 +164,8 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     class_indices = np.arange(len(class_names))
     confusion_matrix = sklearn.metrics.confusion_matrix(all_labels, all_preds, labels=class_indices)
     confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels, all_preds, normalize="pred", labels=class_indices)
+
+
     num_classes = confusion_matrix.shape[0]
     fig, ax = plt.subplots(figsize=(20, 20))
     fig2, ax2 = plt.subplots(figsize=(20, 20))
@@ -177,7 +182,7 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
 
     fig.tight_layout()
     fig2.tight_layout()
-    return fig, fig2
+    return fig, fig2, confusion_matrix, confusion_matrix_norm
 
 
 
@@ -359,4 +364,41 @@ def barplot_predictions(pred_labels, inverted_class_map, path = ''):
         path = Path(path) / "predictions_histogram.png"
         plt.savefig(path)
         plt.close()
+
+
+def plot_performance(aug_types, test_dataset, n_OOD_cells, accuracy, f1_score):
+    n_aug = len(aug_types)
+    n_model_aug = len(accuracy)/n_aug
+    colors = distinctipy.get_colors(n_aug, pastel_factor=0.7)
+
+    random.seed(100)
+    fig, (ax1, ax2) = plt.subplots(1, 4, figsize=(20, 10))
+    plt.subplots_adjust(left=0.05, bottom=0.12, right=0.98, top=0.90, wspace=0.15)
+
+    ax1.set_xticks(np.arange(len(test_dataset)+1), labels=['ID_train', 'ID_test', 'micro-OOD', 'macro-OOD', 'OOD1', 'OOD2', 'OOD3', 'OOD4', 'OOD5', 'OOD6', 'OOD7', 'OOD8', 'OOD9', 'OOD10'], rotation=45, rotation_mode='anchor', ha='right')
+    # ax1.set_ylim(0.3, 1)
+    ax1.set_title('Accuracy')
+    for i, (aug_type, c) in enumerate(zip(aug_types, colors)):
+        accuracy_aug_type = accuracy[int(i*n_model_aug):int((i+1)*n_model_aug)]
+        mean_accuracy = np.mean(accuracy_aug_type, axis=0)
+        sem_accuracy = sem(accuracy_aug_type, axis=0)
+        ax1.errorbar(x=np.arange(len(test_dataset)-n_OOD_cells), y=mean_accuracy[:len(test_dataset)-n_OOD_cells], yerr=sem_accuracy[:len(test_dataset)-n_OOD_cells], marker='s', capsize=3, ms=10, linestyle='', color=c, label=aug_type)
+        y_macro_OOD, yerr_macro_OOD = np.mean(mean_accuracy[len(test_dataset)-n_OOD_cells:]), sem(mean_accuracy[len(test_dataset)-n_OOD_cells:])
+        ax1.errorbar(x=np.arange(len(test_dataset)-n_OOD_cells, len(test_dataset)-n_OOD_cells+1), y=y_macro_OOD, yerr=yerr_macro_OOD, marker='s', capsize=3, ms=10, linestyle='', color=c, label=aug_type)
+        ax1.errorbar(x=np.arange(len(test_dataset)-n_OOD_cells+1, len(test_dataset)+1), y=mean_accuracy[len(test_dataset)-n_OOD_cells:], yerr=sem_accuracy[len(test_dataset)-n_OOD_cells:], marker='s', markerfacecolor='none', capsize=3, ms=10, linestyle='', color=c, label=aug_type + ' on OOD cells')
+    # plt.legend()
+
+    ax2.set_xticks(np.arange(len(test_dataset)+1), labels=['ID_train', 'ID_test', 'micro-OOD', 'macro-OOD', 'OOD1', 'OOD2', 'OOD3', 'OOD4', 'OOD5', 'OOD6', 'OOD7', 'OOD8', 'OOD9', 'OOD10'], rotation=45, rotation_mode='anchor', ha='right')
+    # ax2.set_ylim(0.3, 1)
+    ax2.set_title('F1-score')
+    for i, (aug_type, c) in enumerate(zip(aug_types, colors)):
+        f1_aug_type = f1_score[int(i*n_model_aug):int((i+1)*n_model_aug)]
+        mean_f1 = np.mean(f1_aug_type, axis=0)
+        sem_f1 = sem(f1_aug_type, axis=0)
+        ax2.errorbar(x=np.arange(len(test_dataset)-n_OOD_cells), y=mean_f1[:len(test_dataset)-n_OOD_cells], yerr=sem_f1[:len(test_dataset)-n_OOD_cells], marker='s', capsize=3, ms=10, linestyle='', color=c, label=aug_type)
+        y_macro_OOD, yerr_macro_OOD = np.mean(mean_f1[len(test_dataset)-n_OOD_cells:]), sem(mean_f1[len(test_dataset)-n_OOD_cells:])
+        ax2.errorbar(x=np.arange(len(test_dataset)-n_OOD_cells, len(test_dataset)-n_OOD_cells+1), y=y_macro_OOD, yerr=yerr_macro_OOD, marker='s', capsize=3, ms=10, linestyle='', color=c, label=aug_type)
+        ax2.errorbar(x=np.arange(len(test_dataset)-n_OOD_cells+1, len(test_dataset)+1), y=mean_f1[len(test_dataset)-n_OOD_cells:], yerr=sem_f1[len(test_dataset)-n_OOD_cells:], marker='s', markerfacecolor='none', capsize=3, ms=10, linestyle='', color=c, label=aug_type + ' on OOD cells')
     
+    plt.show()
+    return fig

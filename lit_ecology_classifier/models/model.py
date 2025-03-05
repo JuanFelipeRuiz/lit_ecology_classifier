@@ -10,9 +10,9 @@ from lightning import LightningModule
 from sklearn.metrics import balanced_accuracy_score, f1_score
 
 
-from ..helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions, compute_roc_auc_binary, barplot_predictions
-from ..helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, test_output_results
-from ..models.setup_model import setup_model
+from lit_ecology_classifier.helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions, compute_roc_auc_binary, barplot_predictions
+from lit_ecology_classifier.helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, test_output_results
+from lit_ecology_classifier.models.setup_model import setup_model
 from lit_ecology_classifier.models.metrics import compute_metrics, create_classification_report, compute_roc_auc
 
 class LitClassifier(LightningModule):
@@ -34,10 +34,9 @@ class LitClassifier(LightningModule):
         self.hparams.num_classes = len(self.class_map.keys())
         self.inverted_class_map = dict(sorted({v: k for k, v in self.class_map.items()}.items()))
         self.model = setup_model(**self.hparams)
-
-        
         self.loss = torch.nn.CrossEntropyLoss() if not "loss" in list(self.hparams) or not self.hparams.loss=="focal" else FocalLoss(alpha=None ,gamma=1.75)
         logging.info("Model initialized with hyperparameters:\n {}".format(pprint.pformat(self.hparams)))
+        self.cls_report = None
 
     def TTA(self, batch):
         """
@@ -219,8 +218,12 @@ class LitClassifier(LightningModule):
         """
         Aggregate outputs and log metrics and plots at the end of the test epoch.
         """
-        # Aggregate outputs
-        filenames = self.datamodule.test_dataset.image_infos
+        # self.datamodule.test_dataset.dataset.image_infos
+     
+        if hasattr(self.datamodule.test_dataset, "image_infos"):
+            filenames = self.datamodule.test_dataset.image_infos
+        elif hasattr(self.datamodule.test_dataset, 'dataset') and hasattr(self.datamodule.test_dataset.dataset, 'image_infos'):
+            filenames = self.datamodule.test_dataset.dataset.image_infos
         all_scores = torch.cat(self.test_step_probs)  # All predicted probabilities for each image in the test set
         all_pred_label = torch.cat(self.test_step_predictions) # Label of the class with the highest probability 
         all_y_labels = torch.cat(self.test_step_targets) # True label of the images
@@ -240,9 +243,24 @@ class LitClassifier(LightningModule):
        
         
         # Plot confusion matrices
-        fig1,fig2 = plot_confusion_matrix(
+        fig1,fig2, confusion_matrix, confusion_matrix_norm = plot_confusion_matrix(
             all_y_labels, all_predicted_labels_np, class_names
         )
+
+        # transform the matrix (a array) to a pandas dataframe
+        confusion_matrix_df = pd.DataFrame(confusion_matrix, index=class_names, columns=class_names)
+        confusion_matrix_norm_df = pd.DataFrame(confusion_matrix_norm, index=class_names, columns=class_names)
+
+        
+        # rename each column
+        confusion_matrix_df.columns = [f'Predicted {col}' for col in confusion_matrix_df.columns]
+        confusion_matrix_norm_df.columns = [f'Predicted {col}' for col in confusion_matrix_norm_df.columns]
+        
+        # name the first column and index
+        confusion_matrix_df.index.name = 'True label'
+        confusion_matrix_norm_df.index.name = 'True label'
+
+    
 
         # Compute ROC curves and AUC
         roc_auc = compute_roc_auc(all_y_labels, all_scores)
@@ -258,8 +276,10 @@ class LitClassifier(LightningModule):
         classifications = zip(filenames, inverted_y_labels_np, inverted_predicted_labels_np, all_highest_scores.numpy() , all_scores.numpy())
         
         #classifications = test_output_results(im_names=filenames, true_labels=all_y_labels, predicted_labels=inverted_labels_np, scores=all_scores)
+        
+       
     
-
+        self.cls_report = cl_report
         print("test_roc_auc_binary:", roc_auc_binary)
         print("test_balanced_acc:", balanced_acc)
         print("test_false_positives:", false_positives)
@@ -286,6 +306,9 @@ class LitClassifier(LightningModule):
             path_confusion_matrix_norm =  base_outpath / "confusion_matrix_normalized.png"
             path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}_{datafolder}.txt"
             path_classifications = base_outpath / f"classifications_{self.hparams.model_name}_{datafolder}.csv"
+            path_confusion_matrix_csv = base_outpath / f"confusion_matrix_{self.hparams.model_name}_{datafolder}.csv"
+            path_confusion_matrix_norm_csv = base_outpath / f"confusion_matrix_normalized_{self.hparams.model_name}_{datafolder}.csv"
+
 
             fig_score.savefig(path_score_distributions)
             fig1.savefig(path_confusion_matrix)
@@ -298,6 +321,7 @@ class LitClassifier(LightningModule):
             df = pd.DataFrame(classifications, columns=column_names)
             print(path_classifications)
             df.to_csv(path_classifications, index=False)
+            confusion_matrix_df.to_csv(path_confusion_matrix_csv)
 
             print(f"Classification artefacts saved to {base_outpath}")
 

@@ -155,8 +155,7 @@ class DataModule(LightningDataModule):
         """Set up the dataset for prediction by loading the images from the provided directory.
         Can handle tar files and image folders.
         """
-        # ensure that the path is a string for compatibility with the pathlib.path module
-        if str(self.datapath).find(".tar") == -1:
+        if self.datapath.find(".tar") == -1:
                 logger.debug(
                     "Using ImageFolderDataset for prediction, no tar file found."
                 )
@@ -183,9 +182,9 @@ class DataModule(LightningDataModule):
         
 
     def setup_train_with_image_search(self, stage: str = "train"):
-        if str(self.datapath.find)(".tar") == -1:
-                    logger.debug("Setting up a dataset based on an image folder.")
-                    full_dataset = ImageFolderDataset(
+        if self.datapath.find(".tar") == -1:
+            logger.debug("Setting up a dataset based on an image folder.")
+            full_dataset = ImageFolderDataset(
                         self.datapath,
                         self.class_map,
                         self.priority_classes,

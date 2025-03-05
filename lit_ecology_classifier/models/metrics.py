@@ -109,15 +109,15 @@ def extra_metrics(GT_label, Pred_label, Pred_prob, ID_result):
 
     return bias, BC, MAE, MSE, RMSE, R2, NMAE, AE_rm_junk, NAE_rm_junk, df_count_Pred_GT
 
-def compute_metrics(all_labels, predicted_labels):
+def compute_metrics(all_y_labels, predicted_labels):
     """
     Compute the basic metrics for the model.
     """
-    false_positives = torch.sum((all_labels == 0) & (predicted_labels != 0)) / torch.sum(
-            all_labels == 0
+    false_positives = torch.sum((all_y_labels == 0) & (predicted_labels != 0)) / torch.sum(
+            all_y_labels == 0
         )
 
-    all_labels_np = all_labels.cpu().numpy()
+    all_labels_np = all_y_labels.cpu().numpy()
     predicted_labels_np = predicted_labels.cpu().numpy()
 
     balanced_acc = balanced_accuracy_score(all_labels_np, predicted_labels_np)
