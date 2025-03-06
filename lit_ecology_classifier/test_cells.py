@@ -32,6 +32,7 @@ class Testing():
         ood_dir: Optional, path to the directory containing the test cells.
         batch_size: batch size for the testing
         TTA: whether to use test-time augmentation
+        only_test: Only set to False if you created a model with a datamodule that reads the data from a folder or tar file and you dont have the test cell.
     
     """
     def __init__(
@@ -42,6 +43,7 @@ class Testing():
             ood_dir = None,
             batch_size = 32,
             TTA = False,
+            only_test = True
     ):
         self.model_paths = model_paths
         self.output_path = self.prepare_output_dir(output_path)
@@ -51,6 +53,7 @@ class Testing():
         self.model = None
         self.pl_trainer = None
         self.performance = []
+        self.only_test = only_test
 
     def trainer(self, pl_trainer):
         """
@@ -91,7 +94,7 @@ class Testing():
         model.hparams.outpath = self.output_path
         model.hparams.use_wandb = False
         model.hparams.model_name = model_name
-        model.hparams.only_test = True
+        model.hparams.only_test = self.only_test
         self.model = model
 
     def test_cell(self, test_cell):
