@@ -35,6 +35,7 @@ class LitClassifier(LightningModule):
         self.inverted_class_map = dict(sorted({v: k for k, v in self.class_map.items()}.items()))
         self.model = setup_model(**self.hparams)
         self.loss = torch.nn.CrossEntropyLoss() if not "loss" in list(self.hparams) or not self.hparams.loss=="focal" else FocalLoss(alpha=None ,gamma=1.75)
+        
         logging.info("Model initialized with hyperparameters:\n {}".format(pprint.pformat(self.hparams)))
         self.cls_report = None
 
@@ -255,7 +256,7 @@ class LitClassifier(LightningModule):
         # rename each column
         confusion_matrix_df.columns = [f'Predicted {col}' for col in confusion_matrix_df.columns]
         confusion_matrix_norm_df.columns = [f'Predicted {col}' for col in confusion_matrix_norm_df.columns]
-        
+
         # name the first column and index
         confusion_matrix_df.index.name = 'True label'
         confusion_matrix_norm_df.index.name = 'True label'
