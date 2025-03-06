@@ -108,7 +108,7 @@ class LitClassifier(LightningModule):
         """
         self.datamodule = datamodule
         self.hparams.TTA = self.datamodule.TTA
-
+        self.hparams.datapath = self.datamodule.datapath
     def training_step(self, batch, batch_idx):
         """
         Perform a training step.
