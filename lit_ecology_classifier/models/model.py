@@ -35,10 +35,25 @@ class LitClassifier(LightningModule):
         self.hparams.num_classes = len(self.class_map.keys())
         self.inverted_class_map = dict(sorted({v: k for k, v in self.class_map.items()}.items()))
         self.model = setup_model(**self.hparams)
-        self.loss = torch.nn.CrossEntropyLoss() if not "loss" in list(self.hparams) or not self.hparams.loss=="focal" else FocalLoss(alpha=None ,gamma=1.75)
-        
+        self.loss = self.define_loss()
+    
         logging.info("Model initialized with hyperparameters:\n {}".format(pprint.pformat(self.hparams)))
         self.cls_report = None
+
+    def define_loss(self):
+        """
+        Define the loss function for the model.
+        Args:
+            class_weights (torch.Tensor): Class weights for the loss function.
+        """
+        if hasattr(self, "hparams") and getattr(self.hparams, "loss", None) == "focal":
+            if hasattr(self, "class_weights"):
+                raise ValueError("Focal loss cannot be used with class weights.")
+            return FocalLoss(alpha=None, gamma=1.75)
+        else:
+            if hasattr(self, "class_weights "):
+                return torch.nn.CrossEntropyLoss(weight=self.class_weights)
+            return torch.nn.CrossEntropyLoss()
 
     def TTA(self, batch):
         """

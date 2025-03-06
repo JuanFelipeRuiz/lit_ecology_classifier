@@ -28,10 +28,16 @@ def calculate_class_weights(datamodule):
         labels.append(label)
 
     # Print and save class balance information
-    logging.info("Balances:", pprint.pformat(torch.bincount(torch.cat(labels)),torch.cat(labels).unique()))
+    #logging.info("Balances:", pprint.pformat(torch.bincount(torch.cat(labels)),torch.cat(labels).unique()))
     # Empirical studies from Jean-Oliver Irisson suggest that the square root of the class weights is a good starting point
     weights = 1 / torch.bincount(torch.cat(labels)).float().sqrt()
-    logging.info("weights:", pprint.pformat(weights))
+    #logging.info("weights:", pprint.pformat(weights))
     return weights
 
-
+if __name__ == "__main__":
+    imagesdir = "data/mini_dataset"
+    from lit_ecology_classifier.data.datamodule import DataModule
+    datamodule = DataModule(datapath=imagesdir, batch_size=32, dataset="ananas")
+    datamodule.setup("fit")
+    weights = calculate_class_weights(datamodule)
+    print(weights)
