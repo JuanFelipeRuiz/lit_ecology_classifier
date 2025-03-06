@@ -402,3 +402,35 @@ def plot_performance(aug_types, test_dataset, n_OOD_cells, accuracy, f1_score):
     
     plt.show()
     return fig
+
+
+def plot_model_performance(performance_df):
+    """
+    Plots the performance of the models on the test dataset.
+
+    Args:
+        performance_reports (df): A dataframe containing the performance of the models on the test dataset.
+                with the columns model, cell, accuracy, f1
+
+    Saves:
+        performance.png: A plot of the performance of the models on the test dataset.
+    """
+    # Y Axis values (0 to 1) and x ticks dataset names. Colors of the points represent the model
+    # a subplot for accuracy and f1 score. ensure the y axis starts at 0 and ends at 1
+    fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+    ax[0].set_ylim(0, 1)
+    ax[1].set_ylim(0, 1)
+    for model in performance_df.model.unique():
+        model_df = performance_df[performance_df.model == model]
+        ax[0].scatter(model_df.cell, model_df.accuracy, label=model)
+        ax[1].scatter(model_df.cell, model_df.f1, label=model)
+    ax[0].set_title("Accuracy")
+    ax[0].set_xlabel("Cell")
+    ax[0].set_ylabel("Accuracy")
+    ax[0].legend()
+    ax[1].set_title("F1 Score")
+    ax[1].set_xlabel("Cell")
+    ax[1].set_ylabel("F1 Score")
+    ax[1].legend()
+    plt.tight_layout()
+    plt.show()
