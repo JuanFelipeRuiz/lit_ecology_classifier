@@ -99,6 +99,7 @@ class Testing():
         """
         self.model.hparams.datapath = test_cell
         data_module = DataModule(**self.model.hparams)
+        data_module.setup("test")
         self.model.load_datamodule(data_module)
         self.pl_trainer.test(self.model, datamodule=data_module)
         self.cls_reports.append(self.model.cls_report)
