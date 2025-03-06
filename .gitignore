@@ -2,18 +2,25 @@
 # ignore all tar files
 *.tar
 
-# ignore all zoo folders
+# ignore all iamges in folder starting with zoo
 Zoo*/**/*.jpeg
 *.ckpt
 **.png
 
+# ignore all files inside models folder
 models/*
+checkpoints*/*
 
+# ignore all cached files from pychache
 **/__pycache__/
+
 */.ipynb_checkpoints/
+
+# ignore all IDE files
 */.DS_Store
 */.idea/
 .vscode/* 
 model.safetensors
-checkpoints*/*
+
+
 lit_ecology_classifier.egg-info/*
