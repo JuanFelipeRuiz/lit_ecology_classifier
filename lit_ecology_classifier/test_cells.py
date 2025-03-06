@@ -9,6 +9,7 @@ from datetime import datetime
 import pprint
 import os
 
+import pandas as pd
 import lightning as pl
 from lightning import Trainer
 import torch
@@ -49,7 +50,7 @@ class Testing():
         self.TTA = TTA
         self.model = None
         self.pl_trainer = None
-        self.cls_reports = []
+        self.performance = []
 
     def trainer(self, pl_trainer):
         """
@@ -102,7 +103,11 @@ class Testing():
         data_module.setup("test")
         self.model.load_datamodule(data_module)
         self.pl_trainer.test(self.model, datamodule=data_module)
-        self.cls_reports.append(self.model.cls_report)
+        f1 = self.model.test_f1
+        accuracy = self.model.test_acc
+        model = self.model.hparams.model_name
+        test_cell = self.model.test_cell
+        self.performance.append([model, test_cell, accuracy, f1])
 
     def test(self):
         """ Test each model on each cell"""
@@ -115,6 +120,15 @@ class Testing():
             # predict on each cell
             for cell in self.cells:
                 self.test_cell(cell)
+
+    def get_performance_overview(self):
+        """
+        Get the performance overview of the models on the cells
+        """
+
+        columns = ["model", "cell", "accuracy", "f1"]
+        self.performance = pd.DataFrame(self.performance, columns=columns)
+        return self.performance
 
 
 if __name__ == '__main__':
@@ -137,4 +151,4 @@ if __name__ == '__main__':
     
     test.trainer(trainer)
     test.test()
-    print(test.cls_reports)
+   

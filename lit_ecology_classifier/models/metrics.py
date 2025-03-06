@@ -109,7 +109,7 @@ def extra_metrics(GT_label, Pred_label, Pred_prob, ID_result):
 
     return bias, BC, MAE, MSE, RMSE, R2, NMAE, AE_rm_junk, NAE_rm_junk, df_count_Pred_GT
 
-def compute_metrics(all_y_labels, predicted_labels):
+def compute_metrics(all_y_labels, predicted_labels,inverted_class_map):
     """
     Compute the basic metrics for the model.
     """
@@ -124,34 +124,9 @@ def compute_metrics(all_y_labels, predicted_labels):
     macro_precision = precision_score(all_labels_np, predicted_labels_np, average='macro',labels=np.unique(all_labels_np))
     macro_recall = recall_score(all_labels_np, predicted_labels_np, average='macro',labels=np.unique(all_labels_np))
     macro_f1 = f1_score(all_labels_np, predicted_labels_np, average='macro',labels=np.unique(all_labels_np))
-    accuracy_model = accuracy_score(all_labels_np, predicted_labels_np)         
-    return balanced_acc, false_positives.item() , macro_precision, macro_recall, macro_f1, accuracy_model, all_labels_np, predicted_labels_np
-    
-def create_classification_report(all_labels, predicted_labels, accuracy,macro_f1, inverted_class_map):
-    """
-    Create a sklearn classification report for the model.
-
-    Args:
-        all_labels: True y labels
-        predicted_labels: Predicted label
-        accuracy: Accuracy of the model
-        macro_f1: Macro F1 score of the model
-        inverted_class_map: Inverted class map
-
-    Returns:
-        Content to create a file with the overall classification report
-    """
-    if not isinstance(all_labels, np.ndarray):
-        all_labels = all_labels.cpu().numpy()
-    if not isinstance(predicted_labels, np.ndarray):
-        predicted_labels = predicted_labels.cpu().numpy()
-    macro_f1_al = f1_score(all_labels, predicted_labels, average='macro', labels=np.unique(all_labels))
-    print("Macro F1 score", macro_f1_al)
-    clf_report = classification_report(all_labels, predicted_labels, labels=np.unique(all_labels), target_names=list(inverted_class_map.values()))
-    print(clf_report)
-    file_content = '\n Accuracy\n\n{}\n\nF1 Score\n\n{}\n\nClassification Report\n\n{}\n'.format(accuracy, macro_f1, clf_report)
-
-    return file_content
+    accuracy_model = accuracy_score(all_labels_np, predicted_labels_np)
+    clf_report = classification_report(all_labels_np, predicted_labels, labels=np.unique(all_labels_np), target_names=list(inverted_class_map.values()))       
+    return balanced_acc, false_positives.item() , macro_precision, macro_recall, macro_f1, accuracy_model, all_labels_np, predicted_labels_np, clf_report
 
 
 

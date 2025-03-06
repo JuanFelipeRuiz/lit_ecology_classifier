@@ -14,7 +14,7 @@ from sklearn.metrics import balanced_accuracy_score, f1_score
 from lit_ecology_classifier.helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions, compute_roc_auc_binary, barplot_predictions
 from lit_ecology_classifier.helpers.helpers import CosineWarmupScheduler, gmean, output_results, FocalLoss, setup_classmap, test_output_results
 from lit_ecology_classifier.models.setup_model import setup_model
-from lit_ecology_classifier.models.metrics import compute_metrics, create_classification_report, compute_roc_auc
+from lit_ecology_classifier.models.metrics import compute_metrics, compute_roc_auc
 
 class LitClassifier(LightningModule):
     def __init__(self, **hparams):
@@ -193,7 +193,7 @@ class LitClassifier(LightningModule):
         if self.hparams.use_wandb:
 
             self.logger.log_image(key=f"score_distributions", images=[fig_score], step=self.current_epoch)
-            self.logger.log_image(key="confusion_matrix", images=[fig], step=self.current_epoch)
+            self.logger.log_image(key="confusion_matrix", images=[fig1], step=self.current_epoch)
             self.logger.log_image(key="confusion_matrix_norm", images=[fig2], step=self.current_epoch)
         else:
             
@@ -202,14 +202,17 @@ class LitClassifier(LightningModule):
             confusion_matrix_epoch_path = self.train_outpath / f"confusion_matrix_epoch_{self.current_epoch}.png"
             confusion_matrix_norm_epoch_path = self.train_outpath  / f"confusion_matrix_normalized_epoch_{self.current_epoch}.png"
             score_distributions_epoch_path = self.train_outpath  / f"score_distributions_epoch__{self.current_epoch}.png"
-
             fig1.savefig(confusion_matrix_epoch_path)
             fig2.savefig(confusion_matrix_norm_epoch_path)
             fig_score.savefig(score_distributions_epoch_path)
-
-        plt.close(fig1)
-        plt.close(fig2)
-        plt.close(fig_score)
+        
+        # print the confusion matrix if it is the last epoch
+        print(self.current_epoch)
+        if self.current_epoch == self.trainer.max_epochs - 1:
+            print("sad")
+            plt.show(fig1)
+            plt.show(fig2)
+            plt.show(fig_score)
 
     def on_test_epoch_start(self):
         """
@@ -268,7 +271,7 @@ class LitClassifier(LightningModule):
 
 
         # Compute metrics
-        balanced_acc, false_positives, precision, recall, f1, accuracy, all_y_labels_np, all_predicted_labels_np  = compute_metrics(all_y_labels, all_pred_label)
+        balanced_acc, false_positives, precision, recall, f1, accuracy, all_y_labels_np, all_predicted_labels_np,cls_report  = compute_metrics(all_y_labels, all_pred_label, self.inverted_class_map)
 
         
        
@@ -291,14 +294,12 @@ class LitClassifier(LightningModule):
         confusion_matrix_df.index.name = 'True label'
         confusion_matrix_norm_df.index.name = 'True label'
 
-    
-
         # Compute ROC curves and AUC
         roc_auc = compute_roc_auc(all_y_labels, all_scores)
 
         roc_auc_binary = compute_roc_auc_binary(all_y_labels, all_scores)
 
-        cl_report = create_classification_report(all_y_labels, all_predicted_labels_np, accuracy, f1, self.inverted_class_map)
+
 
         inverted_predicted_labels_np = np.array([self.inverted_class_map[label] for label in all_predicted_labels_np])
         inverted_y_labels_np = np.array([self.inverted_class_map[label] for label in all_y_labels_np])
@@ -310,7 +311,9 @@ class LitClassifier(LightningModule):
         
        
     
-        self.cls_report = cl_report
+        self.test_f1 = f1
+        self.test_acc = accuracy
+        self.test_cell = Path(self.hparams.datapath).name
         print("test_roc_auc_binary:", roc_auc_binary)
         print("test_balanced_acc:", balanced_acc)
         print("test_false_positives:", false_positives)
@@ -327,26 +330,26 @@ class LitClassifier(LightningModule):
             
         
         else:
-            
-            datafolder = Path(self.hparams.datapath).name
-            base_outpath = Path(self.hparams.outpath) / f"{self.hparams.model_name}_{datafolder}"
+        
+            base_outpath = Path(self.hparams.outpath) / f"{self.hparams.model_name}_{self.test_cell }"
             Path.mkdir(base_outpath, exist_ok=True)
 
             path_score_distributions = base_outpath / "score_distributions.png"
             path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
             path_confusion_matrix_norm =  base_outpath / "confusion_matrix_normalized.png"
-            path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}_{datafolder}.txt"
-            path_classifications = base_outpath / f"classifications_{self.hparams.model_name}_{datafolder}.csv"
-            path_confusion_matrix_csv = base_outpath / f"confusion_matrix_{self.hparams.model_name}_{datafolder}.csv"
-           
+            path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}_{self.test_cell}.txt"
+            path_classifications = base_outpath / f"classifications_{self.hparams.model_name}_{self.test_cell}.csv"
+            path_confusion_matrix_csv = base_outpath / f"confusion_matrix_{self.hparams.model_name}_{self.test_cell}.csv"
+            
 
 
             fig_score.savefig(path_score_distributions)
             fig1.savefig(path_confusion_matrix)
             fig2.savefig(path_confusion_matrix_norm)
             
+            cls_report_content = f"Accuracy: {accuracy}\nF1: {f1}\n\n\n{cls_report}"
             with open(path_classification_report, "w") as f:
-                f.write(cl_report)
+                f.write(cls_report_content)
 
 
             df = pd.DataFrame(classifications, columns=column_names)
