@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import pandas as pd
+from datetime import datetime
 from lightning import LightningModule
 from sklearn.metrics import balanced_accuracy_score, f1_score
 
@@ -112,6 +113,13 @@ class LitClassifier(LightningModule):
         self.val_step_targets = []
         self.val_step_probs = []
 
+        if not self.hparams.use_wandb and self.current_epoch == 0:
+            time_stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+            self.train_outpath = Path(self.hparams.train_outpath) / f"{self.hparams.architecture}_{time_stamp}"
+            Path.mkdir(self.train_outpath, exist_ok=True)
+            
+
     def validation_step(self, batch, batch_idx):
         """
         Perform a validation step.
@@ -149,9 +157,6 @@ class LitClassifier(LightningModule):
         Args:
             outputs (list): List of dictionaries returned by validation_step.
         """
-        print(self.class_map)
-        print(self.inverted_class_map)
-
         all_scores = torch.cat(self.val_step_probs)
         all_preds = torch.cat(self.val_step_predictions)
         all_labels = torch.cat(self.val_step_targets)
@@ -164,7 +169,7 @@ class LitClassifier(LightningModule):
 
         precision = torch.sum((all_preds!= 0) & (all_labels!=0) ).item()/max(torch.sum((all_preds!= 0) & (all_labels!=0) ).item()+torch.sum((all_preds != 0) & (all_labels == 0)).item(),1)
         self.log("val_precision", precision, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-        fig, fig2 = plot_confusion_matrix(all_labels, all_preds, self.inverted_class_map.values())
+        fig1,fig2, confusion_matrix, confusion_matrix_norm  = plot_confusion_matrix(all_labels, all_preds, self.inverted_class_map.values())
        
         # Log the confusion matrix to wandb if use_wandb is true
         if self.hparams.use_wandb:
@@ -173,11 +178,18 @@ class LitClassifier(LightningModule):
             self.logger.log_image(key="confusion_matrix", images=[fig], step=self.current_epoch)
             self.logger.log_image(key="confusion_matrix_norm", images=[fig2], step=self.current_epoch)
         else:
-            fig.savefig(f"{self.hparams.train_outpath}/confusion_matrix_epoch_{self.current_epoch}.png")
-            fig2.savefig(f"{self.hparams.train_outpath}/confusion_matrix_normalized_epoch_{self.current_epoch}.png")
-            fig_score.savefig(f"{self.hparams.train_outpath}/score_distributions_epoch_{self.current_epoch}.png")
+            
+            
 
-        plt.close(fig)
+            confusion_matrix_epoch_path = self.train_outpath / f"confusion_matrix_epoch_{self.current_epoch}.png"
+            confusion_matrix_norm_epoch_path = self.train_outpath  / f"confusion_matrix_normalized_epoch_{self.current_epoch}.png"
+            score_distributions_epoch_path = self.train_outpath  / f"score_distributions_epoch__{self.current_epoch}.png"
+
+            fig1.savefig(confusion_matrix_epoch_path)
+            fig2.savefig(confusion_matrix_norm_epoch_path)
+            fig_score.savefig(score_distributions_epoch_path)
+
+        plt.close(fig1)
         plt.close(fig2)
         plt.close(fig_score)
 
@@ -308,7 +320,7 @@ class LitClassifier(LightningModule):
             path_classification_report = base_outpath / f"classification_report_{self.hparams.model_name}_{datafolder}.txt"
             path_classifications = base_outpath / f"classifications_{self.hparams.model_name}_{datafolder}.csv"
             path_confusion_matrix_csv = base_outpath / f"confusion_matrix_{self.hparams.model_name}_{datafolder}.csv"
-            path_confusion_matrix_norm_csv = base_outpath / f"confusion_matrix_normalized_{self.hparams.model_name}_{datafolder}.csv"
+           
 
 
             fig_score.savefig(path_score_distributions)
