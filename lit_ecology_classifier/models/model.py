@@ -47,12 +47,15 @@ class LitClassifier(LightningModule):
             class_weights (torch.Tensor): Class weights for the loss function.
         """
         if hasattr(self, "hparams") and getattr(self.hparams, "loss", None) == "focal":
-            if hasattr(self, "class_weights"):
+            if hasattr(self.hparams, "class_weights"):
+                print("Focal loss cannot be used with class weights.")
                 raise ValueError("Focal loss cannot be used with class weights.")
             return FocalLoss(alpha=None, gamma=1.75)
         else:
-            if hasattr(self, "class_weights "):
-                return torch.nn.CrossEntropyLoss(weight=self.class_weights)
+            if hasattr(self.hparams, "class_weights "):
+                print("Using class weights")
+                return torch.nn.CrossEntropyLoss(weight=self.hparams.class_weights)
+            print("Using standard cross entropy loss")
             return torch.nn.CrossEntropyLoss()
 
     def TTA(self, batch):
