@@ -48,7 +48,7 @@ class LitClassifier(LightningModule):
         """
         if hasattr(self, "hparams") and getattr(self.hparams, "loss", None) == "focal":
             if hasattr(self, "class_weights"):
-                raise ValueError("Focal loss cannot be used with class weights.")
+                raise NotImplementedError("Focal loss cannot be used with class weights.")
             return FocalLoss(alpha=None, gamma=1.75)
         else:
             if hasattr(self, "class_weights "):
