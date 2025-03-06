@@ -18,7 +18,9 @@ def calculate_class_weights(datamodule):
     """
 
     logging.info("Calculating class weights...")
+    # set pin memory to False to avoid starting a gpu process
     dataloader = datamodule.train_dataloader()
+    dataloader.pin_memory = False
     mean = 0.0
     std = 0.0
     total_images_count = 0
