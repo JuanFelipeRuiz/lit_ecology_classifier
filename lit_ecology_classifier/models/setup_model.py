@@ -20,7 +20,7 @@ def setup_model(
     fc_node = 512,
     add_layer = False,
     finetune = False,
-    pretrained=False,
+    pretrained=True,
     num_classes=None,
     checkpoint_path="checkpoints/backbone.safetensors",
     architecture = "beitv2",
@@ -108,9 +108,12 @@ class SetupModel:
         if self.trained_weights_path:
             self.load_trained_weights()
 
-        logger.debug("Model setup completed.")
-        logger.debug("Total number of trainable parameters: %d", sum(p.numel() for p in self.model.parameters() if p.requires_grad))
-        logger.debug("Total number of parameters: %d", sum(p.numel() for p in self.model.parameters()))
+        print("Model setup completed.")
+        print("Model architecture: ", self.architecture)
+        print("Number of classes: ", self.num_classes)
+        print("Pretrained: ", self.pretrained)
+        print("Total number of trainable parameters: %d", sum(p.numel() for p in self.model.parameters() if p.requires_grad))
+        print("Total number of parameters: %d", sum(p.numel() for p in self.model.parameters()))
         return self.model
     
 
