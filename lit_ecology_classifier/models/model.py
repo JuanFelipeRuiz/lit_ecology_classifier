@@ -38,7 +38,7 @@ class LitClassifier(LightningModule):
         self.loss = self.define_loss()
         time_stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
         self.hparams.model_name = f"{self.hparams.architecture}_{time_stamp}" if hasattr(self.hparams, "architecture") else f"model_{time_stamp}"
-    
+        
         logging.info("Model initialized with hyperparameters:\n {}".format(pprint.pformat(self.hparams)))
         self.cls_report = None
 
@@ -54,7 +54,7 @@ class LitClassifier(LightningModule):
                 raise ValueError("Focal loss cannot be used with class weights.")
             return FocalLoss(alpha=None, gamma=1.75)
         else:
-            if hasattr(self.hparams, "class_weights"):
+            if hasattr(self.hparams, "class_weights") and self.hparams.class_weights is not None:
                 print("Using class weights")
                 return torch.nn.CrossEntropyLoss(weight=self.hparams.class_weights)
             print("Using standard cross entropy loss")
