@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import sklearn
 import torch
+from IPython import display
+
 
 
 
@@ -155,6 +157,7 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     Returns:
         A tuple containing the plots: (confusion matrix, normalized confusion matrix)
     """
+
     # TODO: Check if this is necessary
     if not isinstance(all_labels, np.ndarray):
         all_labels = all_labels.cpu().numpy()
@@ -166,22 +169,31 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
     confusion_matrix_norm = sklearn.metrics.confusion_matrix(all_labels, all_preds, normalize="pred", labels=class_indices)
 
 
-    num_classes = confusion_matrix.shape[0]
-    fig, ax = plt.subplots(figsize=(20, 20))
-    fig2, ax2 = plt.subplots(figsize=(20, 20))
+        # Store current interactive mode state
+    was_interactive = plt.isinteractive()
+    # Temporarily disable interactive mode
+    plt.ioff()
 
+    try:
+        num_classes = confusion_matrix.shape[0]
+        fig, ax = plt.subplots(figsize=(10, 10))
+        fig2, ax2 = plt.subplots(figsize=(10, 10))
 
-    if len(class_names) != num_classes:
-        print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
-        class_names = class_names[:num_classes]
-    cm_display = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
-    cm_display_norm = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
-    cmap = cvd_colormap()
-    cm_display.plot(cmap=cmap, ax=ax, xticks_rotation=90)
-    cm_display_norm.plot(cmap=cmap, ax=ax2, xticks_rotation=90)
+        if len(class_names) != num_classes:
+            print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
+            class_names = class_names[:num_classes]
+        cm_display = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix, display_labels=class_names)
+        cm_display_norm = sklearn.metrics.ConfusionMatrixDisplay(confusion_matrix_norm, display_labels=class_names)
+        cmap = cvd_colormap()
+        cm_display.plot(cmap=cmap, ax=ax, xticks_rotation=90)
+        cm_display_norm.plot(cmap=cmap, ax=ax2, xticks_rotation=90)
 
-    fig.tight_layout()
-    fig2.tight_layout()
+        fig.tight_layout()
+        fig2.tight_layout()
+    finally:
+        # Restore previous interactive state
+        if was_interactive:
+            plt.ion()
     return fig, fig2, confusion_matrix, confusion_matrix_norm
 
 
@@ -318,7 +330,6 @@ def plot_score_distribution_single_class(y_true, y_scores, auc_score, class_labe
     plt.yscale('log')
     plt.grid(True)
     plt.tight_layout()
-
     if path != '':
         path = Path(path) / "score_distribution_class_{}.png".format(class_label)
         plt.savefig(path)
