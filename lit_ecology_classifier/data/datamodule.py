@@ -57,11 +57,11 @@ class DataModule(LightningDataModule):
         self.batch_size = batch_size
         self.dataset = dataset
         
-        if  isinstance(splits, pd.DataFrame) and not None:
+        if  isinstance(splits, pd.DataFrame):
             self.splits = splits
         else:
             self.train_split, self.val_split = splits
-            self.splits = None
+            self.splits = splits
 
         self.class_map = setup_classmap(class_map, datapath=datapath, priority_classes=priority_classes, rest_classes=rest_classes)
         self.priority_classes = priority_classes
