@@ -331,7 +331,7 @@ class LitClassifier(LightningModule):
         
         else:
         
-            base_outpath = Path(self.hparams.outpath) / f"{self.hparams.model_name}_{self.test_cell }"
+            base_outpath = Path(self.hparams.test_outpath) / f"{self.hparams.model_name}_{self.test_cell }"
             Path.mkdir(base_outpath, exist_ok=True)
 
             path_score_distributions = base_outpath / "score_distributions.png"
