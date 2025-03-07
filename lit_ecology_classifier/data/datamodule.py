@@ -37,7 +37,6 @@ class DataModule(LightningDataModule):
         self,
         datapath: Union[str , Path],
         batch_size: int,
-        dataset: str,
         TTA: bool = False,
         class_map: dict = {} ,
         priority_classes: list = [],
@@ -47,6 +46,7 @@ class DataModule(LightningDataModule):
         resize_with_proportions: bool = False,
         target_size: Union[tuple[int, int], int] = (224, 224),
         normalize_images: bool = False, 
+        dataset = "Zoo",
         **kwargs
 
         ):
@@ -57,11 +57,11 @@ class DataModule(LightningDataModule):
         self.batch_size = batch_size
         self.dataset = dataset
         
-        if  isinstance(splits, pd.DataFrame):
-            self.split_overview = splits
+        if  isinstance(splits, pd.DataFrame) and not None:
+            self.splits = splits
         else:
             self.train_split, self.val_split = splits
-            self.split_overview = None
+            self.splits = None
 
         self.class_map = setup_classmap(class_map, datapath=datapath, priority_classes=priority_classes, rest_classes=rest_classes)
         self.priority_classes = priority_classes
@@ -139,7 +139,7 @@ class DataModule(LightningDataModule):
             
             self.prepare_augementations(train=True)
 
-            if self.split_overview is not None:
+            if self.splits is not None and isinstance(self.splits, pd.DataFrame):
                 self.setup_train_with_overview()
 
             else:
@@ -271,9 +271,9 @@ class DataModule(LightningDataModule):
         Returns:
             A tuple containing the different splits of the dataset.
         """
-        train_df = self.split_overview[ self.split_overview["split"] == "train"].reset_index(drop=True)
-        val_df   = self.split_overview[ self.split_overview["split"] == "val"].reset_index(drop=True)
-        test_df  = self.split_overview[ self.split_overview["split"] == "test"].reset_index(drop=True)
+        train_df = self.splits[ self.splits["split"] == "train"].reset_index(drop=True)
+        val_df   = self.splits[ self.splits["split"] == "val"].reset_index(drop=True)
+        test_df  = self.splits[ self.splits["split"] == "test"].reset_index(drop=True)
 
         logger.info("Train size of df: %s", len(train_df))
         logger.info("Validation size of df: %s", len(val_df))
