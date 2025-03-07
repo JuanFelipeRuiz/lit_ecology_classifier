@@ -36,6 +36,8 @@ class LitClassifier(LightningModule):
         self.inverted_class_map = dict(sorted({v: k for k, v in self.class_map.items()}.items()))
         self.model = setup_model(**self.hparams)
         self.loss = self.define_loss()
+        time_stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.hparams.model_name = f"{self.hparams.architecture}_{time_stamp}" if hasattr(self.hparams, "architecture") else f"model_{time_stamp}"
     
         logging.info("Model initialized with hyperparameters:\n {}".format(pprint.pformat(self.hparams)))
         self.cls_report = None
@@ -52,7 +54,7 @@ class LitClassifier(LightningModule):
                 raise ValueError("Focal loss cannot be used with class weights.")
             return FocalLoss(alpha=None, gamma=1.75)
         else:
-            if hasattr(self.hparams, "class_weights "):
+            if hasattr(self.hparams, "class_weights"):
                 print("Using class weights")
                 return torch.nn.CrossEntropyLoss(weight=self.hparams.class_weights)
             print("Using standard cross entropy loss")
@@ -98,7 +100,7 @@ class LitClassifier(LightningModule):
             "interval": "step",
             "frequency": 1,
         }
-        return [optimizer], [lr_scheduler_config]
+        return [optimizer]#, [lr_scheduler_config]
 
     def load_datamodule(self, datamodule):
         """
@@ -109,6 +111,8 @@ class LitClassifier(LightningModule):
         self.datamodule = datamodule
         self.hparams.TTA = self.datamodule.TTA
         self.hparams.datapath = self.datamodule.datapath
+        self.hparams.splits = self.datamodule.splits
+
     def training_step(self, batch, batch_idx):
         """
         Perform a training step.
@@ -131,11 +135,6 @@ class LitClassifier(LightningModule):
         self.val_step_targets = []
         self.val_step_probs = []
 
-        if not self.hparams.use_wandb and self.current_epoch == 0:
-            time_stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-            self.train_outpath = Path(self.hparams.train_outpath) / f"{self.hparams.architecture}_{time_stamp}"
-            Path.mkdir(self.train_outpath, exist_ok=True)
             
 
     def validation_step(self, batch, batch_idx):
@@ -188,7 +187,8 @@ class LitClassifier(LightningModule):
         precision = torch.sum((all_preds!= 0) & (all_labels!=0) ).item()/max(torch.sum((all_preds!= 0) & (all_labels!=0) ).item()+torch.sum((all_preds != 0) & (all_labels == 0)).item(),1)
         self.log("val_precision", precision, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         fig1,fig2, confusion_matrix, confusion_matrix_norm  = plot_confusion_matrix(all_labels, all_preds, self.inverted_class_map.values())
-       
+
+        del confusion_matrix, confusion_matrix_norm
         # Log the confusion matrix to wandb if use_wandb is true
         if self.hparams.use_wandb:
 
@@ -197,22 +197,38 @@ class LitClassifier(LightningModule):
             self.logger.log_image(key="confusion_matrix_norm", images=[fig2], step=self.current_epoch)
         else:
             
+            # check if the logger is csvlogger
+            if self.trainer.logger.__class__.__name__ == "CSVLogger":
+                
+                log_dir = Path(self.trainer.logger.log_dir)
+                print(log_dir)
+                confusion_matrix_epoch_path = log_dir / f"confusion_matrix_epoch_{self.current_epoch}.png"
+                confusion_matrix_norm_epoch_path = log_dir  / f"confusion_matrix_normalized_epoch_{self.current_epoch}.png"
+                score_distributions_epoch_path = log_dir  / f"score_distributions_epoch__{self.current_epoch}.png"
+                fig1.savefig(confusion_matrix_epoch_path)
+                fig2.savefig(confusion_matrix_norm_epoch_path)
+                fig_score.savefig(score_distributions_epoch_path)
             
+            elif self.current_epoch == self.trainer.max_epochs - 1:
+                    print("sad")
+                    self.train_outpath = Path(self.hparams.train_outpath) / self.model_name
+                    Path.mkdir(self.train_outpath, exist_ok=True)
+                    confusion_matrix_epoch_path = self.train_outpath / f"confusion_matrix_epoch_{self.current_epoch}.png"
+                    confusion_matrix_norm_epoch_path = self.train_outpath  / f"confusion_matrix_normalized_epoch_{self.current_epoch}.png"
+                    score_distributions_epoch_path = self.train_outpath  / f"score_distributions_epoch__{self.current_epoch}.png"
+                    fig1.savefig(confusion_matrix_epoch_path)
+                    fig2.savefig(confusion_matrix_norm_epoch_path)
+                    fig_score.savefig(score_distributions_epoch_path)
 
-            confusion_matrix_epoch_path = self.train_outpath / f"confusion_matrix_epoch_{self.current_epoch}.png"
-            confusion_matrix_norm_epoch_path = self.train_outpath  / f"confusion_matrix_normalized_epoch_{self.current_epoch}.png"
-            score_distributions_epoch_path = self.train_outpath  / f"score_distributions_epoch__{self.current_epoch}.png"
-            fig1.savefig(confusion_matrix_epoch_path)
-            fig2.savefig(confusion_matrix_norm_epoch_path)
-            fig_score.savefig(score_distributions_epoch_path)
-        
-        # print the confusion matrix if it is the last epoch
-        print(self.current_epoch)
-        if self.current_epoch == self.trainer.max_epochs - 1:
-            print("sad")
-            plt.show(fig1)
-            plt.show(fig2)
-            plt.show(fig_score)
+            if self.current_epoch == self.trainer.max_epochs - 1:
+                plt.show(fig1)
+                plt.show(fig2)
+                plt.show(fig_score)
+               
+
+        plt.close(fig1)
+        plt.close(fig2)
+        plt.close(fig_score)            
 
     def on_test_epoch_start(self):
         """
@@ -330,9 +346,11 @@ class LitClassifier(LightningModule):
             
         
         else:
-        
-            base_outpath = Path(self.hparams.test_outpath) / f"{self.hparams.model_name}_{self.test_cell }"
-            Path.mkdir(base_outpath, exist_ok=True)
+            try:
+                base_outpath = Path(self.hparams.test_outpath) / f"{self.hparams.model_name}_{self.test_cell }"
+                Path.mkdir(base_outpath, exist_ok=True)
+            except AttributeError:
+                raise AttributeError("No test_outpath specified. Saving classification artefacts to the current directory")
 
             path_score_distributions = base_outpath / "score_distributions.png"
             path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
