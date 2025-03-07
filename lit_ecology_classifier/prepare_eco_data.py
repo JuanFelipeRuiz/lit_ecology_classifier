@@ -17,7 +17,7 @@ Supported datasets:
 Example usage:
 
 ```bash / cmd
-python -m lit_ecology_classifier.get_data ZooLake1
+python -m lit_ecology_classifier.perepare_eco_data ZooLake1
 ```
 """
 import os
