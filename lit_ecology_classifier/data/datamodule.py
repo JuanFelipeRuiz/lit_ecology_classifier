@@ -271,6 +271,7 @@ class DataModule(LightningDataModule):
         Returns:
             A tuple containing the different splits of the dataset.
         """
+        logger.info("Setting up the dataset based on the provided split overview.")
         train_df = self.splits[ self.splits["split"] == "train"].reset_index(drop=True)
         val_df   = self.splits[ self.splits["split"] == "val"].reset_index(drop=True)
         test_df  = self.splits[ self.splits["split"] == "test"].reset_index(drop=True)
