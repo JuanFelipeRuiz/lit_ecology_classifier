@@ -43,7 +43,8 @@ class Testing():
             ood_dir = None,
             batch_size = 32,
             TTA = False,
-            only_test = True
+            only_test = True,
+            strict=False
     ):
         self.model_paths = model_paths
         self.output_path = self.prepare_output_dir(output_path)
@@ -54,6 +55,7 @@ class Testing():
         self.pl_trainer = None
         self.performance = []
         self.only_test = only_test
+        self.strict = strict
 
     def trainer(self, pl_trainer):
         """
@@ -87,11 +89,11 @@ class Testing():
         """
         Setup the model to be tested.
         """
-        model = LitClassifier.load_from_checkpoint(model_path)
-        model_name = model_path.split(os.sep)[-1].split(".")[0]
+        model = LitClassifier.load_from_checkpoint(model_path, strict=self.strict)
+        model_name = str(model_path).split(os.sep)[-1].split(".")[0]
         model.hparams.batch_size = self.batch_size
         model.hparams.TTA = self.TTA
-        model.hparams.outpath = self.output_path
+        model.hparams.test_outpath = self.output_path
         model.hparams.use_wandb = False
         model.hparams.model_name = model_name
         model.hparams.only_test = self.only_test
