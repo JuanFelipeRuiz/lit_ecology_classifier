@@ -161,11 +161,11 @@ class ResizeWithProportions:
             Image.Image: The resized and padded image.
         """
         validated_image = self._validate_input(input_object)
-        self.image_width, self.image_width = validated_image.size
+        self.image_width, self.height = validated_image.size
 
         self._check_dimensions()
 
-        if max(self.image_width, self.image_width) > self.target_size:
+        if max(self.image_width, self.height) > self.target_size:
             validated_image = self._shrink_image(validated_image)
 
         return self._add_padding(validated_image)
@@ -221,6 +221,8 @@ additional_transformations = {
         RandomRotation(180),
         AugMix(),
     ],
+
+    "no_addidtional": [],
 }
 
 
