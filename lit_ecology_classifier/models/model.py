@@ -94,12 +94,12 @@ class LitClassifier(LightningModule):
         """
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.hparams.lr)
 
-        scheduler = CosineWarmupScheduler(optimizer, warmup=3 * len(self.datamodule.train_dataloader()), max_iters=self.trainer.max_epochs * len(self.datamodule.train_dataloader()))
-        lr_scheduler_config = {
-            "scheduler": scheduler,
-            "interval": "step",
-            "frequency": 1,
-        }
+        #scheduler = CosineWarmupScheduler(optimizer, warmup=3 * len(self.datamodule.train_dataloader()), max_iters=self.trainer.max_epochs * len(self.datamodule.train_dataloader()))
+        #lr_scheduler_config = {
+        #    "scheduler": scheduler,
+        #    "interval": "step",
+        #    "frequency": 1,
+        #}
         return [optimizer]#, [lr_scheduler_config]
 
     def load_datamodule(self, datamodule):
@@ -198,10 +198,8 @@ class LitClassifier(LightningModule):
         else:
             
             # check if the logger is csvlogger
-            if self.trainer.logger.__class__.__name__ == "CSVLogger":
-                
+            if self.trainer.logger.__class__.__name__ == "CSVLogger":                
                 log_dir = Path(self.trainer.logger.log_dir)
-                print(log_dir)
                 confusion_matrix_epoch_path = log_dir / f"confusion_matrix_epoch_{self.current_epoch}.png"
                 confusion_matrix_norm_epoch_path = log_dir  / f"confusion_matrix_normalized_epoch_{self.current_epoch}.png"
                 score_distributions_epoch_path = log_dir  / f"score_distributions_epoch__{self.current_epoch}.png"
@@ -210,7 +208,6 @@ class LitClassifier(LightningModule):
                 fig_score.savefig(score_distributions_epoch_path)
             
             elif self.current_epoch == self.trainer.max_epochs - 1:
-                    print("sad")
                     self.train_outpath = Path(self.hparams.train_outpath) / self.model_name
                     Path.mkdir(self.train_outpath, exist_ok=True)
                     confusion_matrix_epoch_path = self.train_outpath / f"confusion_matrix_epoch_{self.current_epoch}.png"
@@ -371,11 +368,9 @@ class LitClassifier(LightningModule):
 
 
             df = pd.DataFrame(classifications, columns=column_names)
-            print(path_classifications)
+
             df.to_csv(path_classifications, index=False)
             confusion_matrix_df.to_csv(path_confusion_matrix_csv)
-
-            print(f"Classification artefacts saved to {base_outpath}")
 
         return super().on_test_epoch_end()
             
@@ -438,4 +433,6 @@ class LitClassifier(LightningModule):
         """
         if not self.hparams.use_wandb:
             plot_loss_acc(self.trainer.logger)
+            plt.show(plot_loss_acc)
+            print(f"Artefatcs saved to {self.trainer.log_dir}")
         return super().on_fit_end()
