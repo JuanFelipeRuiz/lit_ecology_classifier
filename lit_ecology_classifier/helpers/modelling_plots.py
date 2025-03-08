@@ -83,6 +83,10 @@ def plot_loss_acc(logger):
     ax[1].set_title("Accuracy vs Steps")
     ax[1].legend()
     fig.tight_layout()
+    # change height_ratios to add space for the title
+    plt.subplots_adjust(top=0.9)
+    plt.suptitle(f"Final Validation Loss: {val_loss.iloc[-1]:.4f}, Final Validation Accuracy: {val_acc.iloc[-1]:.4f}")
+    
     plt.savefig(f"{logger.save_dir}/{logger.name}/version_{logger.version}/loss_accuracy.png")
 
 
