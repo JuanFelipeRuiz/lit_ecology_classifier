@@ -57,8 +57,6 @@ class ResizeWithProportions:
             target_size: The desired size of the output image.
         """
         self.target_size = self._transform_target_size(target_size)
-        self.image_height = None
-        self.image_width = None
 
     def _transform_target_size(self, target_size: Union[tuple[int, int], int]) -> int:
         """
@@ -161,11 +159,11 @@ class ResizeWithProportions:
             Image.Image: The resized and padded image.
         """
         validated_image = self._validate_input(input_object)
-        self.image_width, self.height = validated_image.size
+        self.image_width, self.image_height = validated_image.size
 
         self._check_dimensions()
 
-        if max(self.image_width, self.height) > self.target_size:
+        if max(self.image_width, self.image_height) > self.target_size:
             validated_image = self._shrink_image(validated_image)
 
         return self._add_padding(validated_image)
@@ -272,18 +270,24 @@ def define_transformation_pipeline(
     Returns:
        A transformation pipeline for the images compatible with PyTorch "torchvision.transforms.Compose".
     """
-
+    print("sieze", target_size)
     # Define the base resizing transformation
     resize_transformation = define_resize_transformation(
         target_size=target_size, resize_with_proportions=resize_with_proportions
     )
 
+    if isinstance(target_size,int):
+        target_height = target_size
+        target_width = target_size
+    else:
+        target_height, target_width = target_size
+
     # Select transformations based on mode (train or validation)
     if train:
-        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize((224, 224)), T.ToTensor()]
+        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize((target_height,target_width)), T.ToTensor()]
 
     else:
-        defined_transformations = resize_transformation + [T.Resize((224, 224)), T.ToTensor()]
+        defined_transformations = resize_transformation + [T.Resize((target_height,target_width)), T.ToTensor()]
 
     # Apply normalization if required
     if normalize_images:
@@ -296,7 +300,7 @@ if __name__ == "__main__":
     import pathlib
     import matplotlib.pyplot as plt
 
-    FILE_PATH = r"data/ZooLake2/ZooLake2/ZooLake2.0/aphanizomenon/SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg"
+    FILE_PATH = r"data/ZooLake2/ZooLake2.0/asplanchna/SPC-EAWAG-0P5X-1526947882588679-1089736153896-006729-006-2164-1964-132-160.jpeg"
     OUTPUT_FOLDER = "./output"
 
     img_example = Image.open(FILE_PATH)
@@ -306,13 +310,13 @@ if __name__ == "__main__":
         with open(pathlib.Path(OUTPUT_FOLDER, ".gitignore"), "w") as gitignore_file:
             gitignore_file.write("*")
 
-    new_size = (224, 224)
+    new_size = (150, 150)
 
     # plot a example of the resize transformation
 
     ## preparations
     pipeline_with_porpoptions = define_transformation_pipeline(
-        train=False, target_size=new_size, resize_with_proportions=True
+        train=False, target_size=new_size, resize_with_proportions=True, 
     )
     pipeline_without_porpoptions = define_transformation_pipeline(
         train=False, target_size=new_size, resize_with_proportions=False
@@ -361,15 +365,18 @@ if __name__ == "__main__":
         for augmentation_level in augmentation_levels
     }
 
-    fig, ax = plt.subplots(1, 5, figsize=(10, 4))
 
+
+    fig, ax = plt.subplots(1, 5, figsize=(10, 4))
     # plot the original image
     ax[0].imshow(img_example)
     ax[0].set_title("Original Image", fontsize=10)
     ax[0].axis("off")
 
+     
     # plot the different transformations
     for i, (transformation_name, tensor_example) in enumerate(all_augs.items(), 1):
+        print(tensor_example.size())
         img = tensor_example.permute(1, 2, 0)
 
         ax[i].imshow(img)
