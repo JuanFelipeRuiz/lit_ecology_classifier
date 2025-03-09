@@ -206,8 +206,8 @@ class SplitProcessor:
                     f"Image overview file not found: {image_overview}"
                 )
 
-            # load the overview_df
-            return pd.read_csv(image_overview)
+            # load the overview_df and fill nan values with an empty string
+            return pd.read_csv(image_overview, dtype=str).fillna("")
         
 
     
@@ -257,7 +257,7 @@ class SplitProcessor:
             self.split_overview_path = self.artefact_folder / "split_overview.csv"
 
             try: 
-                self.split_overview = pd.read_csv(self.split_overview_path)
+                self.split_overview = pd.read_csv(self.split_overview_path).fillna("")
             except FileNotFoundError:
                 self.split_overview = None
                 
@@ -349,6 +349,9 @@ class SplitProcessor:
             .iloc[0]
             .to_dict()
         )
+
+        
+
     def _reconstruct_class_map(self): 
         self.class_map = {class_  : class_map 
                          for class_, class_map in zip(self.split_df["class"], self.split_df["class_map"])}
@@ -363,7 +366,10 @@ class SplitProcessor:
            The split DataFrame based on the given hash value.
         """
 
+        self.new_split_entry = df
+
         hash_value = df["combined_split_hash"].values[0]
+        
         logger.info("Reloading split based on hash value: %s", hash_value)
 
         filepath = self._prepare_filepath(hash_value)
@@ -378,7 +384,16 @@ class SplitProcessor:
         self.reloaded = True
         self.split_df = pd.read_csv(filepath_or_buffer=filepath)
         self._reconstruct_class_map()
-        return  self.split_df
+
+        split_hash = self._generate_split_hash(self.split_df)
+        if split_hash != hash_value:
+            logger.error("Hash values do not match: %s", hash_value)
+            raise ValueError("Hash values do not match.")
+        self.combined_split_hash = split_hash
+        logger.info("Split reloaded successfully.")
+        return self.split_df
+        
+        
 
     def _find_with_existing_hash(self, hash_value: str) -> pd.DataFrame:
         """Finds a split based on the given hash value.
@@ -427,12 +442,17 @@ class SplitProcessor:
         Returns:
             A boolean value indicating if the arguments match the existing split.
         """
+        # exclude the column description from the comparison
+        if "description" in existing_split.columns:
+            existing_split = existing_split.drop(columns=["description"])
+
         prefixed_split_args = {
             f"split_{key}": value for key, value in self.split_args.items()
         }
         prefixed_filter_args = {
             f"filter_{key}": value for key, value in self.filter_args.items()
         }
+
 
         columns_to_check = list(prefixed_split_args.keys()) + list(
             prefixed_filter_args.keys()
@@ -445,11 +465,17 @@ class SplitProcessor:
                     != existing_split[column].iloc[0]
                 ):
                     return False
+                
+        if pd.isna(existing_split["priority_classes"].iloc[0]):
+            print("sad")
+            existing_split.loc[0, "priority_classes"] = str("")
+        if pd.isna(existing_split["rest_classes"].iloc[0]):
+            existing_split.loc[0, "rest_classes"] = str("")
 
-        # check if the priority classes and rest classes match
         if existing_split["priority_classes"].iloc[0] != ",".join(
             self.priority_classes
         ) or existing_split["rest_classes"].iloc[0] != ",".join(self.rest_classes):
+            print("False, debug")
             return False
         return True
 
@@ -646,6 +672,7 @@ class SplitProcessor:
             description: Optional, a description to be added to the split overview.
         """
         if self.reloaded:
+            logger.info("Reloaded split, no need to save the split again.")
             return None
 
         # Save the split data
@@ -670,6 +697,10 @@ class SplitProcessor:
 
     def get_new_split_entry(self) -> pd.DataFrame:
         """Return the split overview DataFrame."""
+        if self.reloaded:
+            print("Reloadedf split, returning the reloaded split entry")
+            return  self.new_split_entry
+        
         self._generate_row_to_append()
         return self.new_split_entry
     
