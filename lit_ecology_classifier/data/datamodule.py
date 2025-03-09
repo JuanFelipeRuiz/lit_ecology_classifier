@@ -150,7 +150,7 @@ class DataModule(LightningDataModule):
             else:
                 self.setup_train_with_image_search(stage)
 
-        if stage == "test" and self.only_test:
+        elif stage == "test" and self.only_test:
             print("Setting up the test dataset only.")
             self.prepare_augementations(train=True)
             self.set_up_only_test()
