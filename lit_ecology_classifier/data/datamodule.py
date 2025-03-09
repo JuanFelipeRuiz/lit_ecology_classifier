@@ -56,9 +56,13 @@ class DataModule(LightningDataModule):
         self.TTA = TTA  # Enable Test Time Augmentation if testing is True
         self.batch_size = batch_size
         self.dataset = dataset
+
+        self.only_test = True if "only_test" in kwargs else False
         
-        if  isinstance(splits, pd.DataFrame):
+        if  isinstance(splits, pd.DataFrame) and self.only_test == False:
             self.splits = splits
+        elif self.only_test:
+            self.splits = None
         else:
             self.train_split, self.val_split = splits
             self.splits = splits
@@ -76,7 +80,7 @@ class DataModule(LightningDataModule):
         self.mean = [0.485, 0.456, 0.406]
         self.std = [0.229, 0.224, 0.225]
         
-        self.only_test = True if "only_test" in kwargs else False
+      
 
     def prepare_augementations(self,
                                train: bool = True,
@@ -135,7 +139,8 @@ class DataModule(LightningDataModule):
             stage:  A string indicating the current stage of the model
         """
 
-        if stage != "predict":
+        if stage != "predict" and not self.only_test:
+           
             
             self.prepare_augementations(train=True)
 
@@ -144,6 +149,12 @@ class DataModule(LightningDataModule):
 
             else:
                 self.setup_train_with_image_search(stage)
+
+        if stage == "test" and self.only_test:
+            print("Setting up the test dataset only.")
+            self.prepare_augementations(train=True)
+            self.set_up_only_test()
+            
                 
         else:
             logger.info("Setting up the prediction dataset.")
@@ -179,7 +190,25 @@ class DataModule(LightningDataModule):
                     TTA=self.TTA,
                     train=False,
                 )
-        
+    def set_up_only_test(self):
+        """Set up the dataset for testing only."""
+        logger.info("Setting up the test dataset only.")
+        full_dataset = ImageFolderDataset(
+                        self.datapath,
+                        self.class_map,
+                        self.priority_classes,
+                        rest_classes=self.rest_classes,
+                        TTA=self.TTA,
+                        train=True,
+                        val_transforms=self.val_augementations,
+                        train_transforms=self.train_augementations,
+                    )
+        if full_dataset is None or len(full_dataset) == 0:
+            logger.error("No images found in the provided directory.")
+            raise ValueError("No images found in the provided directory.")
+        logger.info("Test size: %s", len(full_dataset))
+        self.test_dataset = full_dataset
+
 
     def setup_train_with_image_search(self, stage: str = "train"):
         if self.datapath.find(".tar") == -1:
@@ -207,23 +236,13 @@ class DataModule(LightningDataModule):
                     )
 
 
-
-
-        if stage == "test" and self.only_test:
-            logger.info("Setting up the test dataset only.")
-            self.train_dataset = []
-            self.val_dataset = []
-            self.test_dataset = full_dataset
-            self.test_dataset.train =  True # setting flag to True to load the y values
-        else:
-
-            # Since no split overview is provided, create a random split of the dataset
-            # This one will not be logged by the split processor
-            self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
+        # Since no split overview is provided, create a random split of the dataset
+        # This one will not be logged by the split processor
+        self.train_dataset, self.val_dataset, self.test_dataset = self.create_random_split(
                             full_dataset = full_dataset
                 )
-            self.val_dataset.train = True
-            self.test_dataset.train = True
+        self.val_dataset.train = True
+        self.test_dataset.train = True
 
 
 

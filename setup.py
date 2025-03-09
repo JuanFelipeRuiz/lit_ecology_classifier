@@ -25,7 +25,8 @@ setup(
         'matplotlib',
         'timm',
         'safetensors',
-        'scikit-learn'
+        'scikit-learn',
+        'distinctipy'
         # Add other dependencies here
     ],
     entry_points={
