@@ -112,6 +112,7 @@ class LitClassifier(LightningModule):
         self.hparams.TTA = self.datamodule.TTA
         self.hparams.datapath = self.datamodule.datapath
         self.hparams.splits = self.datamodule.splits
+        self.hparams.batch_size = self.datamodule.batch_size
 
     def training_step(self, batch, batch_idx):
         """
