@@ -270,7 +270,7 @@ def define_transformation_pipeline(
     Returns:
        A transformation pipeline for the images compatible with PyTorch "torchvision.transforms.Compose".
     """
-    print("sieze", target_size)
+    print("size", target_size)
     # Define the base resizing transformation
     resize_transformation = define_resize_transformation(
         target_size=target_size, resize_with_proportions=resize_with_proportions
