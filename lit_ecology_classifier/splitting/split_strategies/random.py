@@ -44,18 +44,18 @@ class Random(BaseSplitStrategy):
         self.train_size = train_size
         self.test_size = test_size
 
-    def perform_split(self, df, y_col="class"):
+    def perform_split(self, df, y_col="class", random_state=12345):
 
         
         X = df["image"]
         y = df[y_col]
 
         X_train, X_temp, y_train, y_temp = train_test_split(
-            X, y, train_size=self.train_size, random_state=42
+            X, y, train_size=self.train_size, random_state=random_state
         )
 
         X_val, X_test, y_val, y_test = train_test_split(
-            X_temp, y_temp, test_size=self.test_size, random_state=42
+            X_temp, y_temp, test_size=self.test_size, random_state=random_state
         )
 
         return {
