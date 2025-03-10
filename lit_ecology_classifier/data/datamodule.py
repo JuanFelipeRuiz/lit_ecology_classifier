@@ -249,11 +249,10 @@ class DataModule(LightningDataModule):
         logger.info("Train size: %s", len(self.train_dataset))
         logger.info("Validation size: %s", len(self.val_dataset))
         logger.info("Test size: %s", len(self.test_dataset))
-        print("Train size: ", len(self.train_dataset))
-        print("Validation size: ", len(self.val_dataset))
-        print("Test size: ", len(self.test_dataset))
             
         # Set the train flag of the validation and test datasets to False
+        self.val_dataset.train = True
+        self.test_dataset.train = True
         
         
         
