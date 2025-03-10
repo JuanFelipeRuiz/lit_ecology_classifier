@@ -22,7 +22,7 @@ setting up the project and running a example with the provided datasets.
 To set up the Lit Ecology Classifier, make sure to have Python installed in your environment. Afterwards, install the package.
 
 ```bash
-pip install git+https://github.com/JuanFelipeRuiz/lit_ecology_classifier    
+pip install git+https://github.com/JuanFelipeRuiz/lit_ecology_classifier.git@Review#egg=lit_ecology_classifier
 ```
 
 ### Data 
