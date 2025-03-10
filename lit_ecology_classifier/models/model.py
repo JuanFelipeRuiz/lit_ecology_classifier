@@ -346,10 +346,10 @@ class LitClassifier(LightningModule):
         else:
             try:
                 base_outpath = Path(self.hparams.test_outpath) / f"{self.hparams.model_name}_{self.test_cell }"
-                Path.mkdir(base_outpath, exist_ok=True)
+                
             except AttributeError:
                 raise AttributeError("No test_outpath specified. Saving classification artefacts to the current directory")
-
+            Path.mkdir(base_outpath, exist_ok=True)
             path_score_distributions = base_outpath / "score_distributions.png"
             path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
             path_confusion_matrix_norm =  base_outpath / "confusion_matrix_normalized.png"

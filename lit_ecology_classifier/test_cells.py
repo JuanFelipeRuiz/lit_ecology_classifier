@@ -104,7 +104,15 @@ class Testing():
         Test a single cell
         """
         self.model.hparams.datapath = test_cell
-        data_module = DataModule(**self.model.hparams)
+        data_module = DataModule(
+            datapath=test_cell,
+            batch_size=128,
+            splits=None,
+            augmentation_level="low",
+            resize_with_proportions=True,
+            target_size=224, 
+            only_test=True)
+
         data_module.setup("test")
         self.model.load_datamodule(data_module)
         self.pl_trainer.test(self.model, datamodule=data_module)
