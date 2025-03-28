@@ -18,7 +18,7 @@ setup(
         'torchvision',
         'torchaudio ',
         'lightning == 2.2.5',
-        'pytorch-lightning == 2.4.0',
+        'pytorch-lightning == 2.5.1',
         'numpy',
         'scipy',
         'pandas',
