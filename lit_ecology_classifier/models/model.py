@@ -9,7 +9,6 @@ import torchmetrics
 import pandas as pd
 from datetime import datetime
 from lightning import LightningModule
-from sklearn.metrics import balanced_accuracy_score, f1_score
 
 
 from lit_ecology_classifier.helpers.modelling_plots import plot_confusion_matrix, plot_loss_acc, plot_score_distributions, compute_roc_auc_binary, barplot_predictions
@@ -29,13 +28,10 @@ class LitClassifier(LightningModule):
 
         if 'class_map' not in self.hparams or self.hparams.class_map == {}:
             self.hparams.class_map = setup_classmap(datapath=self.hparams['datapath'], priority_classes=self.hparams['priority_classes'], rest_classes=self.hparams['rest_classes'])
-            self.class_map = self.hparams.class_map
-            
-        else:
-            self.class_map = self.hparams.class_map
+            self.hparams.class_map = self.hparams.class_map
 
-        self.hparams.num_classes = len(self.class_map.keys())
-        self.inverted_class_map = dict(sorted({v: k for k, v in self.class_map.items()}.items()))
+        self.hparams.num_classes = len(self.hparams.class_map.keys())
+        self.inverted_class_map = dict(sorted({v: k for k, v in self.hparams.class_map.items()}.items()))
         self.model = setup_model(**self.hparams)
         self.loss = self.define_loss()
         self.train_metrics, self.val_metrics = self.define_metrics()
@@ -97,12 +93,11 @@ class LitClassifier(LightningModule):
     def configure_optimizers(self):
         """
         Configure optimizers and learning rate schedulers.
-        Returns:
-            list: List of optimizers.
-            list: List of schedulers.
         """
+        # Use the AdamW optimizer with the learning rate specified in the hyperparameters
         optimizer = torch.optim.AdamW(self.model.parameters(), lr=self.hparams.lr)
 
+        # Use the CosineWarmupScheduler with a warmup period of 3 epochs and a total of max_epochs epochs
         scheduler = CosineWarmupScheduler(optimizer, warmup=3 * len(self.datamodule.train_dataloader()), max_iters=self.trainer.max_epochs * len(self.datamodule.train_dataloader()))
         lr_scheduler_config = {
             "scheduler": scheduler,
@@ -170,7 +165,8 @@ class LitClassifier(LightningModule):
         loss = self.loss(logits, y)
 
         # compute the train metrics with the predfined metrics inside of define_metrics
-        train_metrics = self.train_metrics(logits, y)
+        self.train_metrics.update(logits, y)
+        train_metrics = self.train_metrics.compute()
 
         # log the loss and metrics
         self.log("train_loss", loss, on_step=True, on_epoch=False, prog_bar=True, logger=True, sync_dist=True)
@@ -190,33 +186,37 @@ class LitClassifier(LightningModule):
         self.val_step_probs = []
 
     def validation_step(self, batch, batch_idx):
-        """
-        Perform a validation step.
-
-        Args:
-            batch (tuple): Input batch containing images and labels.
-            batch_idx (int): Batch index.
-        Returns:
-            dict: Dictionary containing the loss and predictions.
+        """Perform a validation step.
+        
+        - Calculate the probabilities with TTA if enabled.
+        - Calculate the loss.
+        - Update the validation metrics.
+        - Log the loss and metrics.
+        - Append the predictions, probabilities, and the true label for later use.
         """
         if self.hparams.TTA:
+            # calculation of the probabilities with TTA
             probs = self.TTA(batch[0])
             logits=probs
             y=batch[1]
+
         else:
+            # normal calculation of the probabilities
             x, y = batch
             logits = self(x)
             probs=logits.softmax(dim=1)
 
         loss = self.loss(logits, y)
 
-
+        # compute the validation metrics
         self.val_metrics.update(probs, y)
         step_metrics = self.val_metrics.compute()
 
+        # log the loss and metrics
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         self.log_dict(step_metrics, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
+        # append the predictions, probabilities, and the true label for later use
         self.val_step_probs.append(probs)
         self.val_step_predictions.append(probs.argmax(dim=1))
         self.val_step_targets.append(y)
@@ -225,29 +225,20 @@ class LitClassifier(LightningModule):
 
     def on_validation_epoch_end(self):
         """
-        Aggregate outputs and log the confusion matrix at the end of the validation epoch.
-        Args:
-            outputs (list): List of dictionaries returned by validation_step.
+        - Log the metrics and plots at the end of the validation epoch.
+        - Plot the confusion matrix and score distributions.
         """
+        # log the metrics
+        metrics = self.val_metrics.compute()
+        self.log_dict(metrics, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
+
         all_scores = torch.cat(self.val_step_probs)
         all_preds = torch.cat(self.val_step_predictions)
         all_labels = torch.cat(self.val_step_targets)
 
+
+        # create core for distribution of the probabilities and the true labels
         fig_score = plot_score_distributions(all_scores, all_preds, self.inverted_class_map.values(), all_labels)
-
-        metrics = self.val_metrics.compute()
-        self.log_dict(metrics, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-
-        
-        
-        balanced_acc = balanced_accuracy_score(all_labels.cpu().numpy(), all_preds.cpu().numpy())
-        
-        self.log("val_balanced_acc", balanced_acc, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
-
-
-
-        precision = torch.sum((all_preds!= 0) & (all_labels!=0) ).item()/max(torch.sum((all_preds!= 0) & (all_labels!=0) ).item()+torch.sum((all_preds != 0) & (all_labels == 0)).item(),1)
-        self.log("val_precision", precision, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
         fig1,fig2, confusion_matrix, confusion_matrix_norm  = plot_confusion_matrix(all_labels, all_preds, self.inverted_class_map.values())
 
         del confusion_matrix, confusion_matrix_norm
@@ -287,6 +278,7 @@ class LitClassifier(LightningModule):
         plt.close(fig1)
         plt.close(fig2)
         plt.close(fig_score)
+
 
     def on_fit_end(self) -> None:
         """
@@ -355,11 +347,7 @@ class LitClassifier(LightningModule):
             all_scores, all_pred_label, class_names, all_y_labels
         )
 
-
         balanced_acc, false_positives, precision, recall, f1, accuracy, all_y_labels_np, all_predicted_labels_np,cls_report  = compute_metrics(all_y_labels, all_pred_label, self.inverted_class_map)
-
-        
-       
         
         # Plot confusion matrices
         fig1,fig2, confusion_matrix, confusion_matrix_norm = plot_confusion_matrix(
