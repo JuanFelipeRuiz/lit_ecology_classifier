@@ -2,7 +2,21 @@
 Metrics
 =======
 
-Calculate the metrics for the test stage of the model.
+This module provides metrics calculation and evaluation tools
+for machine learning model assessment, particularly focused on classification tasks.
+
+Features
+--------
+- Calculation of standard classification metrics (accuracy, precision, recall, F1)
+- ROC-AUC computation for multi-class problems
+- Population count analysis and bias metrics
+- Special handling for plankton classification with junk categories
+
+Main Components
+-------------
+* extra_metrics : Population-based metrics calculation
+* compute_metrics : Basic classification performance metrics
+* compute_roc_auc : ROC curve and AUC score computation
 """
 
 from pathlib import Path
