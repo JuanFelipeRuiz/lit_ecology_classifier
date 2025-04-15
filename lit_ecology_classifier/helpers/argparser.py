@@ -176,6 +176,10 @@ def inference_argparser():
     parser.add_argument("--prog_bar", action="store_true", help="Enable progress bar")
     parser.add_argument("--limit_pred_batches", type=int, default=0, help="Limit the number of batches to predict")
     parser.add_argument("--config", type=str, default="", help="Path to the JSON file containing the configuration")
+    parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
+    parser.add_argument("--wandb_project_name", type=str, default="Inference", help="Name of the Weights and Biases project")
+    parser.add_argument("--wandb_run_name", type=str, default="", help="Name of the Weights and Biases project")
+
     return parser
 
 def overview_argparser():
