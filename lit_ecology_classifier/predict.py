@@ -78,6 +78,7 @@ if __name__ == '__main__':
     if args.use_wandb:
         # Check if WandB is installed
         try:
+            logging.info("Initializing wandb...")
             if args.wandb_run_name == "":
                 args.wandb_run_name = os.path.basename(args.model_path).split(".")[0] + "_predicting"
 
