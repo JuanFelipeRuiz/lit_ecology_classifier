@@ -313,6 +313,8 @@ class LitClassifier(LightningModule):
                      )
         plt.hist(max_index.numpy(), bins=len(self.inverted_class_map))
         plt.savefig(f"{self.hparams.outpath}/predictions_histogram.png")
+
+        logging.info("Predictions saved in {}".format(self.hparams.outpath))
         return super().on_test_epoch_end()
 
     def on_fit_end(self) -> None:
