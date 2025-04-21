@@ -179,7 +179,7 @@ def inference_argparser():
     parser.add_argument("--use_wandb", action="store_true", help="Use Weights and Biases for logging")
     parser.add_argument("--wandb_project_name", type=str, default="Inference", help="Name of the Weights and Biases project")
     parser.add_argument("--wandb_run_name", type=str, default="", help="Name of the Weights and Biases project")
-
+    parser.add_argument("--pytorch_compile", action="store_true", help="Use torch.compile for inference")
     return parser
 
 def overview_argparser():
