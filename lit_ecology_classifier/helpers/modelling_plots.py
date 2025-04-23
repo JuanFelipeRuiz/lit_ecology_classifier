@@ -180,8 +180,8 @@ def plot_confusion_matrix(all_labels, all_preds, class_names):
 
     try:
         num_classes = confusion_matrix.shape[0]
-        fig, ax = plt.subplots(figsize=(20, 20))
-        fig2, ax2 = plt.subplots(figsize=(20, 20))
+        fig, ax = plt.subplots(figsize=(10, 10))
+        fig2, ax2 = plt.subplots(figsize=(10, 10))
 
         if len(class_names) != num_classes:
             print(f"Warning: Number of class names ({len(class_names)}) does not match the number of classes ({num_classes}) in confusion matrix.")
