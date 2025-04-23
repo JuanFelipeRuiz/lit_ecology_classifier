@@ -146,6 +146,10 @@ class LitClassifier(LightningModule):
         self.hparams.datapath = datamodule.datapath
         self.hparams.splits = datamodule.splits
         self.hparams.batch_size = datamodule.batch_size
+        self.hparams.augmentation_level = datamodule.augmentation_level
+        self.hparams.resize_with_proportions = datamodule.resize_with_proportions
+        self.hparams.target_size = datamodule.target_size
+        self.hparams.normalize_images = datamodule.normalize_images
 
     def training_step(self, batch, batch_idx):
         """
@@ -230,6 +234,7 @@ class LitClassifier(LightningModule):
         """
         # log the metrics
         metrics = self.val_metrics.compute()
+        self.val_metrics.reset()
         self.log_dict(metrics, on_step=False, on_epoch=True, prog_bar=True, logger=True, sync_dist=True)
 
         all_scores = torch.cat(self.val_step_probs)
@@ -270,9 +275,10 @@ class LitClassifier(LightningModule):
                     fig_score.savefig(score_distributions_epoch_path)
 
             if self.current_epoch == self.trainer.max_epochs - 1:
-                plt.show(fig1)
-                plt.show(fig2)
-                plt.show(fig_score)
+                plt.show()
+                #plt.show(fig1)
+                #plt.show(fig2)
+                #plt.show(fig_score)
                
 
         plt.close(fig1)
@@ -384,18 +390,16 @@ class LitClassifier(LightningModule):
         self.test_acc = accuracy
         self.test_cell = Path(self.hparams.datapath).name
 
-        if self.hparams.use_wandb:
+        if False:
             self.logger.log_image(key=f"score_distributions", images=[fig_score], step=self.current_epoch)
             self.logger.log_image(key="confusion_matrix", images=[fig1], step=self.current_epoch)
             self.logger.log_image(key="confusion_matrix_norm", images=[fig2], step=self.current_epoch)
             
         
         else:
-            try:
-                base_outpath = Path(self.hparams.test_outpath) / f"{self.hparams.model_name}_{self.test_cell }"
+            
+            base_outpath = Path(self.hparams.test_outpath) / f"{self.hparams.model_name}_{self.test_cell }"
                 
-            except AttributeError:
-                raise AttributeError("No test_outpath specified. Saving classification artefacts to the current directory")
             Path.mkdir(base_outpath, exist_ok=True)
             path_score_distributions = base_outpath / "score_distributions.png"
             path_confusion_matrix =  base_outpath /  "confusion_matrix.png"
@@ -404,8 +408,6 @@ class LitClassifier(LightningModule):
             path_classifications = base_outpath / f"classifications_{self.hparams.model_name}_{self.test_cell}.csv"
             path_confusion_matrix_csv = base_outpath / f"confusion_matrix_{self.hparams.model_name}_{self.test_cell}.csv"
             
-
-
             fig_score.savefig(path_score_distributions)
             fig1.savefig(path_confusion_matrix)
             fig2.savefig(path_confusion_matrix_norm)
@@ -419,6 +421,10 @@ class LitClassifier(LightningModule):
 
             df.to_csv(path_classifications, index=False)
             confusion_matrix_df.to_csv(path_confusion_matrix_csv)
+
+            plt.show(fig1)
+            plt.show(fig2)
+            plt.show(fig_score)
 
         return super().on_test_epoch_end()
             
