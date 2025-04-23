@@ -138,9 +138,9 @@ class DataModule(LightningDataModule):
         Args:
             stage:  A string indicating the current stage of the model
         """
-
-        if stage != "predict" and not self.only_test:
-           
+        print("Stage: ", stage)
+        if stage == "fit" or stage == "validate":
+            logger.info("Setting up for fit or validation stage.")  
             
             self.prepare_augementations(train=True)
 
@@ -150,10 +150,11 @@ class DataModule(LightningDataModule):
             else:
                 self.setup_train_with_image_search(stage)
 
-        elif stage == "test" and self.only_test:
-            print("Setting up the test dataset only.")
-            self.prepare_augementations(train=True)
-            self.set_up_only_test()
+
+        elif stage == "test":
+            logger.info("Setting up the test dataset only.")
+            self.prepare_augementations(train=False)
+            self.set_up_test()
             
                 
         else:
@@ -190,24 +191,43 @@ class DataModule(LightningDataModule):
                     TTA=self.TTA,
                     train=False,
                 )
-    def set_up_only_test(self):
+            
+    def set_up_test(self):
         """Set up the dataset for testing only."""
         logger.info("Setting up the test dataset only.")
-        full_dataset = ImageFolderDataset(
+
+        if self.splits is not None and isinstance(self.splits, pd.DataFrame):
+
+            logger.info("Setting up the test dataset based on the provided split overview.")
+            test_df = self.splits[ self.splits["split"] == "test"].reset_index(drop=True)
+            logger.info("Test size of df: %s", len(test_df))
+            self.test_dataset = DataFrameDataset(
+                image_overview=test_df,
+                class_map=self.class_map,
+                data_dir=self.datapath,
+                train=False,
+                TTA=self.TTA,
+                val_transforms=self.val_augementations
+            )
+        elif self.datapath.find(".tar") == -1:
+            logger.debug("Setting up a dataset based on an image folder.")
+            full_dataset = ImageFolderDataset(
                         self.datapath,
                         self.class_map,
                         self.priority_classes,
                         rest_classes=self.rest_classes,
                         TTA=self.TTA,
-                        train=True,
-                        val_transforms=self.val_augementations,
-                        train_transforms=self.train_augementations,
+                        train=False,
+                        val_transforms=self.val_augementations
                     )
-        if full_dataset is None or len(full_dataset) == 0:
-            logger.error("No images found in the provided directory.")
-            raise ValueError("No images found in the provided directory.")
-        logger.info("Test size: %s", len(full_dataset))
-        self.test_dataset = full_dataset
+            if full_dataset is None or len(full_dataset) == 0:
+                logger.error("No images found in the provided directory.")
+                raise ValueError("No images found in the provided directory.")
+            self.test_dataset = full_dataset
+
+
+        logger.info("Test size: %s", len(self.test_dataset))
+        
 
 
     def setup_train_with_image_search(self, stage: str = "train"):
