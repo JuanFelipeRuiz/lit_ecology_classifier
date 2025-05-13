@@ -68,6 +68,17 @@ class ImageFolderDataset(Dataset):
     
         logging.info(f"Filtering dataset to keep only classes in {self.rest_classes}")
         filtered_image_infos = [info for info in self.image_infos if os.path.basename(os.path.dirname(info)) in self.rest_classes]
+
+        if len(filtered_image_infos) == 0 and self.train == False:
+            logging.info(f"Assuming predictions, no filtering applied.")
+            return None
+
+        elif len(filtered_image_infos) == 0 and self.train == True:
+            logging.warning(f"Filtering of rest_classes resulted in no samples."
+                            f"Please check the rest_classes and the dataset.")
+            
+            return None
+            
         
         self.image_infos = filtered_image_infos
         logging.info(f"Filtered dataset to {len(self.image_infos)} samples.")
