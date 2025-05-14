@@ -42,10 +42,10 @@ class DataModule(LightningDataModule):
         priority_classes: list = [],
         rest_classes: list = [],
         splits: Union[Iterable, pd.DataFrame] = [0.7, 0.15],
-        augmentation_level: str = "low",
+        augmentation_level: str = "random_mix",
         resize_with_proportions: bool = False,
         target_size: Union[tuple[int, int], int] = (224, 224),
-        normalize_images: bool = False, 
+        normalize_images: bool = True, 
         **kwargs
 
         ):
@@ -77,8 +77,8 @@ class DataModule(LightningDataModule):
 
     def prepare_augementations(self,
                                train: bool = True,
-                                mean: list[float] = [0.485, 0.456, 0.406],
-                                std: list[float] = [0.229, 0.224, 0.225]
+                            mean: list[float] = [0.485, 0.456, 0.406],
+                            std: list[float] = [0.229, 0.224, 0.225],
                             ):
         """Prepare the augmentations pipeline for the needed dataset loaders.
 
