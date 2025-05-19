@@ -67,19 +67,35 @@ if __name__ == '__main__':
     availables_gpus = torch.cuda.device_count()
     logging.info("Available GPUs: %s", availables_gpus)
     print("Available GPUs: ", availables_gpus)
+ 
+    if args.pytorch_compile:
+        logging.info("Compiling the model")
+        model = torch.compile(model, mode="default", dynamic=True, fullgraph=True)
+        logging.debug("Model compilation completed")
+
+
     
         # Initialize the Trainer and Perform Predictions
     logging.debug("Starting initialization of Trainer")
 
 
+    if args.use_wandb:
+        # Check if WandB is installed
+        try:
+            logging.info("Initializing wandb...")
+            if args.wandb_run_name == "":
+                args.wandb_run_name = os.path.basename(args.model_path).split(".")[0] + "_predicting"
 
-    # WandB initialisieren
-    wandb.init(project="gpu_performance_tracking", name="predicting_with_multiple_gpus")
+            wandb.init(project=args.wandb_project_name, name=args.wandb_run_name)
+
+        except ValueError as e:
+            logging.error("Error initializing WandB: %s", e)
+            raise e
 
     trainer = pl.Trainer(
 
         # Set the number of GPUs to use for prediction if no_gpu is not set
-        devices=  1, 
+        devices=  "auto", 
         strategy= "auto",
         enable_progress_bar=args.prog_bar,
         default_root_dir=args.outpath,
