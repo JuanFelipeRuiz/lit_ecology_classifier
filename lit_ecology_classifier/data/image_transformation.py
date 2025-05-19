@@ -28,6 +28,8 @@ from torchvision.transforms.v2 import (
     RandomHorizontalFlip,
     RandomRotation,
     Resize,
+    ToImage,
+    ToDtype
 )
 import torchvision.transforms as T
 
@@ -239,9 +241,9 @@ def define_resize_transformation(
         list: A list containing the chosen resize transformation.
     """
     return (
-        [ResizeWithProportions(target_size)]
+        [ToImage(),ResizeWithProportions(target_size)]
         if resize_with_proportions
-        else [Resize(target_size)]
+        else [ToImage(),Resize(target_size)]
     )
 
 
@@ -283,10 +285,10 @@ def define_transformation_pipeline(
 
     # Select transformations based on mode (train or validation)
     if train:
-        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize((target_height,target_width)), T.ToTensor()]
+        defined_transformations = resize_transformation + additional_transformations[augmentation_level] + [T.Resize(target_size), ToDtype(torch.float32, scale=True)]
 
     else:
-        defined_transformations = resize_transformation + [T.Resize((target_height,target_width)), T.ToTensor()]
+        defined_transformations = resize_transformation + [ToDtype(torch.float32, scale=True)]
 
     # Apply normalization if required
     if normalize_images:
