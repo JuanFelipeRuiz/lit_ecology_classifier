@@ -390,7 +390,7 @@ class LitClassifier(LightningModule):
         self.test_acc = accuracy
         self.test_cell = Path(self.hparams.datapath).name
 
-        if False:
+        if self.hparams.use_wandb:
             self.logger.log_image(key=f"score_distributions", images=[fig_score], step=self.current_epoch)
             self.logger.log_image(key="confusion_matrix", images=[fig1], step=self.current_epoch)
             self.logger.log_image(key="confusion_matrix_norm", images=[fig2], step=self.current_epoch)
