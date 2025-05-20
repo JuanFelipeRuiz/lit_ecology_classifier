@@ -148,7 +148,7 @@ class _RawSplitApplier:
         for split_name, image_paths in images_paths_split.items():
 
             # generate the column name based on the split name and the version
-            column_name = f"{split_name}_v{version}"
+            column_name = f"{split_name}_{version}"
 
             df = self._add_split_column(
                 df=df, image_paths=image_paths, split_name=column_name
@@ -177,11 +177,11 @@ class _RawSplitApplier:
         # Loop through the different versions of the ZooLake dataset
         for version in self._split_file_paths.keys():
 
-            if version == "1":
+            if version == "ZooLake1" or version == "V1":
                 # if the version is 1, load the split and corresponding name from the txt files
                 images_paths_split = self._load_split_overview_from_txt(version)
 
-            else:
+            elif version == "ZooLake2" or version == "V2":
                 # load the split from the pickle file
                 images_paths_split = self._load_split_overview_from_pickle(version)
 

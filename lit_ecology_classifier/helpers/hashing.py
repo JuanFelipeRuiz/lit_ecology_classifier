@@ -55,7 +55,7 @@ class HashGenerator:
         return hash_dict
     
     @staticmethod
-    def hash_image(image_path: str, hash_algorithm: str = "256") -> str:
+    def hash_image(image_path: str, hash_algorithm: str = "sha256") -> str:
         """Calculate the hash from the binary data of the image using the given hash algorithm.
 
         Args:

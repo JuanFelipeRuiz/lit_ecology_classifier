@@ -57,7 +57,7 @@ class _RawSplitPathPreparer:
         """
         # generate path to the folder containing the txt files
         path_txt_file_folder = os.path.join(
-            datapath,"data", "zoolake_train_test_val_separated"
+            datapath, "zoolake_train_test_val_separated"
         )
 
         # create dict to store the paths to the diffrent split .txt files
@@ -77,7 +77,7 @@ class _RawSplitPathPreparer:
         # raise a error if a file is missing
         if missing_files:
             raise FileNotFoundError(
-                f"The following files are missing for version {version}: {', '.join(missing_files)}"
+                f"The following files are missing for version {version}: {', '.join(missing_files)}. Path should point to ZooLake1 containing the folder zoolake_train_test_val_separated and zooplankton_0p5x"
             )
 
         return self._split_file_paths
@@ -160,18 +160,12 @@ class _RawSplitPathPreparer:
         self._split_file_paths = {}
 
         for version, datapath in self.zoolake_version_paths.items():
-            if version == "1":
+            if version == "ZooLake1" or version == "V1":
                 # Prepare file paths for the txt files (train/test/val)
                 self._prepare_split_paths_from_txt(datapath, version)
 
 
-            else:
-                # raise warning if the version is not 2, since currently only version 2 is released
-                if version != "2":
-                    warnings.warn(
-                        "New version, assuming a pickle file for split in the folder"
-                    )
-
+            elif version == "ZooLake2" or version == "V2":
                 self._prepare_split_paths_from_pickle(datapath, version)
 
         return self._split_file_paths
