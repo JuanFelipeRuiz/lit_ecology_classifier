@@ -1,5 +1,13 @@
 """
 Process the image to extract metadata and hash value.
+
+The metadata extracted from the image are: 
+    - Image path: The path to the image file
+    - Image: The name of the image file
+    - Hash: The hash value of the image
+    - Class: The plankton class extracted from the image path
+    - Dataset version: The version of the dataset
+    - Date: The date extracted from the image filename
 """
 
 import logging
@@ -14,150 +22,171 @@ logging.basicConfig(level=logging.INFO)
 
 
 class ProcessImage:
-    """Process the image to extract metadata and calculate the hash value.
-
-    It is used to process the image to extract metadata like timestamp and plankton class
-    from the filename. Additionally, it calculates the hash value of the image using
-    the given hash algorithm to provide a unique identifierfor each image contained in the dataset.
+    """Process the image to extract metadata and calculate the hash value of the image.
 
     Attributes:
-        hash_algorithm (str): Hash algorithm to use for hashing images. Defaults to "sha256".
-
-    Returns:
-        dict: Dictionary containing the image metadata and calculated hash. Example:
-                {
-                    "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242...",
-                    "sha256": "a957e3fb302aa924ea62f25b436893151640dc05f761....",
-                    "class": "aphanizomenon",
-                    "data_set_version": "1",
-                    "date": "2019-10-08 14:02:52+00:00"
-                }
-
+        metadata_extractor_mapping (dict): Mapping of dataset versions to metadata extractor functions.
     """
 
-    def __init__(self, hash_algorithm: Optional[str] = "sha256"):
-        """Initialize the ImageProcessor with the given hash algorithm.
+    def __init__(self):
+        """Initialize the ImageProcessor with the given hash algorithm."""
 
-        Args:
-            hash_algorithm: Hash algorithm to use for hashing images.
-                                            Defaults to "sha256".
-        """
-        self.hash_algorithm = hash_algorithm
-    
-    def _extract_timestamp_from_filename(self, image_path: str) -> dt:
-        """Extract the timestamp from the image filename and convert it to a datetime object.
+        self.metadata_extractor_mapping = {
+            "zoolake1": extract_metadata_V1,
+            "zoolake2": extract_metadata_DSPC,
+            "ood": extract_metadata_ood,
+            "default": extract_metadata_DSPC,
+        }
 
-        The timestamp (without miliseconds) is expected to be at a fixed position
-        in the filename (characters 15-25). This function will extract those characters,
-        convert them to an integer timestamp, and return a UTC aware datetime object.
-
-        Args:
-            image_path : Path to the image file as string to extract the timestamp from
-
-        Returns:
-           A timestamp extracted from the filename as a datetime object with UTC as timezone
-
-        Raises:
-            ValueError: If the extracted value cannot be converted to a timestamp
-        """
-
-        try:
-
-            # Extract the image name from the path
-            image_name = os.path.basename(image_path)
-
-            # Extract the timestamp part and keep only the first 10 characters
-            # (ignoring mili seconds)
-            timestamp_str = image_name[15:25]
-
-            # return the timestamp as a datetime object with UTC as timezone
-            return dt.fromtimestamp(int(timestamp_str), tz=timezone.utc)
-
-        except IndexError as ie:
-
-            raise ValueError(
-                f"Error extracting timestamp: Failed slicing timestamp from '{image_name}:{ie}'"
-            ) from ie
-
-        except Exception as e:
-            raise ValueError(
-                f"Error extracting and creating timestamp from {image_path}: {e}"
-            ) from e
-
-    def _extract_plankton_class(self, image_path: str) -> str:
-        """Extract  plankton class from the image path.
-
-        Expects the iamge class to be in the parent directory of the image file, like 
-        in the most common computer vision datasets.
-
-        The first ZooLake dataset version, did not follow this convention. The images were
-        in a extra directory named "training_data" and the class was the second parent directory. 
-        So this function will additionaly check if the parent directory is "training_data" and 
-        return the grandparent directory as class if so.
+    def extract_metadata(self, image_path: str, dataset: str) -> dict:
+        """Calls the metadata extractor function based on the dataset version.
 
         Args:
             image_path : Path to the image file
+            dataset: Version of the dataset
 
         Returns:
-            str: The plankton class name
-        """
-        try:
-            parent_folder = os.path.basename(os.path.dirname(image_path))
-
-            if parent_folder == "training_data":
-                # Get the second parent / grandparent directory since the image 
-                return os.path.basename(os.path.dirname(os.path.dirname(image_path)))
-
-            return parent_folder
-        
-        except Exception as e:
-            logging.error("Error extracting plankton class from %s: %s", image_path, e)
-            raise ValueError(
-                f"Error extracting plankton class from {image_path}: {e}"
-            ) from e
-        
-    def version_from_path(self, version: str, image_path) -> str:
-        if "ood" in version.lower():
-            warnings.warn("OOD found in a version string.Starting the extraction of the ood cell from the path. \
-                          if not wished, please make sure the version string does not contain 'ood'.")
-            # get first subfolder of the path
-            return f"{version}_{image_path.split(os.path.sep)[-3]}"
-        return version
-
-    def process_image(self, version : str, image_path) -> dict:
-        """Process a single image. Extract the metadata and calculate the hash value of the image.
-
-        Args:
-            image_path : Path to the image file
-            version (str): Version of the ZooLake dataset as string for metadata
-
-        Returns:
-            A dictionary containing the image metadata and hashes. Example:
-                {
-                    "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242...",
-                    "sha256": "a957e3fb302aa924ea62f25b436893151640dc05f761...",
-                    "class": "aphanizomenon",
-                    "data_set_version": "1",
-                    "date": "2019-10-08 14:02:52+00:00"
-                }
+            A dictionary containing the image metadata. 
 
         Raises:
             Exception: If the image cannot be processed
         """
 
-        image_date = self._extract_timestamp_from_filename(image_path)
-        plankton_class = self._extract_plankton_class(image_path)
-        image_hash = HashGenerator.hash_image(image_path, self.hash_algorithm)
+        # lower case the dataset version to ensure case insensitivity
+        dataset = dataset.lower()
+        
+        # get the metadata extractor function based on the version
+        extractor = self.metadata_extractor_mapping.get(dataset, self.metadata_extractor_mapping["default"])
 
-        image_metadata = {
-            "image": os.path.basename(image_path),
-            str(self.hash_algorithm): image_hash,
-            "class": plankton_class,
-            "data_set_version": self.version_from_path(version, image_path),
-            "date": image_date,
-        }
+        try:
+            metadata_dict = extractor(image_path)
+        except Exception as e:
+            logging.error("Error extracting metadata from %s: %s",image_path, e)
+            raise ValueError(f"Error extracting metadata from {image_path}: {e}")
+
+        return metadata_dict
+
+
+    def process_image(self, dataset: str, image_path) -> dict:
+        """Process a single image. Extract the metadata and calculate the hash value of the image.
+
+        Args:
+            image_path: Path to the image file
+            dataset: Version of the dataset
+
+        Returns:
+            dict: A dictionary containing the image metadata and hashes.
+
+        Raises:
+            Exception: If the image cannot be processed.
+        """
+
+        # extract the metadata from the image
+        image_metadata = self.extract_metadata(image_path, dataset)
+
+        # add the image hash to the metadata dictionary
+        image_metadata["hash"] = HashGenerator.hash_image(image_path)
+
+        image_metadata["image_path"] = image_path
+
+        # add the dataset version to the metadata dictionary
+        image_metadata["dataset"] = dataset
 
         return image_metadata
+
+
+def extract_timestamp_from_filename(image_path: str) -> dt:
+    """Extract the timestamp from the image filename and convert it to a datetime object.
+
+    The timestamp (without miliseconds) is expected to be at a fixed position
+    in the filename (characters 15-25). This function will extract those characters,
+    convert them to an integer timestamp, and return a UTC aware datetime object.
+
+    Args:
+        image_path : Path to the image file as string to extract the timestamp from
+
+    Returns:
+           A timestamp extracted from the filename as a datetime object with UTC as timezone
+
+    Raises:
+        ValueError: If the extracted value cannot be converted to a timestamp
+    """
+
+    try:
+        # Extract the image name from the path
+        image_name = os.path.basename(image_path)
+
+        # Extract the timestamp part and keep only the first 10 characters
+        # (ignoring mili seconds)
+        timestamp_str = image_name[15:25]
+
+        # return the timestamp as a datetime object with UTC as timezone
+        return dt.fromtimestamp(int(timestamp_str), tz=timezone.utc)
+
+    except IndexError as ie:
+        raise ValueError(
+            f"Error extracting timestamp: Failed slicing timestamp from '{image_name}:{ie}'"
+        ) from ie
+
+    except Exception as e:
+        raise ValueError(
+            f"Error extracting and creating timestamp from {image_path}: {e}"
+        ) from e
+
+
+def extract_metadata_V1(image_path: str) -> dict:
+    """Extract needed metadata from the image filename for version 1 of the dataset.
+
+    Differnece betweend the dataset version 2 is that the class is in the second parent directory
+    instead of the first parent directory as usually seen in computer vision datasets.
+
+    Args:
+        image_path : Path to the image file as string to extract the metadata from
+
+    Returns:
+        A dictionary containing the metadata extracted from the image filename.
+    """
+
+    return {
+        "image": os.path.basename(image_path),
+        # The plankton class is the second parent directory of the image file in ZooLake1
+        "class": os.path.basename(os.path.dirname(os.path.dirname(image_path))),
+        "date": extract_timestamp_from_filename(image_path)
+    }
+
+def extract_metadata_DSPC(image_path: str) -> dict:
+    """Ectract needed metadata from the image filename for SPC dataset.
+
+    It is the default extractor for the SPCS Aquascope dataset.
+    Args:
+        image_path : Path to the image file as string to extract the metadata from
+    Returns:
+        A dictionary containing the metadata extracted from the image filename.
+    """
+
+    return {
+        "image": os.path.basename(image_path),
+        # In every further dataset version, the class is the first parent directory of the image file
+        "class": os.path.basename(os.path.dirname(image_path)),
+        "date": extract_timestamp_from_filename(image_path)
+    }
+
+def extract_metadata_ood(image_path: str) -> dict:
+    """Extract needed metadata from the image filename for OOD dataset.
+
+    It is the default extractor for the OOD dataset.
+    Args:
+        image_path : Path to the image file as string to extract the metadata from
+    Returns:
+        A dictionary containing the metadata extracted from the image filename.
+    """
+
+    return {
+        "image": os.path.basename(image_path),
+        "class": os.path.basename(os.path.dirname(image_path)),
+        "date": extract_timestamp_from_filename(image_path),
+        "ood_cell": os.path.basename(os.path.dirname(os.path.dirname(image_path))),
+    }
 
 
 if __name__ == "__main__":
