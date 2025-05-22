@@ -21,7 +21,7 @@ from lit_ecology_classifier.splitting.filtering.base_filter import BaseFilter
 from lit_ecology_classifier.splitting.split_strategies.split_manager import SplitManager
 from lit_ecology_classifier.helpers.hashing import HashGenerator
 import lit_ecology_classifier.helpers.helpers as helpers
-from lit_ecology_classifier.data_overview.overview_creator import OverviewCreator
+from lit_ecology_classifier.data_overview.zoolake_overview import ZooLakeOverviewCreator
 from lit_ecology_classifier.splitting.filtering.filter_manager import FilterManager
 
 logger = logging.getLogger(__name__)
@@ -86,7 +86,7 @@ class SplitProcessor:
     def __init__(
         self,
         artefacts_folder: Union[str, None] = None,
-        image_overview: Union[str, pd.DataFrame, OverviewCreator, None] = None,
+        image_overview: Union[str, pd.DataFrame, ZooLakeOverviewCreator, None] = None,
         split_overview: Union[str, pathlib.Path, pd.DataFrame, None] = None,
         split_hash: Union[str, None] = None,
         split_folder: Union[str, None] = None,
@@ -102,7 +102,7 @@ class SplitProcessor:
 
         Args:
             image_overview:
-                String, DataFrame or OverviewCreator instance  containing the image overview with
+                String, DataFrame or ZooLakeOverviewCreator instance  containing the image overview with
                 the image, class labels, image hashes and other relevant informations of the images
                 to be split.
             split_overview:
@@ -171,7 +171,7 @@ class SplitProcessor:
         )
 
     def _init_image_overview_df(
-        self, image_overview: Union[pd.DataFrame, str, pathlib.Path, OverviewCreator] = None
+        self, image_overview: Union[pd.DataFrame, str, pathlib.Path, ZooLakeOverviewCreator] = None
     ) -> pd.DataFrame:
         """Initializes the image overview DataFrame based on the given input.
 
@@ -180,7 +180,7 @@ class SplitProcessor:
                 Can be one of the following:
                 - a string path to a CSV file containing the image overview data.
                 - a DataFrame containing the image overview.
-                - an OverviewCreator instance to extract the image overview from
+                - an ZooLakeOverviewCreator instance to extract the image overview from
 
         Returns:
             A DataFrame containing the image overview data.
@@ -190,7 +190,7 @@ class SplitProcessor:
                                 the file could not be found.
         """
 
-        if isinstance(image_overview, OverviewCreator):
+        if isinstance(image_overview, ZooLakeOverviewCreator):
             return image_overview.get_overview_df()
 
         elif isinstance(image_overview, pd.DataFrame):
@@ -226,7 +226,7 @@ class SplitProcessor:
         split_overview: Union[str, None] = None,
         artefacts_folder: Union[str, None] = None,
         image_overview: Union[
-            str, pd.DataFrame, OverviewCreator, pathlib.Path, None
+            str, pd.DataFrame, ZooLakeOverviewCreator, pathlib.Path, None
         ] = None,
     ):
         """Prepare the paths based on the given input."""

@@ -23,8 +23,7 @@ import sys
 
 from time import time
 
-from lit_ecology_classifier.data_overview.overview_creator import OverviewCreator
-from lit_ecology_classifier.data_overview.images_copier import ImageCopier
+from lit_ecology_classifier.data_overview.zoolake_overview import ZooLakeOverviewCreator
 from lit_ecology_classifier.helpers.argparser import overview_argparser
 
 # Start timing the script
@@ -45,7 +44,7 @@ if __name__ == "__main__":
     logger.info(args)
 
     # create the overview 
-    overview_creator = OverviewCreator(zoolake_version_paths= args.dataset_version_path_dict)
+    overview_creator = ZooLakeOverviewCreator(zoolake_version_paths= args.dataset_version_path_dict)
     df = overview_creator.get_overview_df()
 
     # create the output folder and ensure it exists
@@ -63,11 +62,6 @@ if __name__ == "__main__":
     with open(pathlib.Path(output_folder,".gitignore"), "w") as gitignore_file:
         gitignore_file.write("*")
 
-
-    # summarise the overview by copying all uniqze images to the output folder
-    if args.summarise_to:
-        copier = ImageCopier(args.summarise_to, overview_creator)
-        copier.copy_images()
         
     logging.info("Overview saved to %s.", output)
     logging.info("Total time taken: %s seconds", time()-time_begin)
