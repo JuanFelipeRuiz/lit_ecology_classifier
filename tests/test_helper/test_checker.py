@@ -1,7 +1,12 @@
 import pandas as pd
 import pytest
+import typeguard
 
 from lit_ecology_classifier.checks import duplicates
+
+
+manager = typeguard.install_import_hook("lit_ecology_classifier.checks.duplicates")
+
 
 def test_duplicate_check_duplicate():
     """Test if the function raises a warning when duplicates are present
@@ -12,7 +17,7 @@ def test_duplicate_check_duplicate():
             "image": ["image1.jpeg", "image2.jpeg"],
             "class": ["A", "A"],
             "data_set_version": ["1", "1"],
-            "sha256": ["hash1", "hash1"],
+            "hash": ["hash1", "hash1"],
             "date": ["2021-01-01", "2021-01-01"],
         },
         index=[0, 1],
@@ -20,7 +25,7 @@ def test_duplicate_check_duplicate():
 
     expected_output = pd.DataFrame(
         {
-            "sha256": ["hash1", "hash1"],
+            "hash": ["hash1", "hash1"],
             "data_set_version": ["1", "1"],
             "count": [2, 2],
             "diffrent_class": [False, False],
@@ -43,7 +48,7 @@ def test_duplicate_check_no_duplicate():
             "image": ["image1.jpeg", "image2.jpeg"],
             "class": ["A", "B"],
             "data_set_version": ["1", "1"],
-            "sha256": ["hash1", "hash2"],
+            "hash": ["hash1", "hash2"],
             "date": ["2021-01-01", "2021-01-01"],
         }
     )
@@ -56,8 +61,11 @@ def test_duplicate_check_different_version():
             "image": ["image1.jpeg", "image1.jpeg"],
             "class": ["A", "A"],
             "data_set_version": ["1", "2"],
-            "sha256": ["hash1", "hash1"],
+            "hash": ["hash1", "hash1"],
             "date": ["2021-01-01", "2021-01-01"],
         }
         )
     assert duplicates.check_duplicates(df) is None
+
+
+manager.uninstall()

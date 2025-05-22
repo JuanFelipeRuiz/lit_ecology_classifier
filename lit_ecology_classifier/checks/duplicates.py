@@ -30,15 +30,15 @@ def check_duplicates(df: pd.DataFrame, by_data_set_version=True) -> pd.DataFrame
         A new DataFrame containing the duplicates in the dataset based on hash values
     """
     
-    required_columns = ["sha256", "image", "class"]
+    required_columns = ["hash", "image", "class"]
 
     missing_columns = [col for col in required_columns if col not in df.columns]
     if missing_columns:
         raise ValueError(
-            "The DataFrame should contain the columns 'sha256', 'image', and 'class'"
+            "The DataFrame should contain the columns 'hash', 'image', and 'class'"
         )
 
-    columns_to_groupby = ["sha256"]
+    columns_to_groupby = ["hash"]
 
     # get column sha256 and data_set_version if they exist in a list for further processing
     if "data_set_version" in df.columns and by_data_set_version:
