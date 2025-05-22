@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from typing import Union
 
 import pandas as pd
 from PIL import Image
@@ -7,7 +8,7 @@ import imagehash
 
 class HashGenerator:
     @staticmethod
-    def sha256_from_list(hash_list : list) -> str:
+    def sha256_from_list(hash_list : Union[list, pd.Series]) -> str:
         """Hash a list of hashes using SHA256.
 
         Sorts the given list based on the and hashes the values with the
