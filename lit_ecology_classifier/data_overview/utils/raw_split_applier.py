@@ -181,9 +181,10 @@ class _RawSplitApplier:
                 # if the version is 1, load the split and corresponding name from the txt files
                 images_paths_split = self._load_split_overview_from_txt(version)
 
-            elif version == "ZooLake2" or version == "V2":
+            else:   
                 # load the split from the pickle file
                 images_paths_split = self._load_split_overview_from_pickle(version)
+            
 
             self.image_splits.update({version: images_paths_split})
 

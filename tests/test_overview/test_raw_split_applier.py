@@ -1,5 +1,6 @@
 import os
 from unittest.mock import patch, call
+
 import pandas as pd
 import pytest
 from lit_ecology_classifier.data_overview.utils.raw_split_applier import _RawSplitApplier
@@ -90,40 +91,58 @@ class TestRawSplitApplier:
     # apply_splits ---------------------------------------------------------------------------
 
     @pytest.mark.parametrize(
-        ("version", "should_call_txt", "should_call_pickle"),
-        [
-            ("1", True, False),  # Version 1 should call txt
-            ("2", False, True),  # Version 2 should call pickle
-            ("3", False, True),  # Version 3 should call pickle
+    ("version", "should_call_txt", "should_call_pickle"),
+    [
+        ("V1", True, False),  # Version 1 should call txt
+        ("V2", False, True),  # Version 2 should call pickle
+        ("V3", False, True),  # Version 3 should call pickle
         ],
     )
+    @patch("lit_ecology_classifier.data_overview.utils.raw_split_applier._RawSplitApplier._apply_split_columns_to_dataframe")
     @patch("lit_ecology_classifier.data_overview.utils.raw_split_applier._RawSplitApplier._load_split_overview_from_txt")
     @patch("lit_ecology_classifier.data_overview.utils.raw_split_applier._RawSplitApplier._load_split_overview_from_pickle")
     def test_process_versions_splits_by_version(
         self,
         mock_load_pickle,
         mock_load_txt,
+        mock_apply_splits,
         version,
         should_call_txt,
         should_call_pickle,
     ):
         """Test if the correct function is called for each version of the test matrix."""
-        # Mock the `_split_file_paths` attribute
+        # Set up mock return values
+        mock_splits = {
+            "train": ["image1.jpg"],
+            "test": ["image2.jpg"],
+            "val": ["image3.jpg"]
+        }
+        mock_df = pd.DataFrame({"test": [1]})
+        
+        mock_load_txt.return_value = mock_splits
+        mock_load_pickle.return_value = mock_splits
+        mock_apply_splits.return_value = mock_df
+
+        # Set up test data
+        test_df = pd.DataFrame({"test": [1]})
         self.raw_split_applier._split_file_paths = {version: "_"}
 
-        # Call the function
-        self.raw_split_applier.apply_splits(df=pd.DataFrame())
+        # Execute test
+        result = self.raw_split_applier.apply_splits(df=test_df)
 
-        # Assert that the correct function was called
+        # Assert the correct loading function was called
         if should_call_txt:
-            mock_load_txt.assert_called_once()
+            mock_load_txt.assert_called_once_with(version)
+            mock_load_pickle.assert_not_called()
         else:
+            mock_load_pickle.assert_called_once_with(version)
             mock_load_txt.assert_not_called()
 
-        if should_call_pickle:
-            mock_load_pickle.assert_called_once()
-        else:
-            mock_load_pickle.assert_not_called()
+        # Assert apply_splits was called with correct arguments
+        mock_apply_splits.assert_called_once_with(mock_splits, version, test_df)
+
+        # Assert the final DataFrame was returned
+        assert result.equals(mock_df)
 
     # _apply_split_columns_to_dataframe --------------------------------------------------------
 
@@ -136,14 +155,17 @@ class TestRawSplitApplier:
             "test": ["p/image_te1.jpeg", "p/image_te2.jpeg"],
             "val": ["p/image_val1.jpeg", "p/image_val2.jpeg"],
         }
+
         input_version = "2"
         df = None
 
         # Expected calls of the helper function
         expected_calls = [
-            call(df=df, image_paths=["p/image_tr1.jpeg", "p/image_tr2.jpeg"], split_name="train_v2"),
-            call(df=df, image_paths=["p/image_te1.jpeg", "p/image_te2.jpeg"], split_name="test_v2"),
-            call(df=df, image_paths=["p/image_val1.jpeg", "p/image_val2.jpeg"], split_name="val_v2"),
+
+            # this is the expected input for the function to be called
+            call(df=df, image_paths=["p/image_tr1.jpeg", "p/image_tr2.jpeg"], split_name="train_2"),
+            call(df=df, image_paths=["p/image_te1.jpeg", "p/image_te2.jpeg"], split_name="test_2"),
+            call(df=df, image_paths=["p/image_val1.jpeg", "p/image_val2.jpeg"], split_name="val_2"),
         ]
 
         # Mock the return value of `_add_split_column`
