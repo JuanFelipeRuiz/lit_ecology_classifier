@@ -118,7 +118,7 @@ def extract_timestamp_from_filename(image_path: str) -> dt:
 
         # Extract the timestamp part and keep only the first 10 characters
         # (ignoring mili seconds)
-        timestamp_str = image_name[15:25]
+        timestamp_str = image_name.split("-")[3][:10]
 
         # return the timestamp as a datetime object with UTC as timezone
         return dt.fromtimestamp(int(timestamp_str), tz=timezone.utc)

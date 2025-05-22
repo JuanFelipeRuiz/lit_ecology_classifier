@@ -1,88 +1,112 @@
 import os
 from datetime import datetime as dt, timezone
-
 import pytest
+
+import typeguard
 from unittest.mock import patch
 
-from lit_ecology_classifier.data_overview.utils.image_processing import ProcessImage
+manager = typeguard.install_import_hook("lit_ecology_classifier.data_overview.utils.image_processing")
+import lit_ecology_classifier.data_overview.utils.image_processing as ip
 
 
-@pytest.fixture
-def image_processor():
-    """Fixture to initialize the ProcessImage class."""
-    hash_algorithm = "sha256"
-    return ProcessImage(hash_algorithm=hash_algorithm)
-
-
-class TestProcessImages:
-    """Test suite for the ProcessImage class."""
-
-    # Test extract_timestamp_from_filename -------------------------------------------------------
-
-    def test_extract_timestamp_from_filename(self, image_processor):
-        """Test correct extraction of a timestamp from a valid filename."""
-        file_name = "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg"
-        expected_timestamp = dt.strptime("2019-10-08 14:02:52", "%Y-%m-%d %H:%M:%S").replace(
+# Test extract_timestamp_from_filename -------------------------------------------------------
+def test_extract_timestamp_from_filename():
+    """Test correct extraction of a timestamp from a valid filename."""
+    file_name = "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg"
+    expected_timestamp = dt.strptime("2019-10-08 14:02:52", "%Y-%m-%d %H:%M:%S").replace(
             tzinfo=timezone.utc
         )
 
-        assert image_processor._extract_timestamp_from_filename(file_name) == expected_timestamp
+    assert ip.extract_timestamp_from_filename(file_name) == expected_timestamp
 
-    def test_extract_timestamp_from_filename_wrong_timestamp_format(self, image_processor):
-        """Test extraction of timestamp raises ValueError for invalid filename format."""
-        file_name = (
-            "SPC-EAWAG-0P5X-1A7054337290115-3725350526242-001629-055-1224-2176-84-64"
+def test_extract_timestamp_from_filename_wrong_timestamp_format():
+    """Test extraction of timestamp raises ValueError for invalid filename format."""
+    file_name = (
+            "SPC-EAWAG-0P5X-1AA7054337290115-3725350526242-001629-055-1224-2176-84-64"
         )
 
-        with pytest.raises(ValueError):
-            image_processor._extract_timestamp_from_filename(file_name)
+    with pytest.raises(ValueError):
+        ip.extract_timestamp_from_filename(file_name)
 
-    # Test extract_plankton_class_datalake ------------------------------------------------------
 
-    @pytest.mark.parametrize(
-        ("version", "path", "expected_class"),
-        [
-            (
-                "1",
-                os.path.join("test", "path", "class1", "train", "image.jpg"),
-                "class1",
-            ),
-            ("2", os.path.join("test", "path", "class2", "image.jpg"), "class2"),
-            ("3", os.path.join("test", "path", "class3", "image.jpg"), "class3"),
-        ],
-    )
-    def test_class_finder(self, image_processor, version, path, expected_class):
-        """Test extraction of the plankton class based on version and path."""
-        assert (
-            image_processor._extract_plankton_class(version=version, image_path=path)
-            == expected_class
-        )
+# Test the different metadata extraction functions ---------------------------------------------
 
-    # Test process_image -------------------------------------------------------------------------
+# mock the return value of the timestamp extraction function to make the test independent of the actual timestamp
+@patch("lit_ecology_classifier.data_overview.utils.image_processing.extract_timestamp_from_filename", return_value= dt.fromtimestamp(int(15705433729), tz=timezone.utc))
+def test_extract_extract_metadata_V1(mock_extract_timestamp):
+    """Test extraction of metadata for version 1."""
+    image_path = os.path.join("mock", "zooplankton_0p5x", "asplanchna", "training_data", "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg") 
+    expected_metadata = {
+        "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg",
+        "class": "asplanchna",
+        "date": dt.fromtimestamp(int(15705433729), tz=timezone.utc),
+    }
 
-    @patch("lit_ecology_classifier.helpers.hashing.HashGenerator.hash_image", return_value="fake_sha256")
-    @patch.object(ProcessImage, "_extract_timestamp_from_filename", return_value="fake_timestamp")
-    @patch.object(ProcessImage, "_extract_plankton_class", return_value="fake_class")
-    def test_process_image_correct_output(
-        self, mock_extract_class, mock_hash_image, mock_extract_timestamp, image_processor
-    ):
-        """Test if `process_image` produces the correct output."""
-        image_name = "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg"
-        image_path = os.path.join("fake_class", "test", image_name)
+    assert ip.extract_metadata_V1(image_path) == expected_metadata
 
-        expected_output = {
-            "image": image_name,
-            "sha256": "fake_sha256",
-            "class": "fake_class",
-            "data_set_version": "1",
-            "date": "fake_timestamp",
-        }
 
-        # Call the method under test
-        assert (
-            image_processor.process_image(image_path=image_path, version="1")
-            == expected_output
-        )
-        mock_hash_image.assert_called_once()
-        mock_extract_class.assert_called_once()
-        mock_extract_timestamp.assert_called_once()
+# mock the return value of the timestamp extraction function to make the test independent of the actual timestamp
+@patch("lit_ecology_classifier.data_overview.utils.image_processing.extract_timestamp_from_filename", return_value= dt.fromtimestamp(int(15705433729), tz=timezone.utc))
+def test_extract_metadata_DSPC(mock_extract_timestamp):
+    """Test extraction of metadata for DSPC dataset."""
+    image_path = os.path.join("mock", "zooplankton_0p5x", "asplanchna",  "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg") 
+    expected_metadata = {
+        "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg",
+        "class": "asplanchna",
+        "date": dt.fromtimestamp(int(15705433729), tz=timezone.utc),
+    }
+
+    assert ip.extract_metadata_DSPC(image_path) == expected_metadata
+
+
+# mock the return value of the timestamp extraction function to make the test independent of the actual timestamp
+@patch("lit_ecology_classifier.data_overview.utils.image_processing.extract_timestamp_from_filename", return_value= dt.fromtimestamp(int(15705433729), tz=timezone.utc))
+def test_extract_metadata_ood(mock_extract_timestamp):
+    """Test extraction of metadata for OOD dataset."""
+    image_path = os.path.join("mock", "ood", "ood_1", "asplanchna", "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg") 
+    expected_metadata = {
+        "image": "SPC-EAWAG-0P5X-1570543372901157-3725350526242-001629-055-1224-2176-84-64.jpeg",
+        "class": "asplanchna",
+        "date": dt.fromtimestamp(int(15705433729), tz=timezone.utc),
+        "ood_cell": "ood_1",
+    }
+    assert ip.extract_metadata_ood(image_path) == expected_metadata
+
+@pytest.fixture
+def test_image_processor():
+    """Fixture to initialize the ProcessImage class."""
+    return ip.ProcessImage()
+
+
+@pytest.mark.parametrize("dataset,expected_mock,other_mocks", [
+        ("zoolake1", "mock_v1", ["mock_dspc", "mock_ood"]),
+        ("zoolake2", "mock_dspc", ["mock_v1", "mock_ood"]),
+        ("ood", "mock_ood", ["mock_v1", "mock_dspc"])
+    ])
+
+@patch('lit_ecology_classifier.data_overview.utils.image_processing.extract_metadata_V1')
+@patch('lit_ecology_classifier.data_overview.utils.image_processing.extract_metadata_DSPC')
+@patch('lit_ecology_classifier.data_overview.utils.image_processing.extract_metadata_ood')
+def test_extractor_called(mock_ood, mock_dspc, mock_v1, dataset, expected_mock, other_mocks):
+    """Test if the correct metadata extractor is called based on dataset version."""
+    image_path = "test_image.jpeg"
+    processor = ip.ProcessImage()
+        
+    # Create mock mapping
+    mock_map = {
+        "mock_v1": mock_v1,
+        "mock_dspc": mock_dspc,
+        "mock_ood": mock_ood
+    }
+        
+    # Execute test
+    processor.extract_metadata(image_path, dataset=dataset)
+        
+    # Assert expected mock was called
+    mock_map[expected_mock].assert_called_once_with(image_path)
+        
+    # Assert other mocks were not called
+    for mock_name in other_mocks:
+        mock_map[mock_name].assert_not_called()
+    
+manager.uninstall()
