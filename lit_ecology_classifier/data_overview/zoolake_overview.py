@@ -21,13 +21,26 @@ class ZooLakeOverviewCreator(BaseOverviewCreator):
 
         
     def _helper_group_by_aggregation(self, group: pd.DataFrame, ranked_datasets: list) -> pd.Series:
-        """Return the row from the highest-ranked dataset (excluding 'unlabelled')."""
+        """Return the row from the highest-ranked dataset (excluding 'unlabelled').
+        
+        and set the dataset column to true, for each dataset it appears in the group."""
+        base_row = None
         for dataset_col in ranked_datasets:
             if dataset_col in group.columns:
                 match = group[group[dataset_col] == 1]
                 if not match.empty:
-                    return match.iloc[0]
-        return group.iloc[0]
+                    base_row = match.iloc[0].copy()
+                    break
+        
+        if base_row is None:
+            base_row = group.iloc[0].copy()
+        
+        # Preserve all dataset flags
+        dataset_cols = [col for col in group.columns if col.startswith('dataset_')]
+        for col in dataset_cols:
+            base_row[col] = group[col].any()
+        
+        return base_row
         
     def _add_one_hot_encoded_versions(self, df: pd.DataFrame) -> pd.DataFrame:
         count_per_dataset_raw = df["dataset"].value_counts()
@@ -58,12 +71,10 @@ class ZooLakeOverviewCreator(BaseOverviewCreator):
             include_groups=False  # Add this parameter to address the warning
         )
 
+        # remove the dataset column 
+        grouped = grouped.drop(columns=["dataset"], errors='ignore')
 
         return grouped.reset_index(drop=True)
-
- 
-
-
 
     def get_overview_with_splits_df(self, reload=False):
         """Get the overview DataFrame with split info merged in."""
