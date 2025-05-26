@@ -17,6 +17,7 @@ setup(
         'torch',
         'torchvision',
         'torchaudio ',
+        'wandb',
         'lightning == 2.2.5',
         'pytorch-lightning == 2.5.1',
         'numpy',
@@ -27,7 +28,7 @@ setup(
         'safetensors',
         'scikit-learn',
         'distinctipy',
-        'wandb',
+        
         # Add other dependencies here
     ],
     entry_points={
