@@ -26,7 +26,8 @@ setup(
         'timm',
         'safetensors',
         'scikit-learn',
-        'distinctipy'
+        'distinctipy',
+        'wandb',
         # Add other dependencies here
     ],
     entry_points={

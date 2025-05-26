@@ -6,13 +6,11 @@ from lit_ecology_classifier.splitting.split_processor import SplitProcessor
 
 
 
-@pytest.mark.skip(reason="Not implemented correct yet.")
 class TestSplitProcessor:
     """Test suite for the SplitProcessor class."""
 
     @pytest.fixture(autouse=True)
-    @patch('lit_ecology_classifier.data.mover.split_images_mover.SplitImageMover')
-    def setup(self, mock_split_image_mover):
+    def setup(self):
         """Fixture to initialize the SplitProcessor with mocks."""
         self.split_strategy_str = 'MockSplitStrategy'
 
@@ -32,8 +30,6 @@ class TestSplitProcessor:
             'description'
         ])
 
-        # Mock SplitImageMover
-        self.mock_image_mover = mock_split_image_mover.return_value
 
         # Initialize SplitProcessor
         self.processor = SplitProcessor(
