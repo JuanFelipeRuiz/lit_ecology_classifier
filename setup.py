@@ -14,22 +14,20 @@ setup(
     long_description_content_type="text/markdown",
     install_requires=[
         'ImageHash',
-        'torch',
+        'torch==2.5.1',
         'torchvision',
-        'torchaudio ',
-        'wandb',
+        'torchaudio',
+        'wandb==0.18.7',
         'lightning==2.2.5',
         'pytorch-lightning==2.5.1',
         'numpy',
         'scipy',
         'pandas',
         'matplotlib',
-        'timm',
+        'timm==0.9.2',
         'safetensors',
         'scikit-learn',
-        'distinctipy',
-        
-        # Add other dependencies here
+        'distinctipy',   
     ],
     entry_points={
         'console_scripts': [
