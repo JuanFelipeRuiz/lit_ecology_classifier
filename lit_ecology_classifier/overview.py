@@ -44,7 +44,7 @@ if __name__ == "__main__":
     logger.info(args)
 
     # create the overview 
-    overview_creator = ZooLakeOverviewCreator(zoolake_version_paths= args.dataset_version_path_dict)
+    overview_creator = ZooLakeOverviewCreator(dataset_version_paths= args.dataset_version_path_dict)
     df = overview_creator.get_overview_df()
 
     # create the output folder and ensure it exists
