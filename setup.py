@@ -29,6 +29,21 @@ setup(
         'scikit-learn',
         'distinctipy',   
     ],
+    extras_require={
+        'dev': [
+            'pytest',
+            'pytest-cov',
+            'black',
+            'flake8',
+            'mypy',
+            'isort',
+            'pre-commit',
+        ],
+        'docs': [
+            'sphinx',
+            'sphinx-rtd-theme',
+        ],
+    },
     entry_points={
         'console_scripts': [
             'lit_ecology_classifier=lit_ecology_classifier.main:main',
