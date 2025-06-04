@@ -43,10 +43,6 @@ jobs:
       run: |
         pylint --max-line-length=140 lit_ecology_classifier/**/*.py || echo "Pylint found issues"
 
-    - name: Check coding style with Black
-      run: |
-        black lit_ecology_classifier/**/*.py --check --diff || echo "Black formatting found issues"
-
     - name: Run unit tests
       run: |
         pytest --cov=lit_ecology_classifier
