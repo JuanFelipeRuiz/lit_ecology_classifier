@@ -8,6 +8,7 @@ import logging
 import os
 import warnings
 
+logger = logging.getLogger(__name__)
 
 class _RawSplitPathPreparer:
     """Prepare the file paths for the train/test/val splits for each ZooLake dataset versions.
@@ -43,14 +44,14 @@ class _RawSplitPathPreparer:
         and stores them in a dictionary.
 
         Args:
-            datapath (str): Path to the folder containg the data for ZooLake dataset
+            datapath (str): Path to the folder containing the data for ZooLake dataset
                              V1 as string
             version (str): Version of the ZooLake dataset as string to generate a key
                              for the path inside the path dictionary
 
         Returns:
-           dict: Dictionary containing the data set version and subdictionory with the paths to the
-                             train/test/val .txt filesas values and the split name as key.
+           dict: Dictionary containing the data set version and subdirectory with the paths to the
+                             train/test/val .txt files as values and the split name as key.
 
         Raises:
             FileNotFoundError: If a txt files do not exist in the folder
@@ -60,7 +61,7 @@ class _RawSplitPathPreparer:
             datapath, "zoolake_train_test_val_separated"
         )
 
-        # create dict to store the paths to the diffrent split .txt files
+        # create dict to store the paths to the different split .txt files
         self._split_file_paths[version] = {
             "train": os.path.join(path_txt_file_folder, "train_filenames.txt"),
             "test": os.path.join(path_txt_file_folder, "test_filenames.txt"),
@@ -91,9 +92,9 @@ class _RawSplitPathPreparer:
         pickle file was found. It does nto raise an error, as a train/test/val split is not
           mandatory for each version of the dataset.
 
-        When the search results withmultiple pickle files, it raises a valueerror. 
+        When the search results with multiple pickle files, it raises a valueerror. 
         Args:
-            datapath (str): Path to the folder containg the data for the given ZooLake Version 
+            datapath (str): Path to the folder containing the data for the given ZooLake Version 
             version (str): Version of the ZooLake dataset as string to generate a key for 
                             the path inside the path dictionary
 
@@ -144,7 +145,7 @@ class _RawSplitPathPreparer:
         - For any other version: it assumes that the splits are stored in a pickle file.
 
 
-        The preparation is unboudled from the loading of the splits, to be able to  the existence of
+        The preparation is unbounded from the loading of the splits, to be able to  the existence of
         missing files at an early stage.
 
         Args:
@@ -158,8 +159,11 @@ class _RawSplitPathPreparer:
         """
 
         self._split_file_paths = {}
-
+        logger.info("Preparing paths to the split files for ZooLake dataset versions: %s",
+                     self.zoolake_version_paths.keys())
         for version, datapath in self.zoolake_version_paths.items():
+            logger.info("Preparing split paths for version '%s' at path '%s'", version, datapath)
+            logger.info("Checking if the path exists: %s", version == "ZooLake1" )
             if version == "ZooLake1" or version == "V1":
                 # Prepare file paths for the txt files (train/test/val)
                 self._prepare_split_paths_from_txt(datapath, version)
