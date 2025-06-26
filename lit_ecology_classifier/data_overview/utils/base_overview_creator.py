@@ -16,6 +16,9 @@ from lit_ecology_classifier.data_overview.utils.raw_split_preparer import _RawSp
 from lit_ecology_classifier.data_overview.utils.raw_split_applier import _RawSplitApplier
 
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 class BaseOverviewCreator:
     """Base class for creating an overview of the images in the dataset versions
 
@@ -23,18 +26,26 @@ class BaseOverviewCreator:
     It includes methods for processing images for a raw dataset, preparations steps before cleaning the dataset, and methods for creating an overview DataFrame with
     image metadata and hashes.
 
-    The steps involved in creating the overview are as follows:
+    The main process consists of the following steps which are hooks that can be overridden in subclasses:
+   
+    1. Prepare the image paths for each given dataset (_prepare_image_paths()) ->  Dict with list of paths for each dataset version.
+    2. Process the images in the dataset versions using the `ProcessImage` class to extract metadata and calculate hashes. -> 
+    3 Afterwards for the overview dataset they are hooks to be overridden in subclasses. The currently defined hooks are some that seemed to be useful:
+        - attach_additional_features: Attach additional features to the raw dataset that are not part of the image metadata.
+        - clean_up_raw_dataset: Clean up the raw dataset (e.g. remove duplicates, change long format to wide format, etc.)
+        - check_overview_df: Check the overview DataFrame for consistency and correctness
 
-    - For the raw dataset:
-        1. Collect image paths from the dataset versions
-        2. Extract the needed metadata from the image paths based on the version of the dataset
+    Attributes:
+        process_image (ProcessImage): The image processor class used to process the images in the dataset versions.
+        dataset_versions_path (dict): A dictionary containing the paths to the different ZooLake dataset versions.
+        image_paths (dict): A dictionary containing the dataset version as key and the image paths as values.
+        _images_list (list): A list containing the processed images with metadata and hashes.
 
-    - Afterwards for the overview dataset:
-        1. Check for duplicates in the dataset
-        2. Attach additional features to the dataset, that are not part of the
-          image metadata but needed for the cleaning step or further processing-
-        3. Clean up the raw dataset (needs to be implemented in subclasses)
-        4. Checks for the dataset (needs to be implemented in subclasses)
+    How to retrieve the overview DataFrame:
+        - Call the `get_overview_df()` or `main_process()` method to get the overview DataFrame containing the image metadata and hashes.
+        - Call the `save_overview_df(output_path)` method to save the overview DataFrame directly to a CSV file.
+        - Call the `get_raw_df()` method to get the raw DataFrame containing only the image metadata and hashes, without any further processing.
+        - Call the `get_duplicates_df()` method to get a DataFrame containing the duplicates in the overview DataFrame.
     """
 
     process_image = ProcessImage
@@ -53,6 +64,7 @@ class BaseOverviewCreator:
 
         self.image_paths = self._prepare_image_paths()
 
+
         # Initialize the image processor
         self.image_processor = ProcessImage() if ImageProcessor is None else ImageProcessor
 
@@ -60,8 +72,25 @@ class BaseOverviewCreator:
         self.split_applier = None  
         self._images_list = []
         self._overview_df = None
-        self._overview_with_splits_df = None
         self._duplicates_df = None
+
+        
+    def main_process(self):
+        """Main process to create the overview DataFrame.
+
+        This method orchestrates the steps to create the overview DataFrame, including processing images,
+        attaching additional features, cleaning up the raw dataset, and checking the overview DataFrame. 
+        Feel free to override this method in subclasses to implement specific logic or adapt the workflow.
+
+        Returns:
+            pd.DataFrame: The overview DataFrame containing the image metadata and hashes, with additional features attached and cleaned up.
+        """
+        df = self.get_raw_df()
+        df = self.attach_additional_features(df)
+        df = self.clean_up_raw_dataset(df)
+        self.check_overview_df()
+        return df
+
 
     def _check_dataset_paths(self, dataset_version_paths: dict) -> dict:
         """Checks if the given paths of the dataset versions exist and are valid
@@ -86,26 +115,27 @@ class BaseOverviewCreator:
         for path in dataset_version_paths.values():
             if not os.path.exists(path):
                 raise FileNotFoundError(f"Path {path} does not exist. Current working directory: {os.getcwd()}")
+            
+        logging.info("All dataset version paths lead to valid directories.Checked: %s" % dataset_version_paths.keys())
 
         return dataset_version_paths
 
     def _collect_image_paths_from_folder(self, version_path) -> list[str]:
-        """Collects image paths from the specified folder and its subfolders.
+        """Collects image paths from the specified folder and its sub-folders.
 
-        Searches the specified folder and its subfolders recursively for image files with a `.jpeg` extension.
+        Searches the specified folder and its sub-folders recursively for image files with a `.jpeg` extension.
         It returns the full paths to each image found,  preparing the list of image paths for further processing.
 
         Args:
-            version_path (str): Conaints version and path to the class. Example: "path/to/zoolakev1"
+            version_path: Contains version and path to the class. Example: "path/to/ZooLake1"
 
         Returns:
-            list[str]: List of found image paths
+            A list of strings containing the full paths to the given images in the specified folder and its sub-folders.
         """
-
         image_path = [
             # join the root path with the file name
             os.path.join(root, file)
-            # walk through the folder and subfoledrs (generates lists of filespath and filenames)
+            # walk through the folder and sub-folders (generates lists of filepath and filenames)
             for root, _, files in os.walk(version_path)
             # loop through the files in the folder
             for file in files
@@ -126,8 +156,7 @@ class BaseOverviewCreator:
                         "2": ["path1", "path2"]
                     }
         """
-
-        return dict(
+        x =  dict(
             map(
                 lambda version_path: (
                     version_path[0],
@@ -137,8 +166,12 @@ class BaseOverviewCreator:
             )
         )
 
+        total_images = sum(len(paths) for paths in x.values())
+        logger.info("Prepared all the image paths. Total number of images found: %s", total_images)
+        return x
+
     def _process_images_by_version(self) -> list[dict]:
-        """Applies the image processing function to a list containg tuples of version and image paths
+        """Applies the image processing function to a list containing tuples of version and image paths
 
         Input of process_image: version, path
         Example of image_paths:
@@ -160,7 +193,7 @@ class BaseOverviewCreator:
 
 
         # Applies the image processing function to each image path and version
-        # Version is needed, since diffrent versions may have diffrent preparations steps
+        # Version is needed, since different versions may have different preparations steps
         with concurrent.futures.ThreadPoolExecutor() as executor:
             processed_images = list(
             executor.map(
@@ -175,19 +208,19 @@ class BaseOverviewCreator:
         return self._images_list
     
     def attach_additional_features(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Placeholder for diffrent features to be attached to the dataset
+        """Placeholder for different features to be attached to the dataset
         This method can be overridden in subclasses to implement specific feature extraction logic.
 
         Args:
             The dataframe containing the raw image metadata and hashes
 
         Returns:
-            None
+           The DataFrame with the additional features attached.
         """
         return df
 
     def clean_up_raw_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Placeholder for diffrent cleaning methods to be applied to the raw dataset
+        """Placeholder for different cleaning methods to be applied to the raw dataset
         This method can be overridden in subclasses to implement specific cleaning logic.
 
         Args:
@@ -200,7 +233,7 @@ class BaseOverviewCreator:
     
     def check_overview_df(self):
         """
-        Placeholder for diffrent checks to be applied to the overview dataset.
+        Placeholder for different checks to be applied to the overview dataset.
         As example, if the expected values are in the dataset. 
 
         Note:
@@ -219,15 +252,13 @@ class BaseOverviewCreator:
         """Get the raw DataFrame containing only the image metadata and hashes, without any further processing."""
         if not self._images_list:
             self._process_images_by_version()
+            logger.info("Processed all images from the dataset versions.")
         return pd.DataFrame(self._images_list)
 
     def get_overview_df(self):
-        """Get the overview DataFrame grouped and the data set version as hot encoded columns."""
+        """Get the overview DataFrame"""
         if self._overview_df is None:
-            df = self.get_raw_df()
-            df = self.attach_additional_features(df)
-            self._overview_df = self.clean_up_raw_dataset(df)
-            self.check_overview_df()
+            self._overview_df = self.main_process()
         return self._overview_df
     
     def save_overview_df(self, output_path: Union[str, Path]):
@@ -235,7 +266,6 @@ class BaseOverviewCreator:
 
         Args:
             output_path: The path to the output CSV file.
-
         """
         overview_df = self.get_overview_df()
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)

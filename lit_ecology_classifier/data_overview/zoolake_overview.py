@@ -1,10 +1,16 @@
+
+
+import logging
 import pandas as pd
 from lit_ecology_classifier.data_overview.utils.base_overview_creator import BaseOverviewCreator
 from lit_ecology_classifier.data_overview.utils.raw_split_preparer import _RawSplitPathPreparer
 from lit_ecology_classifier.data_overview.utils.raw_split_applier import _RawSplitApplier
 from lit_ecology_classifier.data_overview.utils.image_processing import ProcessImage
 
-
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(filename)s - %(levelname)s - %(message)s'
+)
 class ZooLakeOverviewCreator(BaseOverviewCreator):
     """ZooLake-specific implementation of the OverviewCreator with fixed sha256 hashing."""
 
@@ -13,15 +19,16 @@ class ZooLakeOverviewCreator(BaseOverviewCreator):
         ImageProcessor = ProcessImage()
         super().__init__(dataset_version_paths=dataset_version_paths, ImageProcessor=ImageProcessor)
 
-    def attach_additional_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        self._overview_with_splits_df = None
+
+    def clean_up_raw_dataset(self, df: pd.DataFrame) -> pd.DataFrame:
 
         df = self._add_one_hot_encoded_versions(df)
-        #df = self._fix_ood_columns(df)
         return df
 
         
     def _helper_group_by_aggregation(self, group: pd.DataFrame, ranked_datasets: list) -> pd.Series:
-        """Return the row from the highest-ranked dataset (excluding 'unlabelled').
+        """Return the row from the highest-ranked dataset (excluding 'unlabeled').
         
         and set the dataset column to true, for each dataset it appears in the group."""
         base_row = None
@@ -43,6 +50,12 @@ class ZooLakeOverviewCreator(BaseOverviewCreator):
         return base_row
         
     def _add_one_hot_encoded_versions(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Ensure that we can see in which dataset the image appears.
+
+        Args:
+            df: DataFrame containing the overview of the ZooLake dataset.
+        """
         count_per_dataset_raw = df["dataset"].value_counts()
 
         # Convert to prefixed form to match one-hot columns
@@ -62,13 +75,10 @@ class ZooLakeOverviewCreator(BaseOverviewCreator):
         df = pd.concat([df, df_versions], axis=1)
 
 
-        grouped = df.groupby(
-            ["image", "class", "hash"], 
-            as_index=False, 
-            sort=False
+        grouped = df.groupby(["image", "class", "hash"], as_index=False, sort=False
         ).apply(
             lambda group: self._helper_group_by_aggregation(group, ranked_datasets),
-            include_groups=False  # Add this parameter to address the warning
+            include_groups=False  
         )
 
         # remove the dataset column 
@@ -79,8 +89,11 @@ class ZooLakeOverviewCreator(BaseOverviewCreator):
     def get_overview_with_splits_df(self, reload=False):
         """Get the overview DataFrame with split info merged in."""
         if self._overview_with_splits_df is None or reload:
+            logging.info("Preparing paths to the split overview files.")
             split_paths = _RawSplitPathPreparer(self.dataset_versions_path).prepare_split_paths()
+            logging.info("Split paths prepared. Found paths: %s", split_paths)
             overview_df = self.get_overview_df()
+            logging.info("Applying splits to the overview DataFrame")
             self._overview_with_splits_df = _RawSplitApplier(split_paths).apply_splits(overview_df)
         return self._overview_with_splits_df
 
@@ -96,5 +109,5 @@ if __name__ == "__main__":
     
     creator = ZooLakeOverviewCreator(dataset_version_paths=dataset_paths)
     overview_df = creator.get_overview_with_splits_df()
-    overview_df.to_csv("overview_df_Debug.csv", index=False)
+    overview_df.to_csv("overview_df_debug.csv", index=False)
     print(overview_df.head())
