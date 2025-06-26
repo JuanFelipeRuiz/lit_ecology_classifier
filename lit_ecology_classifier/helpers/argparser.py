@@ -33,23 +33,35 @@ def args_for_overview():
     """Subgroup of arguments needed for the overview creation"""
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--dataset_version_path_dict", type=load_dict, default="config/dataset_versions.json", help="Path to the json file containing the image versions and their corresponding paths")
-    parser.add_argument("--summarise_to", type= str, default = None , help="If a path is given, the given versions are summarised int to the given path. If empty, no summarisation is done")
     return parser
 
 
 def args_for_split():
      # Args for the split process
     parser = argparse.ArgumentParser(add_help=False)
+
     parser.add_argument("--split_hash", type=str, default= None, help="Hash of the split to reuse. If empty, no hash search is used")
-    parser.add_argument("--split_strategy", type=str, default= "Stratified", help="Split strategy to use. Needs to be saved in the lit_ecology_classifier/split_strategies folder")
-    parser.add_argument("--filter_strategy", type=str, default= "PlanktonFilter", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
-    parser.add_argument("--description", type=str, default=None, help ="Description of split, if " )
+    parser.add_argument("--description", type=str, default=None, help ="Optional description of the split")
+
+    artefacts_split = parser.add_argument_group("Args for the split artefacts")
+    artefacts_split.add_argument("--split_folder", type=str, default="splis", help="Folder where the split artefacts are stored")
+    artefacts_split.add_argument("--split_overview_path", type=str, default="split_overview.csv", help="Name of the split overview file to load/save")
+
+    # create goup for better overview
+    split_strategy_args = parser.add_argument_group("Args for split strategies")
+    split_strategy_args.add_argument("--split_strategy", type=str, default= "stratified", help="Split strategy to use. Needs to be saved in the lit_ecology_classifier/split_strategies folder")
+    split_strategy_args.add_argument("--split_args", type=load_dict, default= None, help="Path to the file containing the arguments for the split strategy")
+    
+    # Args for the filtering process
+    filter_args = parser.add_argument_group("Args for filtering strategies")
+    filter_args.add_argument("--filter_strategy", type=str, default= "plankton_filter", help="Filter strategy to use. Needs to be saved in the lit_ecology_classifier/filter_strategies folder")
+    filter_args.add_argument("--zoolake_version", choices=["v1", "v2", "v3" , "new"], default="v2", help="Version of the ZooLake dataset to use for modeling. New does not use any ZooLake dataset.")
+    filter_args.add_argument("--ood", choices=["v2", None], default="None", help= "Version of the Zoolake and OOD to use.")
+    filter_args.add_argument("--priority_classes", type= load_class_definitions, default=None, help="List of priority classes or path to the JSON file containing the priority classes")
+    filter_args.add_argument("--rest_classes", type=load_class_definitions, default=None, help="List of rest classes or path to the JSON file containing the rest classes")
+
     # Args for the split process, that can be loaded from a json file
-    parser.add_argument("--split_args", type=load_dict, default= None, help="Path to the file containing the arguments for the split strategy")
-    parser.add_argument("--filter_args", type=load_dict, default= None, help="Path to the file containing the arguments for the filter strategy")
     parser.add_argument("--class_map", type=load_dict, default= None, help="Path to the file containing the arguments for the filter strategy")
-    parser.add_argument("--priority_classes", type= load_class_definitions, default=None, help="List of priority classes or path to the JSON file containing the priority classes")
-    parser.add_argument("--rest_classes", type=load_class_definitions, default=None, help="List of rest classes or path to the JSON file containing the rest classes")
     return parser
 
 def args_for_train():
@@ -295,9 +307,9 @@ def load_class_definitions(user_input: Union[str, None, list]) -> list :
             return class_dict["rest_classes"]
         
         raise argparse.ArgumentTypeError(f"{user_input} does not contain a valid class definition. Please provide a JSON file containing 'priority_classes' or 'rest_classes' as key")
-
     
-    raise argparse.ArgumentTypeError(f"{user_input} is not a path to a JSON file or list containing the class definitions")
+    return user_input
+
     
 # Example of using the argument parser
 if __name__ == "__main__":
