@@ -1,71 +1,59 @@
-"""
-Custom filter for the plankifier dataset that inherited from the `BaseFilter` class.
-
-The PlanktonFilter class is used to filter the image overview over the different versions of
-the dataset and the OOD images introduced by the (research)[[https://arxiv.org/abs/2401.14256]
-of cheng chen.  
-"""
-
-import logging
-from typing import Union
-
 import pandas as pd
-
+from typing import Union
 import lit_ecology_classifier.helpers.filter as filter_helpers
-from lit_ecology_classifier.splitting.filtering.base_filter import BaseFilter
 
-logger = logging.getLogger(__name__)
-
-
-class PlanktonFilter(BaseFilter):
+def plankton_filter(
+    image_overview: pd.DataFrame,
+    dataset_version: Union[str, list[str], None] = None,
+    ood: Union[str, list[str], None] = None,
+    rest_classes: Union[str, list[str], None] = None,
+    **kwargs: Union[str, list[str], None]
+) -> pd.DataFrame:
     """
-    Filter to include and exclude images from the plankifier dataset based on the OOD
-    and the dataset version.
+    Filters the image overview for images that are part of the plankifier dataset.
 
+    Args:
+        image_overview: A DataFrame containing the image overview.
+        dataset_version: Versions to include; if 'all' or None, includes all.
+        ood: If specified, filters out OOD images with that tag.
 
-    Assumes that version and ood columns are present in the image overview dataframe 
-    with the following naming convention: "version_str" or "ood_str"
-    The "str" part is the dataset version or the OOD name to filter by.
-
-    Attributes:
-        dataset_version: Dataset versions to include in the dataset. If "all" or None,
-            all versions are included.
-        ood: If given, it filters the images used for the OOD version out of the dataset.
+    Returns:
+        A filtered image overview dataframe.
     """
+    dataset_version = filter_helpers.prepare_args_to_filter(dataset_version)
+    ood = filter_helpers.prepare_args_to_filter(ood)
 
-    def __init__(
-        self, 
-        dataset_version: Union[str, list[str], None] = None, 
-        ood: Union[str, list[str]] = None
-    ):
-        """
-        Initializes the PlankifierVersionFilter.
+    df = filter_helpers.filter_versions(image_overview, dataset_version)
+    df = filter_helpers.filter_ood_images(df, ood)
 
-        Args:
-            dataset_version:
-                Dataset versions to include in the dataset. If "all" or None,
-                all versions are included.
-            ood:
-                If given, it filters the images used for the OOD out of the dataset.
-        """
-        self.dataset_version = filter_helpers.prepare_args_to_filter(dataset_version)
-        self.ood = filter_helpers.prepare_args_to_filter(ood)
+    # remove rest classes if specified
+    if rest_classes:
+        rest_classes = filter_helpers.prepare_args_to_filter(rest_classes)
+        df = df[~df['class'].isin(rest_classes)]
 
-    def filter_image_overview(self, image_overview: pd.DataFrame) -> pd.DataFrame:
-        """
-        Filters the image overview for images that are part of the plankifier version.
+    return df
 
-        Args:
-            image_overview: A DataFrame containing the image overview.
 
-        Returns:
-            The filtered image overview dataframe.
-        """
-        filterd_image_overview = filter_helpers.filter_versions(
-            image_overview, self.dataset_version
-        )
+def PlanktonFilter(
+    image_overview: pd.DataFrame,
+    dataset_version: Union[str, list[str], None] = None,
+    ood: Union[str, list[str], None] = None
+) -> pd.DataFrame:
+    """
+    Filters the image overview for images that are part of the plankifier dataset.
 
-        filterd_image_overview = filter_helpers.filter_ood_images(
-            filterd_image_overview, self.ood
-        )
-        return filterd_image_overview
+    Args:
+        image_overview: A DataFrame containing the image overview.
+        dataset_version: Versions to include; if 'all' or None, includes all.
+        ood: If specified, filters out OOD images with that tag.
+
+    Returns:
+        A filtered image overview dataframe.
+    """
+    dataset_version = filter_helpers.prepare_args_to_filter(dataset_version)
+    ood = filter_helpers.prepare_args_to_filter(ood)
+
+    df = filter_helpers.filter_versions(image_overview, dataset_version)
+    df = filter_helpers.filter_ood_images(df, ood)
+
+    return df

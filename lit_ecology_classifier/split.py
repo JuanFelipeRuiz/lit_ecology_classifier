@@ -18,13 +18,46 @@ from time import time
 
 import pandas as pd
 
-from lit_ecology_classifier.splitting.split_processor import SplitProcessor
+from lit_ecology_classifier.splitting.lit_split_processor import SplitProcessor
 from lit_ecology_classifier.helpers.argparser import split_argparser
 
 
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(levelname)s - %(filename)s - %(lineno)d: %(message)s',
+    force = True
+)
 
 logger = logging.getLogger(__name__)
+
+
+
+def get_split(args: typing.Any) -> str:
+    """Main script to get the splits"""
+    split_processor = SplitProcessor(
+                                    image_overview = image_overview_path,                                
+                                    )
+    filter_args = {
+            "rest_classes":  args.rest_classes,
+            "priority_classes":  args.priority_classes,
+        }
+    
+    split_args = {}
+
+    print(filter_args)
+        # Append the  args to filter_args
+        
+    split_processor.run(
+                        split_strategy = args.split_strategy,
+                        filter_strategy =  args.filter_strategy,
+                        split_args= split_args,
+                        filter_args= filter_args,
+        )
+    split_processor.save_outputs(description= args.description)
+
+    return split_processor.get_split_overview(), split_processor.get_class_map()
+
+
 
 if __name__ == "__main__":
     print("\nRunning", sys.argv[0], sys.argv[1:])
@@ -37,23 +70,12 @@ if __name__ == "__main__":
     logger.info(args)
 
     # prepare file and folder paths
-    image_overview_path = pathlib.Path(args.dataset)/args.overview_filename
+    image_overview_path = "data/phyto_artifacts/overview.csv" #pathlib.Path(args.dataset)/args.overview_filename
 
     split_overview_path = pathlib.Path(args.dataset)/f"split_overview.csv"
 
     pathlib.Path(args.dataset).mkdir(parents=True, exist_ok=True)
 
-    split_processor = SplitProcessor(
-                                split_overview_path = split_overview_path,
-                                image_overview = image_overview_path,
-                                split_hash = args.split_hash,
-                                split_strategy = args.split_strategy,
-                                filter_strategy =  args.filter_strategy,
-                                split_args= args.split_args,
-                                filter_args= args.filter_args,
-                                class_map= args.class_map,
-                                priority_classes= args.priority_classes,
-                                rest_classes= args.rest_classes
-                                )
-    
-    split_processor.save_split(description= args.description)
+    split_df, class_map = get_split(args)
+
+ 

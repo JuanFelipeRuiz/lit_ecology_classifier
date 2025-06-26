@@ -156,6 +156,7 @@ class SplitManager:
         Returns:
             A DataFrame containing the split data and further informations.
         """
+        
         split_df = self.split_strategy.perform_split(filtered_df, y_col="class_map")
         return self._transform_split_dict(split_df)
 

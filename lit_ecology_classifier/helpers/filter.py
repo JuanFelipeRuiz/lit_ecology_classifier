@@ -35,7 +35,7 @@ def prepare_args_to_filter(arg_input: Union[str, list[str], None]) -> list[str]:
         if arg_input == "all":
             return []
 
-        return [arg_input]
+        return arg_input.split(",") if "," in arg_input else [arg_input]
 
     if isinstance(arg_input, list):
         return arg_input
