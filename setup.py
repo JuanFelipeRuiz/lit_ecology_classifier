@@ -38,6 +38,7 @@ setup(
             'mypy',
             'isort',
             'pre-commit',
+            'typeguard'
         ],
         'docs': [
             'sphinx',
