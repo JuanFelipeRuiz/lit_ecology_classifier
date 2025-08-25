@@ -34,14 +34,6 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e ".[dev]"  # Install package with development dependencies
 
-    - name: Lint with flake8
-      run: |
-        flake8 -v lit_ecology_classifier/**/*.py --count --select=E9,F7,F82 --show-source --statistics || echo "Flake8 found issues"
-
-    - name: Lint with pylint
-      run: |
-        pylint --max-line-length=140 lit_ecology_classifier/**/*.py || echo "Pylint found issues"
-
     - name: Run unit tests
       run: |
         pytest --cov=lit_ecology_classifier
