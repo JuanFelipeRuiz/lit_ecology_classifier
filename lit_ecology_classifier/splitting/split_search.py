@@ -91,7 +91,7 @@ def find_matching_args(split_entry, new_entry_args, columns_to_ignore=None):
         
         actual_raw = split_entry[key]
         # If the actual value is NaN, we treat it as an empty set
-        if pd.isna(actual_raw) and pd.isna(expected):
+        if not normalize_value(actual_raw) and not normalize_value(expected):
             split_entry = split_entry.drop(key)  # Drop the key for the final check
             continue
 
