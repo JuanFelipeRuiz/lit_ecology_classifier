@@ -144,7 +144,6 @@ class LitClassifier(LightningModule):
         self.datamodule = datamodule
         self.hparams.TTA = datamodule.TTA
         self.hparams.datapath = datamodule.datapath
-        self.hparams.splits = datamodule.splits
         self.hparams.batch_size = datamodule.batch_size
         self.hparams.augmentation_level = datamodule.augmentation_level
         self.hparams.resize_with_proportions = datamodule.resize_with_proportions
