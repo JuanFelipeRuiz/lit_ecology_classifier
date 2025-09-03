@@ -7,19 +7,20 @@ It downloads the datasets from the Eawag Open Data platform Eric and extracts th
 
 Supported datasets:
 
-- ZooLake1
-- ZooLake2
-- OOD
-- Soon to be added: ZooLake3
-- Soon to be added: Mini ZooLake2
-- Soon to be added: Mini OOD
+"mini_dataset": subset of zoolake, stored in the github repo
+"mini_OOD": subset of the ODD set, stored in the github repo
+"ZooLake1": "https://opendata.eawag.ch/dataset/52b6ba86-5ecb-448c-8c01-eec7cb209dc7/resource/1cc785fa-36c2-447d-bb11-92ce1d1f3f2d/download/data.zip",
+"ZooLake2": "https://opendata.eawag.ch/dataset/1aee0a2a-e1a7-4910-8151-4fc67c15dc63/resource/e241f3df-24f5-492a-9d5c-c17cacab28f2/download/2562ce1c-5015-4599-9a4e-3a1a1026af50-zoolake2.zip",
+"OOD": "https://opendata.eawag.ch/dataset/1aee0a2a-e1a7-4910-8151-4fc67c15dc63/resource/0262dc4f-f165-41e5-923d-f8eb3e744f4f/download/48b71667-4d12-4396-aec9-b760977eeb72-ood_data.zip",
+
 
 Example usage:
 
 ```bash / cmd
-python -m lit_ecology_classifier.perepare_eco_data ZooLake1
+python -m lit_ecology_classifier.perepare_eco_data --dataset ZooLake1
 ```
 """
+
 import os
 import argparse
 import sys
@@ -31,7 +32,18 @@ import json
 
 import requests
 
+
+def args_data_download():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description="Download and extract datasets.")
+    parser.add_argument(
+        "--dataset", type=str, help="The name of the dataset to download."
+    )
+    return parser.parse_args()
+
+
 class GetEcologyData:
+    """Class to handle the downloading and extraction of the different ZooLake Datasets"""
     def __init__(self, dataset):
         self.dataset = dataset
         self.url = None
@@ -65,7 +77,7 @@ class GetEcologyData:
             raise ValueError(
                 f"Dataset not available. Currently supported datasets: {dataset_urls.keys()}"
             )
-        
+
         self.url = dataset_urls[self.dataset]
 
     def download_file(self):
@@ -85,7 +97,7 @@ class GetEcologyData:
 
         except requests.RequestException as e:
             raise ValueError(f"Could not download file from {self.url}: {e}") from e
-        
+
     def search_for_zip(self):
         """Search for a zip file in the current directory containing the dataset name"""
         self.zip_file = self.data_folder_path / f"{self.dataset}.zip"
@@ -95,12 +107,10 @@ class GetEcologyData:
             if response.lower() == "y":
                 self.zip_file = self.data_folder_path / f"{self.dataset}.zip"
                 return True
-            elif response.lower() == "n":
-                print("ignoring the existing zip file.")
+
+            print("ignoring the existing zip file.")
 
         return False
-
-       
 
     def extract_zip(self):
         """Extract a zip file to the specified directory.
@@ -116,25 +126,38 @@ class GetEcologyData:
         try:
             logging.info("Extracting the zip file: %s", self.zip_file)
             with zipfile.ZipFile(self.zip_file, "r") as zip_ref:
-  
+
                 common_prefix = os.path.commonprefix(zip_ref.namelist())
 
                 if common_prefix == "":
                     zip_ref.extractall(self.dataset_path)
-                    
 
                 else:
                     zip_ref.extractall(self.data_folder_path)
-                
-                if common_prefix != "" and common_prefix != self.dataset:
+
+                if common_prefix not in ("", self.dataset):
                     folder_to_rename = self.data_folder_path / common_prefix
                     folder_to_rename.rename(self.dataset_path)
 
-                
             logging.info("Extracted to %s", self.dataset_path)
         except zipfile.BadZipFile as e:
             raise ValueError(f"could not extract the zip file: {e}") from e
 
+    def add_gitignore(self):
+        """Adds the current dataset to the .gitignore file"""
+        gitignore_path = self.data_folder_path / ".gitignore"
+
+        if not gitignore_path.exists():
+            # Create a new .gitignore with ignoring the dataset
+            with open(gitignore_path, "w") as gitignore_file:
+                gitignore_file.write(f".gitignore\n{self.dataset}\n")
+        else:
+            # Append dataset only if it's not already present
+            with open(gitignore_path, "r+") as gitignore_file:
+                content = gitignore_file.read()
+                #  Ensures it only adds the dataset if it's not already present.
+                if self.dataset not in content.splitlines():
+                    gitignore_file.write(f"\n{self.dataset}\n")
 
     def prepare_folders(self):
         """Create a folder for the specified dataset
@@ -146,9 +169,11 @@ class GetEcologyData:
             dataset: The name of the dataset.
 
         """
-        if self.dataset_path.exists() and  self.dataset_path.suffix != '.zip':
+        if self.dataset_path.exists() and self.dataset_path.suffix != ".zip":
             print(f"The target folder {self.dataset_path} already exists.")
-            response = input("Do you want to overwrite it? If no, the data preparation will be exited. (y/n): ")
+            response = input(
+                "Do you want to overwrite it? If no, the data preparation will be exited. (y/n): "
+            )
             if response.lower() != "y":
                 print("Exiting...")
                 sys.exit(0)
@@ -178,11 +203,11 @@ class GetEcologyData:
             # transform the values to Path objects
             data = {key: Path(value) for key, value in data.items()}
 
-            # check if the dataset is already in the config file with the same path and no other datasets are present
+            # check if a user input is needed for the data config file
             if (
-                self.dataset in data
-                and data[self.dataset] == self.dataset_path
-                and data.keys() == {self.dataset}
+                self.dataset in data # check if the dataset is already in the config file
+                and data[self.dataset] == self.dataset_path # check if the path is equal
+                and data.keys() == {self.dataset} # check if no other datasets are present
             ):
                 return
 
@@ -221,9 +246,8 @@ class GetEcologyData:
 
     def main(self):
         """Main function to download and extract the dataset."""
-      
 
-        logging.info("Preparing the folders for: %s", dataset)
+        logging.info("Preparing the folders for: %s", self.dataset)
         self.get_dataset_urls()
 
         self.prepare_folders()
@@ -231,26 +255,20 @@ class GetEcologyData:
         zip_found = self.search_for_zip()
 
         if not zip_found:
-            logging.info("Downloading the dataset: %s", dataset)
+            logging.info("Downloading the dataset: %s", self.dataset)
             self.download_file()
 
         # extract the zip file
         self.extract_zip()
 
-        # if the zip file was downloaded, remove it 
+        self.add_gitignore()
+
+        # if the zip file was downloaded, remove it
         if not zip_found:
             self.zip_file.unlink()
-            logging.info("Dataset %s is ready at %s", self.dataset,self.dataset_path)
+            logging.info("Dataset %s is ready at %s", self.dataset, self.dataset_path)
 
         self.set_conifg_file()
-
-def argss():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description="Download and extract datasets.")
-    parser.add_argument(
-        "--dataset", type=str, help="The name of the dataset to download."
-    )
-    return parser.parse_args()
 
 
 if __name__ == "__main__":
@@ -262,11 +280,10 @@ if __name__ == "__main__":
 
     start_time = time.time()
 
+    args = args_data_download()
+    dataset_user = args.dataset
 
-    args = argss()
-    dataset = args.dataset
-
-    GetEcologyData(dataset).main()
+    GetEcologyData(dataset_user).main()
 
     # end time of the script
     total_secs = time.time() - start_time
