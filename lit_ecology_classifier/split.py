@@ -70,7 +70,7 @@ if __name__ == "__main__":
     logger.info(args)
 
     # prepare file and folder paths
-    image_overview_path = "data/phyto_artifacts/overview.csv" #pathlib.Path(args.dataset)/args.overview_filename
+    image_overview_path = "data/"+  args.dataset + "_artefacts/" + args.overview_filename
 
     split_overview_path = pathlib.Path(args.dataset)/f"split_overview.csv"
 
