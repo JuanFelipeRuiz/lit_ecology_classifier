@@ -241,9 +241,9 @@ def define_resize_transformation(
         list: A list containing the chosen resize transformation.
     """
     return (
-        [ToImage(),ResizeWithProportions(target_size)]
+        [ResizeWithProportions(target_size), ToImage()]
         if resize_with_proportions
-        else [ToImage(),Resize(target_size)]
+        else [Resize(target_size), ToImage()]
     )
 
 
