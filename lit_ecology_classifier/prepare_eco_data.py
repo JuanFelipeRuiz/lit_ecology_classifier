@@ -137,7 +137,8 @@ class GetEcologyData:
 
                 if common_prefix not in ("", self.dataset):
                     folder_to_rename = self.data_folder_path / common_prefix
-                    folder_to_rename.rename(self.dataset_path)
+                    if folder_to_rename != self.dataset_path:
+                        folder_to_rename.rename(self.dataset_path)
 
             logging.info("Extracted to %s", self.dataset_path)
         except zipfile.BadZipFile as e:
